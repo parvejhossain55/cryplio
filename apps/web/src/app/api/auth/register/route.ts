@@ -5,10 +5,14 @@ const API_BASE_URL = process.env.API_GATEWAY_URL || "http://localhost:8080";
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
+        
+        // Forward cookies from incoming request to backend
+        const cookieHeader = request.headers.get("cookie") || "";
         const response = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
+                cookie: cookieHeader,
             },
             body: JSON.stringify(body),
             credentials: "include",

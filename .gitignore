@@ -5,6 +5,8 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+Cryplio.postman_collection.json
+
 
 # Environment files
 .env

@@ -10,7 +10,7 @@ P2P Cryptocurrency Exchange Platform
 | Document Version | 1.0 |
 | :---- | :---- |
 | **Status** | Draft |
-| **Prepared By** | Cryplio Product Team |
+| **Prepared By** | Parvej Hossain |
 | **Date** | 2025 |
 | **Classification** | Confidential |
 
@@ -369,7 +369,7 @@ Cryplio is a standalone SaaS platform accessible via web browsers and mobile app
 
 * CDN: static assets (JS, CSS, images) served via CloudFront/Cloudflare CDN
 
-* Queue system: RabbitMQ or AWS SQS for async tasks (notifications, blockchain monitoring)
+* Queue system: Asyncq for async tasks (notifications, blockchain monitoring)
 
 * Microservices-ready: modular architecture allows individual services to be extracted
 

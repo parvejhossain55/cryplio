@@ -9,30 +9,18 @@ import (
 	"github.com/google/uuid"
 )
 
+// Type aliases for domain types
 type User = domainidentity.User
 type UserStats = domainidentity.UserStats
 type UserOAuth = domainidentity.UserOAuth
 type NullUUID = domainidentity.NullUUID
+type EmailVerificationToken = domainidentity.EmailVerificationToken
+type PasswordResetToken = domainidentity.PasswordResetToken
+type UserSession = domainidentity.UserSession
+type TwoFactorPending = domainidentity.TwoFactorPending
 
-// UserRepository defines data access for users
-type UserRepository interface {
-	GetByID(ctx context.Context, id uuid.UUID) (*User, error)
-	GetByEmail(ctx context.Context, email string) (*User, error)
-	GetByUsername(ctx context.Context, username string) (*User, error)
-	Create(ctx context.Context, user *User) error
-	Update(ctx context.Context, user *User) error
-	Delete(ctx context.Context, id uuid.UUID) error
-	GetAll(ctx context.Context, limit, offset int) ([]User, error)
-	IncrementLogin(ctx context.Context, userID uuid.UUID) error
-	IncrementFailedAttempts(ctx context.Context, userID uuid.UUID) (int, error)
-	GetStats(ctx context.Context, userID uuid.UUID) (*UserStats, error)
-	// OAuth
-	GetOAuthByProviderID(ctx context.Context, provider, providerUserID string) (*UserOAuth, error)
-	CreateOAuth(ctx context.Context, oauth *UserOAuth) error
-	UpdateOAuth(ctx context.Context, oauth *UserOAuth) error
-	GetOAuthByUserID(ctx context.Context, userID uuid.UUID) ([]UserOAuth, error)
-	DeleteOAuth(ctx context.Context, id uuid.UUID) error
-}
+// UserRepository is the domain interface (aliased for convenience)
+type UserRepository = domainidentity.UserRepository
 
 // userRepository implements UserRepository using PostgreSQL
 type userRepository struct {
@@ -468,6 +456,375 @@ func (r *userRepository) DeleteOAuth(ctx context.Context, id uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
 		return fmt.Errorf("delete oauth: %w", err)
+	}
+	return nil
+}
+
+// ============================================================
+// Email Verification Token Methods
+// ============================================================
+
+// CreateEmailVerificationToken creates a new email verification token
+func (r *userRepository) CreateEmailVerificationToken(ctx context.Context, token *EmailVerificationToken) error {
+	query := `
+		INSERT INTO email_verification_tokens (user_id, token_hash, expires_at, created_at)
+		VALUES ($1, $2, $3, NOW())
+		RETURNING id, created_at
+	`
+	err := r.db.QueryRowContext(
+		ctx, query,
+		token.UserID, token.TokenHash, token.ExpiresAt,
+	).Scan(&token.ID, &token.CreatedAt)
+	if err != nil {
+		return fmt.Errorf("create email verification token: %w", err)
+	}
+	return nil
+}
+
+// GetEmailVerificationTokenByHash returns a token by its hash
+func (r *userRepository) GetEmailVerificationTokenByHash(ctx context.Context, tokenHash string) (*EmailVerificationToken, error) {
+	query := `
+		SELECT id, user_id, token_hash, expires_at, verified_at, created_at
+		FROM email_verification_tokens
+		WHERE token_hash = $1
+	`
+	var token EmailVerificationToken
+	err := r.db.QueryRowContext(ctx, query, tokenHash).Scan(
+		&token.ID, &token.UserID, &token.TokenHash, &token.ExpiresAt,
+		&token.VerifiedAt, &token.CreatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("query email verification token by hash: %w", err)
+	}
+	return &token, nil
+}
+
+// GetEmailVerificationToken returns a token by ID (optional, kept for compatibility)
+func (r *userRepository) GetEmailVerificationToken(ctx context.Context, id int) (*EmailVerificationToken, error) {
+	query := `
+		SELECT id, user_id, token_hash, expires_at, verified_at, created_at
+		FROM email_verification_tokens
+		WHERE id = $1
+	`
+	var token EmailVerificationToken
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&token.ID, &token.UserID, &token.TokenHash, &token.ExpiresAt,
+		&token.VerifiedAt, &token.CreatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("query email verification token: %w", err)
+	}
+	return &token, nil
+}
+
+// GetEmailVerificationTokenByUserID returns the latest unverified token for a user
+func (r *userRepository) GetEmailVerificationTokenByUserID(ctx context.Context, userID uuid.UUID) (*EmailVerificationToken, error) {
+	query := `
+		SELECT id, user_id, token_hash, expires_at, verified_at, created_at
+		FROM email_verification_tokens
+		WHERE user_id = $1 AND verified_at IS NULL
+		ORDER BY created_at DESC
+		LIMIT 1
+	`
+	var token EmailVerificationToken
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(
+		&token.ID, &token.UserID, &token.TokenHash, &token.ExpiresAt,
+		&token.VerifiedAt, &token.CreatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("query email verification token by user: %w", err)
+	}
+	return &token, nil
+}
+
+// MarkEmailVerificationTokenVerified marks a token as verified
+func (r *userRepository) MarkEmailVerificationTokenVerified(ctx context.Context, id int) error {
+	query := `
+		UPDATE email_verification_tokens
+		SET verified_at = NOW()
+		WHERE id = $1 AND verified_at IS NULL
+	`
+	res, err := r.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("mark email verification token verified: %w", err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return fmt.Errorf("token not found or already verified")
+	}
+	return nil
+}
+
+// ============================================================
+// Password Reset Token Methods
+// ============================================================
+
+// CreatePasswordResetToken creates a new password reset token
+func (r *userRepository) CreatePasswordResetToken(ctx context.Context, token *PasswordResetToken) error {
+	query := `
+		INSERT INTO password_reset_tokens (user_id, token_hash, ip_address, expires_at, created_at)
+		VALUES ($1, $2, $3, $4, NOW())
+		RETURNING id, created_at
+	`
+	var ipAddress sql.NullString
+	if token.IPAddress != nil {
+		ipAddress = sql.NullString{String: *token.IPAddress, Valid: true}
+	}
+	err := r.db.QueryRowContext(
+		ctx, query,
+		token.UserID, token.TokenHash, ipAddress, token.ExpiresAt,
+	).Scan(&token.ID, &token.CreatedAt)
+	if err != nil {
+		return fmt.Errorf("create password reset token: %w", err)
+	}
+	return nil
+}
+
+// GetPasswordResetToken returns a token by its hash
+func (r *userRepository) GetPasswordResetToken(ctx context.Context, tokenHash string) (*PasswordResetToken, error) {
+	query := `
+		SELECT id, user_id, token_hash, ip_address, expires_at, used_at, created_at
+		FROM password_reset_tokens
+		WHERE token_hash = $1
+	`
+	var token PasswordResetToken
+	var ipAddress sql.NullString
+	err := r.db.QueryRowContext(ctx, query, tokenHash).Scan(
+		&token.ID, &token.UserID, &token.TokenHash, &ipAddress,
+		&token.ExpiresAt, &token.UsedAt, &token.CreatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("query password reset token: %w", err)
+	}
+	if ipAddress.Valid {
+		token.IPAddress = &ipAddress.String
+	}
+	return &token, nil
+}
+
+// GetPasswordResetTokenByUserID returns the latest unused token for a user
+func (r *userRepository) GetPasswordResetTokenByUserID(ctx context.Context, userID uuid.UUID) (*PasswordResetToken, error) {
+	query := `
+		SELECT id, user_id, token_hash, ip_address, expires_at, used_at, created_at
+		FROM password_reset_tokens
+		WHERE user_id = $1 AND used_at IS NULL
+		ORDER BY created_at DESC
+		LIMIT 1
+	`
+	var token PasswordResetToken
+	var ipAddress sql.NullString
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(
+		&token.ID, &token.UserID, &token.TokenHash, &ipAddress,
+		&token.ExpiresAt, &token.UsedAt, &token.CreatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("query password reset token by user: %w", err)
+	}
+	if ipAddress.Valid {
+		token.IPAddress = &ipAddress.String
+	}
+	return &token, nil
+}
+
+// MarkPasswordResetTokenUsed marks a token as used
+func (r *userRepository) MarkPasswordResetTokenUsed(ctx context.Context, id int) error {
+	query := `
+		UPDATE password_reset_tokens
+		SET used_at = NOW()
+		WHERE id = $1 AND used_at IS NULL
+	`
+	res, err := r.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("mark password reset token used: %w", err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return fmt.Errorf("token not found or already used")
+	}
+	return nil
+}
+
+// ============================================================
+// Session Methods
+// ============================================================
+
+// CreateSession creates a new user session
+func (r *userRepository) CreateSession(ctx context.Context, session *UserSession) error {
+	query := `
+		INSERT INTO user_sessions (
+			id, user_id, token_id, device_fingerprint, ip_address,
+			user_agent, device_type, location, is_remembered, expires_at, last_used_at, created_at
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+	`
+	_, err := r.db.ExecContext(
+		ctx, query,
+		session.ID, session.UserID, session.TokenID, session.DeviceFingerprint,
+		session.IPAddress, session.UserAgent, session.DeviceType, session.Location,
+		session.IsRemembered, session.ExpiresAt,
+	)
+	if err != nil {
+		return fmt.Errorf("create session: %w", err)
+	}
+	return nil
+}
+
+// GetSession returns a session by token ID
+func (r *userRepository) GetSession(ctx context.Context, tokenID string) (*UserSession, error) {
+	query := `
+		SELECT id, user_id, token_id, device_fingerprint, ip_address, user_agent,
+		       device_type, location, is_remembered, expires_at, last_used_at, created_at
+		FROM user_sessions
+		WHERE token_id = $1
+	`
+	var session UserSession
+	err := r.db.QueryRowContext(ctx, query, tokenID).Scan(
+		&session.ID, &session.UserID, &session.TokenID, &session.DeviceFingerprint,
+		&session.IPAddress, &session.UserAgent, &session.DeviceType, &session.Location,
+		&session.IsRemembered, &session.ExpiresAt, &session.LastUsedAt, &session.CreatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("query session: %w", err)
+	}
+	return &session, nil
+}
+
+// GetSessionsByUserID returns all sessions for a user
+func (r *userRepository) GetSessionsByUserID(ctx context.Context, userID uuid.UUID) ([]UserSession, error) {
+	query := `
+		SELECT id, user_id, token_id, device_fingerprint, ip_address, user_agent,
+		       device_type, location, is_remembered, expires_at, last_used_at, created_at
+		FROM user_sessions
+		WHERE user_id = $1
+		ORDER BY last_used_at DESC
+	`
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("query sessions by user: %w", err)
+	}
+	defer rows.Close()
+
+	var sessions []UserSession
+	for rows.Next() {
+		var s UserSession
+		err := rows.Scan(
+			&s.ID, &s.UserID, &s.TokenID, &s.DeviceFingerprint,
+			&s.IPAddress, &s.UserAgent, &s.DeviceType, &s.Location,
+			&s.IsRemembered, &s.ExpiresAt, &s.LastUsedAt, &s.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan session: %w", err)
+		}
+		sessions = append(sessions, s)
+	}
+	return sessions, nil
+}
+
+// DeleteSession removes a session by token ID
+func (r *userRepository) DeleteSession(ctx context.Context, tokenID string) error {
+	query := `DELETE FROM user_sessions WHERE token_id = $1`
+	_, err := r.db.ExecContext(ctx, query, tokenID)
+	if err != nil {
+		return fmt.Errorf("delete session: %w", err)
+	}
+	return nil
+}
+
+// DeleteSessionsByUserID removes all sessions for a user (except current)
+func (r *userRepository) DeleteSessionsByUserID(ctx context.Context, userID uuid.UUID) error {
+	query := `DELETE FROM user_sessions WHERE user_id = $1`
+	_, err := r.db.ExecContext(ctx, query, userID)
+	if err != nil {
+		return fmt.Errorf("delete sessions by user: %w", err)
+	}
+	return nil
+}
+
+// UpdateSessionLastUsed updates the last_used_at timestamp
+func (r *userRepository) UpdateSessionLastUsed(ctx context.Context, tokenID string) error {
+	query := `
+		UPDATE user_sessions
+		SET last_used_at = NOW()
+		WHERE token_id = $1
+	`
+	_, err := r.db.ExecContext(ctx, query, tokenID)
+	if err != nil {
+		return fmt.Errorf("update session last used: %w", err)
+	}
+	return nil
+}
+
+// ============================================================
+// Two-Factor Pending Methods
+// ============================================================
+
+// CreateTwoFactorPending creates a new pending 2FA record
+func (r *userRepository) CreateTwoFactorPending(ctx context.Context, pending *TwoFactorPending) error {
+	query := `
+		INSERT INTO two_factor_pending (id, user_id, secret, created_at, expires_at)
+		VALUES ($1, $2, $3, NOW(), $4)
+		ON CONFLICT (user_id) DO UPDATE
+		SET secret = EXCLUDED.secret,
+		    created_at = NOW(),
+		    expires_at = EXCLUDED.expires_at
+	`
+	_, err := r.db.ExecContext(ctx, query, pending.ID, pending.UserID, pending.Secret, pending.ExpiresAt)
+	if err != nil {
+		return fmt.Errorf("create two factor pending: %w", err)
+	}
+	return nil
+}
+
+// GetTwoFactorPendingByUserID returns the pending record for a user
+func (r *userRepository) GetTwoFactorPendingByUserID(ctx context.Context, userID uuid.UUID) (*TwoFactorPending, error) {
+	query := `
+		SELECT id, user_id, secret, created_at, expires_at
+		FROM two_factor_pending
+		WHERE user_id = $1
+	`
+	var pending TwoFactorPending
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(
+		&pending.ID, &pending.UserID, &pending.Secret, &pending.CreatedAt, &pending.ExpiresAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("query two factor pending: %w", err)
+	}
+	return &pending, nil
+}
+
+// DeleteTwoFactorPending removes the pending record for a user
+func (r *userRepository) DeleteTwoFactorPending(ctx context.Context, userID uuid.UUID) error {
+	query := `DELETE FROM two_factor_pending WHERE user_id = $1`
+	_, err := r.db.ExecContext(ctx, query, userID)
+	if err != nil {
+		return fmt.Errorf("delete two factor pending: %w", err)
 	}
 	return nil
 }

@@ -26,9 +26,9 @@ type LoginOutput struct {
 }
 
 func (uc *LoginUseCase) Execute(ctx context.Context, input LoginInput) (*LoginOutput, error) {
-	token, user, err := uc.authService.Login(ctx, input.Email, input.Password)
+	access, _, user, err := uc.authService.Login(ctx, input.Email, input.Password)
 	if err != nil {
 		return nil, err
 	}
-	return &LoginOutput{Token: token, User: user}, nil
+	return &LoginOutput{Token: access, User: user}, nil
 }

@@ -38,10 +38,12 @@ func SetupRouter(
 	v1 := r.Group("/api/v1")
 	{
 		authHandler := handler.NewAuthHandler(authService, &handler.Config{
-			CookieName:     cfg.CookieName,
-			CookieSecure:   cfg.CookieSecure,
-			CookieSameSite: cfg.CookieSameSite,
-			FrontendURL:    cfg.FrontendURL,
+			CookieName:         cfg.CookieName,
+			CookieSecure:       cfg.CookieSecure,
+			CookieSameSite:     cfg.CookieSameSite,
+			FrontendURL:        cfg.FrontendURL,
+			RefreshTokenExpiry: cfg.RefreshTokenExpiry,
+			JWTSecret:          cfg.JWTSecret,
 		})
 
 		// Public
@@ -50,8 +52,14 @@ func SetupRouter(
 			public.POST("/auth/register", authHandler.RegisterHandler)
 			public.POST("/auth/login", authHandler.LoginHandler)
 			public.POST("/auth/logout", authHandler.LogoutHandler)
+			public.POST("/auth/refresh", authHandler.RefreshTokenHandler)
 			public.GET("/auth/oauth/google", authHandler.GoogleAuthHandler)
 			public.GET("/auth/oauth/google/callback", authHandler.GoogleCallbackHandler)
+			public.POST("/auth/email/request", authHandler.RequestEmailVerificationHandler)
+			public.POST("/auth/email/verify", authHandler.VerifyEmailHandler)
+			public.POST("/auth/password/reset-request", authHandler.RequestPasswordResetHandler)
+			public.POST("/auth/password/reset", authHandler.ResetPasswordHandler)
+			public.POST("/auth/2fa/complete-login", authHandler.Complete2FALoginHandler)
 		}
 
 		// Authenticated
@@ -60,6 +68,13 @@ func SetupRouter(
 		{
 			auth.GET("/users/me", authHandler.GetUserHandler)
 			auth.PUT("/users/me", authHandler.UpdateUserHandler)
+			// 2FA management
+			auth.POST("/auth/2fa/setup", authHandler.Setup2FAHandler)
+			auth.POST("/auth/2fa/verify", authHandler.Verify2FAHandler)
+			auth.POST("/auth/2fa/disable", authHandler.Disable2FAHandler)
+			// Session management
+			auth.GET("/sessions", authHandler.GetSessionsHandler)
+			auth.DELETE("/sessions/:tokenId", authHandler.DeleteSessionHandler)
 			// TODO: other domain routes to be added
 		}
 	}

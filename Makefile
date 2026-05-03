@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: help install run dev dev-backend dev-frontend prod prod-backend build run-worker fmt test test-unit test-integration lint migrate migrate-up migrate-down migrate-status migrate-create mock env-up env-down k8s-staging k8s-prod k8s-rollout k8s-rollback
+.PHONY: help install run dev dev-backend dev-frontend prod prod-backend build fmt test test-unit lint migrate migrate-up migrate-down migrate-status migrate-create env-up env-down
 
 GO ?= go
 NPM ?= npm
@@ -17,7 +17,7 @@ endif
 help:
 	@echo "Cryplio targets:"
 	@echo "  make run              Start backend API server"
-	@echo "  make dev              Start backend in development mode"
+	@echo "  make dev              Start backend and frontend in development mode"
 	@echo "  make dev-backend      Run backend with Air and APP_ENV=development"
 	@echo "  make dev-frontend     Run Next.js frontend"
 	@echo "  make prod             Start backend with APP_ENV=production"
@@ -36,7 +36,15 @@ install:
 run:
 	$(GO) run ./cmd/api
 
-dev: dev-backend
+dev:
+	@trap 'kill $$backend_pid $$frontend_pid 2>/dev/null; wait 2>/dev/null' INT TERM; \
+	$(MAKE) dev-backend & backend_pid=$$!; \
+	$(MAKE) dev-frontend & frontend_pid=$$!; \
+	wait -n $$backend_pid $$frontend_pid; \
+	status=$$?; \
+	kill $$backend_pid $$frontend_pid 2>/dev/null; \
+	wait 2>/dev/null; \
+	exit $$status
 
 dev-backend:
 	@command -v air >/dev/null 2>&1 || { echo "air is required: go install github.com/air-verse/air@latest"; exit 1; }
@@ -54,9 +62,6 @@ build:
 	@mkdir -p bin
 	$(GO) build -o ./bin/api ./cmd/api
 
-run-worker:
-	@echo "worker entrypoint is not implemented yet"
-
 fmt:
 	$(GO) fmt ./...
 
@@ -64,9 +69,6 @@ test: test-unit
 
 test-unit:
 	$(GO) test ./...
-
-test-integration:
-	@echo "integration test suite is scaffolded but not implemented yet"
 
 lint:
 	@command -v golangci-lint >/dev/null 2>&1 || { echo "golangci-lint is required"; exit 1; }
@@ -103,23 +105,8 @@ migrate-create:
 	echo "created $(MIGRATIONS_DIR)/$${next}_$(name).up.sql"; \
 	echo "created $(MIGRATIONS_DIR)/$${next}_$(name).down.sql"
 
-mock:
-	@echo "mock generation is not implemented yet"
-
 env-up:
 	docker compose up -d
 
 env-down:
 	docker compose down
-
-k8s-staging:
-	kubectl apply -k k8s/overlays/staging
-
-k8s-prod:
-	kubectl apply -k k8s/overlays/production
-
-k8s-rollout:
-	kubectl rollout status deployment/cryplio-api -n cryplio
-
-k8s-rollback:
-	kubectl rollout undo deployment/cryplio-api -n cryplio

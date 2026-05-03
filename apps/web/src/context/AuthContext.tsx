@@ -4,13 +4,17 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { authService, BackendUser } from "@/services/authService";
 
-interface User {
+export interface User {
     id: string;
     name: string;
     email: string;
     username: string;
+    bio?: string;
     role: "user" | "merchant" | "admin" | null;
+    emailVerified: boolean;
     kycLevel: number;
+    isMerchant: boolean;
+    twoFAEnabled: boolean;
 }
 
 interface AuthContextType {
@@ -24,6 +28,18 @@ interface AuthContextType {
     ) => Promise<void>;
     logout: () => Promise<void>;
     isLoading: boolean;
+    requires2FA: boolean;
+    setRequires2FA: (requires: boolean) => void;
+    temp2FAToken: string | null;
+    setTemp2FAToken: (token: string | null) => void;
+    complete2FALogin: (code: string) => Promise<void>;
+    refreshUser: () => Promise<void>;
+}
+
+interface TwoFactorLoginError extends Error {
+    requires2FA?: boolean;
+    tempToken?: string;
+    user?: BackendUser;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,6 +47,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [requires2FA, setRequires2FA] = useState(false);
+    const [temp2FAToken, setTemp2FAToken] = useState<string | null>(null);
     const router = useRouter();
 
     useEffect(() => {
@@ -38,14 +56,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             try {
                 const currentUser: BackendUser | null = await authService.getCurrentUser();
                 if (currentUser) {
-                    // Map the backend user to our frontend user format
                     const mappedUser: User = {
                         id: currentUser.id,
                         name: currentUser.username || currentUser.email.split("@")[0],
                         email: currentUser.email,
                         username: currentUser.username || currentUser.email.split("@")[0],
                         role: "user",
+                        emailVerified: currentUser.email_verified ?? false,
                         kycLevel: currentUser.kyc_level ?? 0,
+                        isMerchant: currentUser.is_merchant ?? false,
+                        twoFAEnabled: currentUser.two_fa_enabled ?? false,
                     };
                     setUser(mappedUser);
                 }
@@ -65,20 +85,55 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         email: backendUser.email,
         username: backendUser.username || backendUser.email.split("@")[0],
         role: "user",
+        emailVerified: backendUser.email_verified ?? false,
         kycLevel: backendUser.kyc_level ?? 0,
+        twoFAEnabled: backendUser.two_fa_enabled ?? false,
+        bio: backendUser.bio ?? "",
+        isMerchant: backendUser.is_merchant ?? false,
     });
 
     const login = async (email: string, password: string) => {
         setIsLoading(true);
         try {
             const backendUser: BackendUser = await authService.login(email, password);
-            // Map the backend user to our frontend user format
             setUser(mapBackendUser(backendUser));
-
-            // Redirect to dashboard
             router.push("/user/dashboard");
         } catch (error) {
+            const loginError = error as TwoFactorLoginError;
+            // Check for 2FA requirement
+            if (loginError.requires2FA || loginError.message === "2FA_REQUIRED") {
+                setRequires2FA(true);
+                setTemp2FAToken(loginError.tempToken || sessionStorage.getItem("2fa_temp_token") || null);
+                // Store in sessionStorage as backup
+                if (loginError.tempToken && loginError.user) {
+                    sessionStorage.setItem("2fa_temp_token", loginError.tempToken);
+                    sessionStorage.setItem("2fa_user_id", loginError.user.id);
+                }
+                // Redirect to 2FA verification page
+                router.push("/2fa-verify");
+                return;
+            }
             throw error;
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const complete2FALogin = async (code: string) => {
+        setIsLoading(true);
+        try {
+            const tempToken = temp2FAToken || sessionStorage.getItem("2fa_temp_token");
+            if (!tempToken) {
+                throw new Error("2FA session expired. Please login again.");
+            }
+
+            const backendUser: BackendUser = await authService.complete2FALogin(tempToken, code);
+            setUser(mapBackendUser(backendUser));
+            setRequires2FA(false);
+            setTemp2FAToken(null);
+            sessionStorage.removeItem("2fa_temp_token");
+            sessionStorage.removeItem("2fa_user_id");
+            router.push("/user/dashboard");
         } finally {
             setIsLoading(false);
         }
@@ -101,7 +156,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 password
             );
             setUser(mapBackendUser(backendUser));
-            router.push("user/dashboard");
+            router.push("/user/dashboard");
         } finally {
             setIsLoading(false);
         }
@@ -115,13 +170,43 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             console.error("Logout failed:", error);
         } finally {
             setUser(null);
+            setRequires2FA(false);
+            setTemp2FAToken(null);
+            sessionStorage.removeItem("2fa_temp_token");
+            sessionStorage.removeItem("2fa_user_id");
             setIsLoading(false);
             router.push("/login");
         }
     };
 
+    const refreshUser = async () => {
+        try {
+            const currentUser: BackendUser | null = await authService.getCurrentUser();
+            if (currentUser) {
+                setUser(mapBackendUser(currentUser));
+            } else {
+                setUser(null);
+            }
+        } catch {
+            setUser(null);
+        }
+    };
+
     return (
-        <AuthContext.Provider value={{ user, login, loginWithGoogle, register, logout, isLoading }}>
+        <AuthContext.Provider value={{
+            user,
+            login,
+            loginWithGoogle,
+            register,
+            logout,
+            isLoading,
+            requires2FA,
+            setRequires2FA,
+            temp2FAToken,
+            setTemp2FAToken,
+            complete2FALogin,
+            refreshUser
+        }}>
             {children}
         </AuthContext.Provider>
     );

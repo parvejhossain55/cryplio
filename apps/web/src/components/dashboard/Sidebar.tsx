@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -18,7 +18,8 @@ import {
     Users,
     Store,
     BarChart3,
-    UserCheck
+    UserCheck,
+    X
 } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -26,6 +27,8 @@ import { twMerge } from "tailwind-merge";
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
+
+const DISMISSED_STATUS_CARDS_KEY = "cryplio_dismissed_status_cards";
 
 interface SidebarItem {
     name: string;
@@ -40,7 +43,30 @@ interface SidebarProps {
 
 const Sidebar = ({ role, isMobile }: SidebarProps) => {
     const pathname = usePathname();
-    const { logout, isLoading } = useAuth();
+    const { user, logout, isLoading } = useAuth();
+    const [dismissedStatusCards, setDismissedStatusCards] = useState<string[]>(() => {
+        if (typeof window === "undefined") {
+            return [];
+        }
+
+        try {
+            return JSON.parse(localStorage.getItem(DISMISSED_STATUS_CARDS_KEY) || "[]");
+        } catch {
+            return [];
+        }
+    });
+
+    const showStatusCard = Boolean(user && !dismissedStatusCards.includes(user.id) && !user.emailVerified);
+
+    const dismissStatusCard = () => {
+        if (!user) {
+            return;
+        }
+
+        const nextDismissedCards = Array.from(new Set([...dismissedStatusCards, user.id]));
+        setDismissedStatusCards(nextDismissedCards);
+        localStorage.setItem(DISMISSED_STATUS_CARDS_KEY, JSON.stringify(nextDismissedCards));
+    };
 
     const navigation: Record<string, SidebarItem[]> = {
         user: [
@@ -117,20 +143,43 @@ const Sidebar = ({ role, isMobile }: SidebarProps) => {
             </nav>
 
             <div className="p-4 mt-auto">
-                <div className="p-4 rounded-2xl bg-surface-light border border-white/5 mb-4">
-                    <div className="flex items-center space-x-3 mb-3">
-                        <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
-                            <Shield className="w-4 h-4 text-accent" />
+                {showStatusCard && user && (
+                    <div className="relative p-4 rounded-2xl bg-surface-light border border-white/5 mb-4">
+                        <button
+                            type="button"
+                            onClick={dismissStatusCard}
+                            className="absolute right-3 top-3 p-1.5 rounded-lg text-text-dim hover:text-white hover:bg-white/5 transition-colors"
+                            aria-label="Dismiss account status"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
+                        <div className="flex items-center space-x-3 mb-3">
+                            <div className={cn(
+                                "w-8 h-8 rounded-lg flex items-center justify-center",
+                                user.emailVerified ? "bg-accent/20" : "bg-yellow-500/15"
+                            )}>
+                                <Shield className={cn(
+                                    "w-4 h-4",
+                                    user.emailVerified ? "text-accent" : "text-yellow-500"
+                                )} />
+                            </div>
+                            <span className="text-xs font-bold text-white tracking-tight">
+                                {user.emailVerified ? "Email Verified" : "Email Not Verified"}
+                            </span>
                         </div>
-                        <span className="text-xs font-bold text-white tracking-tight">Verified Merchant</span>
+                        <p className="text-[10px] text-text-dim font-medium leading-relaxed mb-3">
+                            {user.emailVerified
+                                ? "Your email is verified and account is secured."
+                                : "Please verify your email to secure your account."}
+                        </p>
+                        <div className="w-full bg-white/5 h-1 rounded-full overflow-hidden">
+                            <div className={cn(
+                                "h-full rounded-full",
+                                user.emailVerified ? "w-full bg-accent" : "w-1/3 bg-yellow-500"
+                            )} />
+                        </div>
                     </div>
-                    <p className="text-[10px] text-text-dim font-medium leading-relaxed mb-3">
-                        Your identity is verified and account is secured.
-                    </p>
-                    <div className="w-full bg-white/5 h-1 rounded-full overflow-hidden">
-                        <div className="w-full bg-accent h-full rounded-full" />
-                    </div>
-                </div>
+                )}
 
                 <button
                     type="button"

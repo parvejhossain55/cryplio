@@ -1,127 +1,179 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
-import { Menu, X, ChevronDown, Globe, Wallet } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Wallet, Mail, LogOut, Menu, X, User } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/context/AuthContext";
+import { authService } from "@/services/authService";
 
 const Navbar = () => {
-    const [isOpen, setIsOpen] = useState(false);
-    const [scrolled, setScrolled] = useState(false);
+    const { user, logout, isLoading } = useAuth();
+    const router = useRouter();
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isResending, setIsResending] = useState(false);
 
-    useEffect(() => {
-        const handleScroll = () => {
-            setScrolled(window.scrollY > 20);
-        };
-        window.addEventListener("scroll", handleScroll);
-        return () => window.removeEventListener("scroll", handleScroll);
-    }, []);
+    const handleLogout = async () => {
+        await logout();
+        router.push("/login");
+    };
 
-    const navLinks = [
-        { name: "Marketplace", href: "/marketplace" },
-        { name: "Features", href: "/#features" },
-        { name: "Swap", href: "/swap" },
-        { name: "Support", href: "/support" },
-    ];
+    const handleResendVerification = async () => {
+        if (!user) {
+            return;
+        }
+
+        setIsResending(true);
+        try {
+            await authService.requestEmailVerification(user.id);
+        } catch (error) {
+            console.error("Failed to resend:", error);
+        } finally {
+            setIsResending(false);
+        }
+    };
 
     return (
-        <nav
-            className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? "glass py-3" : "bg-transparent py-5"
-                }`}
-        >
-            <div className="container mx-auto px-4 md:px-6">
-                <div className="flex items-center justify-between">
+        <nav className="fixed top-0 w-full bg-surface/80 backdrop-blur-xl border-b border-white/5 z-50">
+            <div className="container mx-auto px-4">
+                <div className="flex items-center justify-between h-16">
                     {/* Logo */}
-                    <Link href="/" className="flex items-center space-x-2">
-                        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
-                            <Wallet className="text-white w-6 h-6" />
+                    <Link href="/" className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
+                            <Wallet className="w-6 h-6 text-white" />
                         </div>
-                        <span className="text-2xl font-bold tracking-tight">
+                        <span className="text-2xl font-black tracking-tight">
                             Cryp<span className="gradient-text">lio</span>
                         </span>
                     </Link>
 
-                    {/* Desktop Nav */}
+                    {/* Desktop Navigation */}
                     <div className="hidden md:flex items-center space-x-8">
-                        {navLinks.map((link) => (
-                            <Link
-                                key={link.name}
-                                href={link.href}
-                                className="text-sm font-medium text-text-dim hover:text-white transition-colors"
-                            >
-                                {link.name}
-                            </Link>
-                        ))}
+                        <Link href="/marketplace" className="text-sm font-bold text-text-dim hover:text-white transition-colors">
+                            Marketplace
+                        </Link>
+                        <Link href="/swap" className="text-sm font-bold text-text-dim hover:text-white transition-colors">
+                            Swap
+                        </Link>
+                        <Link href="/support" className="text-sm font-bold text-text-dim hover:text-white transition-colors">
+                            Support
+                        </Link>
+
+                        {user ? (
+                            <>
+                                {/* Email verification warning */}
+                                {!user.emailVerified && (
+                                    <div className="flex items-center space-x-2 bg-yellow-500/10 text-yellow-500 text-xs px-3 py-1.5 rounded-full">
+                                        <Mail className="w-3.5 h-3.5" />
+                                        <span>Verify email</span>
+                                    </div>
+                                )}
+
+                                <div className="flex items-center space-x-4">
+                                    <Link href="/user/dashboard" className="text-sm font-bold text-text-dim hover:text-white transition-colors">
+                                        Dashboard
+                                    </Link>
+                                    <div className="relative group">
+                                        <button className="flex items-center space-x-2 text-sm font-bold text-text-dim hover:text-white transition-colors">
+                                            <User className="w-4 h-4" />
+                                            <span>{user.username}</span>
+                                        </button>
+                                        {/* Dropdown menu could be added here */}
+                                    </div>
+                                    <button
+                                        onClick={handleLogout}
+                                        disabled={isLoading}
+                                        className="flex items-center space-x-2 text-sm font-bold text-red-400 hover:text-red-300 transition-colors"
+                                    >
+                                        <LogOut className="w-4 h-4" />
+                                        <span>Logout</span>
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="flex items-center space-x-4">
+                                <Link href="/login" className="text-sm font-bold text-white hover:text-primary transition-colors">
+                                    Login
+                                </Link>
+                                <Link href="/register" className="bg-white text-background px-6 py-2.5 rounded-xl text-sm font-black hover:scale-105 transition-transform">
+                                    Sign Up
+                                </Link>
+                            </div>
+                        )}
                     </div>
 
-                    {/* Desktop Actions */}
-                    <div className="hidden md:flex items-center space-x-4">
-                        <button className="flex items-center space-x-1 text-sm font-medium text-text-dim hover:text-white transition-colors px-3 py-2">
-                            <Globe className="w-4 h-4" />
-                            <span>EN</span>
-                            <ChevronDown className="w-4 h-4" />
-                        </button>
-                        <Link
-                            href="/login"
-                            className="text-sm font-medium hover:text-primary transition-colors"
-                        >
-                            Log In
-                        </Link>
-                        <Link
-                            href="/register"
-                            className="bg-primary hover:bg-primary-dark text-white px-6 py-2.5 rounded-full text-sm font-semibold transition-all shadow-lg shadow-primary/20 hover:scale-105 active:scale-95"
-                        >
-                            Sign Up
-                        </Link>
-                    </div>
-
-                    {/* Mobile Menu Toggle */}
+                    {/* Mobile menu button */}
                     <button
-                        className="md:hidden p-2 text-text hover:bg-surface-light rounded-lg transition-colors"
-                        onClick={() => setIsOpen(!isOpen)}
+                        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                        className="md:hidden p-2 text-text-dim hover:text-white"
                     >
-                        {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                        {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                     </button>
                 </div>
             </div>
 
-            {/* Mobile Nav */}
+            {/* Mobile Menu */}
             <AnimatePresence>
-                {isOpen && (
+                {isMobileMenuOpen && (
                     <motion.div
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="md:hidden glass border-t border-border mt-3"
+                        className="md:hidden bg-surface border-t border-white/5 overflow-hidden"
                     >
-                        <div className="container mx-auto px-4 py-6 flex flex-col space-y-4">
-                            {navLinks.map((link) => (
-                                <Link
-                                    key={link.name}
-                                    href={link.href}
-                                    className="text-lg font-medium text-text-dim hover:text-white transition-colors py-2"
-                                    onClick={() => setIsOpen(false)}
-                                >
-                                    {link.name}
-                                </Link>
-                            ))}
-                            <hr className="border-border" />
-                            <div className="flex flex-col space-y-4 pt-2">
-                                <Link
-                                    href="/login"
-                                    className="w-full text-center py-3 text-lg font-medium border border-border rounded-xl hover:bg-surface-light transition-colors"
-                                    onClick={() => setIsOpen(false)}
-                                >
-                                    Log In
-                                </Link>
-                                <Link
-                                    href="/register"
-                                    className="w-full text-center py-3 text-lg font-medium bg-primary text-white rounded-xl shadow-lg shadow-primary/20"
-                                    onClick={() => setIsOpen(false)}
-                                >
-                                    Sign Up
-                                </Link>
-                            </div>
+                        <div className="px-4 py-6 space-y-4">
+                            <Link href="/marketplace" className="block text-sm font-bold text-text-dim hover:text-white">
+                                Marketplace
+                            </Link>
+                            <Link href="/swap" className="block text-sm font-bold text-text-dim hover:text-white">
+                                Swap
+                            </Link>
+                            <Link href="/support" className="block text-sm font-bold text-text-dim hover:text-white">
+                                Support
+                            </Link>
+
+                            {user ? (
+                                <>
+                                    <div className="pt-4 border-t border-white/5">
+                                        <p className="text-xs font-black text-text-dim uppercase tracking-widest mb-3">
+                                            Account
+                                        </p>
+                                        <Link href="/user/dashboard" className="block py-2 text-sm font-medium">
+                                            Dashboard
+                                        </Link>
+
+                                        {/* Email verification prompt */}
+                                        {!user.emailVerified && (
+                                            <button
+                                                onClick={handleResendVerification}
+                                                disabled={isResending}
+                                                className="flex items-center space-x-2 py-2 text-sm text-yellow-500"
+                                            >
+                                                <Mail className="w-4 h-4" />
+                                                <span>{isResending ? "Sending..." : "Resend verification email"}</span>
+                                            </button>
+                                        )}
+
+                                        <button
+                                            onClick={handleLogout}
+                                            className="flex items-center space-x-2 py-2 text-sm text-red-400"
+                                        >
+                                            <LogOut className="w-4 h-4" />
+                                            <span>Logout</span>
+                                        </button>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="pt-4 border-t border-white/5 space-y-3">
+                                    <Link href="/login" className="block w-full text-center py-3 border border-white/10 rounded-xl text-sm font-bold">
+                                        Login
+                                    </Link>
+                                    <Link href="/register" className="block w-full text-center bg-white text-background py-3 rounded-xl text-sm font-black">
+                                        Sign Up
+                                    </Link>
+                                </div>
+                            )}
                         </div>
                     </motion.div>
                 )}

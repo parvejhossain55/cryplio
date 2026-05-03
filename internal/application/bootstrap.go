@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	domainidentity "cryplio/internal/domain/identity"
+	"cryplio/internal/infrastructure/notification"
 	identitypostgres "cryplio/internal/infrastructure/persistence/postgres/identity"
 	httpapi "cryplio/internal/interfaces/http"
 	"cryplio/pkg/config"
@@ -30,18 +31,29 @@ func New() (*App, error) {
 	}
 
 	userRepo := identitypostgres.NewUserRepository(db)
+	emailClient := notification.NewSMTPClient(
+		cfg.SMTPHost,
+		cfg.SMTPPort,
+		cfg.SMTPUsername,
+		cfg.SMTPPassword,
+		cfg.EmailFrom,
+		cfg.FrontendURL,
+	)
+	passwordResetMailer := emailClient
 	authService := domainidentity.NewAuthService(
 		userRepo,
 		cfg.JWTSecret,
 		cfg.JWTExpiry,
+		cfg.RefreshTokenExpiry,
 		cfg.CookieName,
 		cfg.CookieSecure,
 		cfg.CookieSameSite,
+		cfg.IssuerName,
 	).WithGoogleOAuth(
 		cfg.GoogleClientID,
 		cfg.GoogleClientSecret,
 		cfg.OAuthRedirectURL,
-	)
+	).WithPasswordResetMailer(passwordResetMailer)
 
 	router := httpapi.SetupRouter(cfg, authService)
 

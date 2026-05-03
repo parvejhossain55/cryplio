@@ -216,7 +216,7 @@ func NewUser(email, username, passwordHash string) *User {
 		Email:               email,
 		Username:            username,
 		PasswordHash:        passwordHash,
-		KYCLevel:            KYCLevel1,
+		KYCLevel:            KYCLevel0,
 		Status:              UserStatusActive,
 		Timezone:            "UTC",
 		Locale:              "en",

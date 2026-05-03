@@ -24,4 +24,25 @@ type UserRepository interface {
 	UpdateOAuth(ctx context.Context, oauth *UserOAuth) error
 	GetOAuthByUserID(ctx context.Context, userID uuid.UUID) ([]UserOAuth, error)
 	DeleteOAuth(ctx context.Context, id uuid.UUID) error
+	// Email Verification
+	CreateEmailVerificationToken(ctx context.Context, token *EmailVerificationToken) error
+	GetEmailVerificationTokenByHash(ctx context.Context, tokenHash string) (*EmailVerificationToken, error)
+	GetEmailVerificationTokenByUserID(ctx context.Context, userID uuid.UUID) (*EmailVerificationToken, error)
+	MarkEmailVerificationTokenVerified(ctx context.Context, id int) error
+	// Password Reset
+	CreatePasswordResetToken(ctx context.Context, token *PasswordResetToken) error
+	GetPasswordResetToken(ctx context.Context, tokenHash string) (*PasswordResetToken, error)
+	GetPasswordResetTokenByUserID(ctx context.Context, userID uuid.UUID) (*PasswordResetToken, error)
+	MarkPasswordResetTokenUsed(ctx context.Context, id int) error
+	// Two-Factor Pending
+	CreateTwoFactorPending(ctx context.Context, pending *TwoFactorPending) error
+	GetTwoFactorPendingByUserID(ctx context.Context, userID uuid.UUID) (*TwoFactorPending, error)
+	DeleteTwoFactorPending(ctx context.Context, userID uuid.UUID) error
+	// Sessions
+	CreateSession(ctx context.Context, session *UserSession) error
+	GetSession(ctx context.Context, tokenID string) (*UserSession, error)
+	GetSessionsByUserID(ctx context.Context, userID uuid.UUID) ([]UserSession, error)
+	DeleteSession(ctx context.Context, tokenID string) error
+	DeleteSessionsByUserID(ctx context.Context, userID uuid.UUID) error
+	UpdateSessionLastUsed(ctx context.Context, tokenID string) error
 }

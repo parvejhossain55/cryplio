@@ -33,6 +33,9 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 
 		c.Set("user_id", userID)
 		c.Set("token_type", claims[sharedjwt.ClaimTokenType])
+		if jti, ok := claims["jti"].(string); ok {
+			c.Set("token_id", jti)
+		}
 		c.Next()
 	}
 }
@@ -52,6 +55,9 @@ func OptionalAuth(secret string) gin.HandlerFunc {
 				if userID, ok := claims[sharedjwt.ClaimUserID].(string); ok {
 					c.Set("user_id", userID)
 					c.Set("token_type", claims[sharedjwt.ClaimTokenType])
+					if jti, ok := claims["jti"].(string); ok {
+						c.Set("token_id", jti)
+					}
 				}
 			}
 		}

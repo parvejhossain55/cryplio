@@ -17,6 +17,9 @@ type Config struct {
 	JWTSecret  string
 	JWTExpiry  time.Duration
 
+	// Refresh token configuration
+	RefreshTokenExpiry time.Duration
+
 	// Cookie settings
 	CookieName     string
 	CookieMaxAge   int
@@ -43,6 +46,15 @@ type Config struct {
 	OAuthRedirectURL   string
 	FrontendURL        string
 
+	// Email
+	EmailFrom string
+
+	// SMTP settings
+	SMTPHost     string
+	SMTPPort     int
+	SMTPUsername string
+	SMTPPassword string
+
 	// Rate limiting
 	RateLimitEnabled  bool
 	RateLimitRequests int
@@ -50,6 +62,9 @@ type Config struct {
 
 	// CORS
 	CorsAllowedOrigins []string
+
+	// 2FA Issuer
+	IssuerName string
 }
 
 func Load() (*Config, error) {
@@ -61,6 +76,7 @@ func Load() (*Config, error) {
 	rateLimitRequests, _ := strconv.Atoi(getEnvCompat("RATE_LIMIT_REQUESTS", "100"))
 	rateLimitWindow, _ := time.ParseDuration(getEnvCompat("RATE_LIMIT_WINDOW", "1m"))
 	jwtExpiry, _ := time.ParseDuration(getEnvCompat("JWT_EXPIRY", "24h"))
+	refreshTokenExpiry, _ := time.ParseDuration(getEnvCompat("REFRESH_TOKEN_EXPIRY", "168h")) // 7 days
 
 	// Database configuration
 	dbCfg := database.DefaultConfig()
@@ -71,10 +87,11 @@ func Load() (*Config, error) {
 	dbCfg.DBName = getEnvCompat("DB_NAME", dbCfg.DBName)
 
 	cfg := &Config{
-		AppEnv:     getEnvCompat("APP_ENV", "development"),
-		ServerPort: getEnvCompat("SERVER_PORT", "8080"),
-		JWTSecret:  getEnvCompat("JWT_SECRET", "your-secret-key-change-this"),
-		JWTExpiry:  jwtExpiry,
+		AppEnv:             getEnvCompat("APP_ENV", "development"),
+		ServerPort:         getEnvCompat("SERVER_PORT", "8080"),
+		JWTSecret:          getEnvCompat("JWT_SECRET", "your-secret-key-change-this"),
+		JWTExpiry:          jwtExpiry,
+		RefreshTokenExpiry: refreshTokenExpiry,
 
 		// Cookie configuration
 		CookieName:     getEnvCompat("COOKIE_NAME", "auth_token"),
@@ -100,10 +117,24 @@ func Load() (*Config, error) {
 		OAuthRedirectURL:   getEnvCompat("OAUTH_REDIRECT_URL", "http://localhost:8080/api/v1/auth/oauth/google/callback"),
 		FrontendURL:        getEnvCompat("FRONTEND_URL", "http://localhost:3000"),
 
+		EmailFrom: getEnvCompat("EMAIL_FROM", ""),
+
+		// SMTP settings
+		SMTPHost: getEnvCompat("SMTP_HOST", ""),
+		SMTPPort: func() int {
+			if port, err := strconv.Atoi(getEnvCompat("SMTP_PORT", "587")); err == nil {
+				return port
+			}
+			return 587 // default to TLS port
+		}(),
+		SMTPUsername: getEnvCompat("SMTP_USERNAME", ""),
+		SMTPPassword: getEnvCompat("SMTP_PASSWORD", ""),
+
 		RateLimitEnabled:   rateLimitEnabled,
 		RateLimitRequests:  rateLimitRequests,
 		RateLimitWindow:    rateLimitWindow,
 		CorsAllowedOrigins: []string{getEnvCompat("CORS_ALLOWED_ORIGINS", "*")},
+		IssuerName:         getEnvCompat("ISSUER_NAME", "Cryplio"),
 	}
 
 	return cfg, nil

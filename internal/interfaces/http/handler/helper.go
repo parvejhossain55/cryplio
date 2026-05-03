@@ -47,10 +47,13 @@ func mapUser(u *identity.User) dto.UserResponse {
 		kycLevel = 3
 	}
 	return dto.UserResponse{
-		ID:       u.UserID.String(),
-		Email:    u.Email,
-		Username: u.Username,
-		KYCLevel: kycLevel,
+		ID:            u.UserID.String(),
+		Email:         u.Email,
+		Username:      u.Username,
+		EmailVerified: u.EmailVerified,
+		KYCLevel:      kycLevel,
+		IsMerchant:    u.IsMerchant,
+		TwoFAEnabled:  u.TwoFASecret != nil,
 	}
 }
 

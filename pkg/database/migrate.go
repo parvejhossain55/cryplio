@@ -69,21 +69,27 @@ func (m *Migrator) Steps(n int) error {
 	return nil
 }
 
-// AppliedVersionsDB queries the database for applied migration versions
+// AppliedVersionsDB queries the database for applied migration versions.
+// golang-migrate stores the current version as a single row, so all lower
+// contiguous versions are considered applied.
 func AppliedVersionsDB(db *sql.DB) ([]int, error) {
-	rows, err := db.Query("SELECT version FROM schema_migrations ORDER BY version")
-	if err != nil {
-		return nil, fmt.Errorf("query applied versions: %w", err)
+	var version int
+	var dirty bool
+	err := db.QueryRow("SELECT version, dirty FROM schema_migrations LIMIT 1").Scan(&version, &dirty)
+	if err == sql.ErrNoRows {
+		return nil, nil
 	}
-	defer rows.Close()
+	if err != nil {
+		return nil, fmt.Errorf("query applied version: %w", err)
+	}
+	if dirty {
+		return nil, fmt.Errorf("database migration version %d is dirty", version)
+	}
 
-	var versions []int
-	for rows.Next() {
-		var v int
-		if err := rows.Scan(&v); err != nil {
-			return nil, fmt.Errorf("scan version: %w", err)
-		}
+	versions := make([]int, 0, version+1)
+	for v := 0; v <= version; v++ {
 		versions = append(versions, v)
 	}
+
 	return versions, nil
 }

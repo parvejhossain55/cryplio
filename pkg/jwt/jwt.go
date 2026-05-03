@@ -74,4 +74,3 @@ func FromRequest(cookieValue, authorizationHeader string) (string, error) {
 	}
 	return tokenString, nil
 }
-

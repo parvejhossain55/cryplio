@@ -264,19 +264,6 @@ SUMSUB_WEBHOOK_SECRET=your-webhook-secret
 SENDGRID_API_KEY=SG.xxx
 EMAIL_FROM=noreply@cryplio.io
 
-# SMS — Twilio
-TWILIO_ACCOUNT_SID=ACxxx
-TWILIO_AUTH_TOKEN=xxx
-TWILIO_FROM_NUMBER=+1...
-
-# Firebase
-FIREBASE_CREDENTIALS_PATH=./firebase-credentials.json
-
-# Storage — AWS S3
-AWS_ACCESS_KEY_ID=xxx
-AWS_SECRET_ACCESS_KEY=xxx
-AWS_S3_BUCKET=cryplio-uploads
-AWS_S3_REGION=us-east-1
 
 # Rate limiting
 RATE_LIMIT_RPS=100
@@ -288,15 +275,12 @@ RATE_LIMIT_BURST=20
 ## Running the App
 
 ```bash
-# Development (hot reload with air)
+# Development backend + frontend
 make dev
 
 # Production build
 make build
 ./bin/api
-
-# Run background worker
-make run-worker
 
 # Run all linters
 make lint
@@ -310,18 +294,14 @@ make fmt
 | Target | Description |
 |---|---|
 | `make run` | Start API server |
-| `make dev` | Start with hot reload (requires `air`) |
+| `make dev` | Start backend and frontend in development mode |
 | `make build` | Compile binary to `./bin/api` |
 | `make test` | Run all tests |
 | `make test-unit` | Unit tests only |
-| `make test-integration` | Integration tests (requires Docker) |
 | `make lint` | Run golangci-lint |
 | `make migrate-up` | Apply all pending migrations |
 | `make migrate-down` | Roll back last migration |
 | `make migrate-create name=xxx` | Create a new migration file |
-| `make mock` | Regenerate mocks with mockgen |
-| `make k8s-staging` | Deploy to staging cluster |
-| `make k8s-prod` | Deploy to production cluster |
 
 ---
 
@@ -510,9 +490,6 @@ make test
 # Unit tests only (no Docker needed)
 make test-unit
 
-# Integration tests (spins up Postgres + Redis via testcontainers)
-make test-integration
-
 # With coverage report
 go test ./... -coverprofile=coverage.out
 go tool cover -html=coverage.out
@@ -521,9 +498,8 @@ go tool cover -html=coverage.out
 ### Testing conventions
 
 - **Unit tests** live alongside the code they test: `domain/trade/service_test.go`
-- **Integration tests** live in `tests/integration/` and use `testcontainers-go` — no mocks, real database
+- **Integration tests** can live in `tests/integration/` when database or adapter coverage is added
 - **Repository interfaces** in `domain/` make every use case fully mockable without a database
-- Generate mocks with `make mock` (uses `mockgen`)
 
 ---
 
@@ -594,15 +570,6 @@ kubectl rollout status deployment/cryplio-api -n cryplio
 # Roll back one revision
 kubectl rollout undo deployment/cryplio-api -n cryplio
 ```
-
-### Makefile shortcuts
-
-| Target | Description |
-|---|---|
-| `make k8s-staging` | Apply staging overlay |
-| `make k8s-prod` | Apply production overlay |
-| `make k8s-rollout` | Check rollout status for all deployments |
-| `make k8s-rollback` | Roll back API deployment one revision |
 
 ### Secrets
 
