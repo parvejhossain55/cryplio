@@ -158,9 +158,9 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
                             <TrendingUp className="w-3 h-3" />
                             <span>Live Marketplace</span>
                         </motion.div>
-                        <h2 className="text-4xl md:text-5xl font-black">P2P Marketplace</h2>
-                        <p className="text-text-dim max-w-xl text-lg">
-                            The most liquid decentralized exchange. Trade directly with verified merchants with zero hidden fees.
+                        <h2 className="text-5xl md:text-7xl font-black italic uppercase tracking-tighter">P2P <span className="text-primary">MARKET</span></h2>
+                        <p className="text-text-dim max-w-xl text-lg font-medium leading-tight">
+                            The clearing layer for decentralized trade. Execute directly with verified liquidity providers with absolute transparency.
                         </p>
                     </div>
 

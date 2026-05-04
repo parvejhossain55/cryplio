@@ -104,10 +104,10 @@ const Sidebar = ({ role, isMobile }: SidebarProps) => {
             <div className="p-8">
                 <Link href="/" className="flex items-center space-x-3 group">
                     <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-xl shadow-primary/20 group-hover:rotate-12 transition-transform duration-500">
-                        <Wallet className="text-white w-6 h-6" />
+                        <Wallet className="text-background w-6 h-6" />
                     </div>
-                    <span className="text-2xl font-black tracking-tight text-white">
-                        Cryp<span className="gradient-text">lio</span>
+                    <span className="text-2xl font-black italic uppercase tracking-tighter text-white">
+                        CRYP<span className="text-primary truncate">LIO</span>
                     </span>
                 </Link>
             </div>

@@ -53,9 +53,9 @@ const Features = () => {
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                     >
-                        <h2 className="text-4xl md:text-6xl font-black mb-8 leading-tight">
-                            Engineered for <br />
-                            <span className="gradient-text">Trust & Performance</span>
+                        <h2 className="text-5xl md:text-8xl font-black italic uppercase tracking-tighter mb-8 leading-[0.9]">
+                            ENGINEERED FOR <br />
+                            <span className="text-primary">ABSOLUTE TRUST</span>
                         </h2>
                         <p className="text-text-dim text-lg md:text-xl leading-relaxed">
                             We've built the most secure p2p protocol to ensure your assets are always protected and your trades are always fast.

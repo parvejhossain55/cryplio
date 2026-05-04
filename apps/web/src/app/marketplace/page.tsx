@@ -6,7 +6,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Search, Shield, Zap, Globe, ArrowRight } from "lucide-react";
+import { Search, Shield, Zap, Globe, ArrowRight, Terminal, BarChart3 } from "lucide-react";
 
 const MarketplacePage = () => {
     return (
@@ -14,93 +14,112 @@ const MarketplacePage = () => {
             <Navbar />
 
             {/* Header Section */}
-            <section className="pt-32 pb-12 relative overflow-hidden">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-primary/5 blur-[120px] rounded-full -z-10" />
+            <section className="pt-40 pb-20 relative overflow-hidden">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[600px] bg-primary/5 blur-[150px] rounded-full -z-10" />
+                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 pointer-events-none" />
 
                 <div className="container mx-auto px-4 md:px-6">
-                    <div className="w-full text-left">
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="space-y-6"
-                        >
-                            <div className="inline-flex items-center space-x-2 bg-surface border border-border px-4 py-2 rounded-2xl">
-                                <Globe className="w-4 h-4 text-primary animate-pulse" />
-                                <span className="text-xs font-black uppercase tracking-widest text-text-dim">Global Trading Network</span>
-                            </div>
-                            <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[0.9]">
-                                Peer-to-Peer <br />
-                                <span className="gradient-text">Exchange Hub</span>
-                            </h1>
-                            <p className="text-xl text-text-dim max-w-2xl leading-relaxed font-medium">
-                                Browse thousands of secure offers from verified merchants worldwide. Use our advanced filters to find the perfect trade partner in seconds.
-                            </p>
-                            <div className="pt-4">
-                                <Link
-                                    href="/marketplace/create"
-                                    className="inline-flex items-center px-8 py-4 bg-white text-background rounded-2xl font-black uppercase tracking-widest text-xs hover:scale-105 active:scale-95 transition-all shadow-xl shadow-white/10 group"
-                                >
-                                    Post Your Own Offer
-                                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                                </Link>
-                            </div>
-                        </motion.div>
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-end">
+                        <div className="lg:col-span-8">
+                            <motion.div
+                                initial={{ opacity: 0, x: -30 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                className="space-y-8"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <Terminal className="w-4 h-4 text-primary" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-text-dim">EXCHANGE_MESH_v4.0</span>
+                                </div>
 
-                        {/* Stats Info */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-12 pt-12 border-t border-border">
-                            {[
-                                { label: "24h Volume", value: "$4.2M+", icon: Zap },
-                                { label: "Active Offers", value: "12,450", icon: Search },
-                                { label: "Verified Merch", value: "3,200", icon: Shield },
-                                { label: "Avg. Match", value: "< 2min", icon: Globe },
-                            ].map((stat, i) => (
-                                <motion.div
-                                    key={i}
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    transition={{ delay: 0.2 + i * 0.1 }}
-                                >
-                                    <p className="text-[10px] font-black text-text-dim uppercase tracking-widest mb-1 flex items-center gap-1">
-                                        <stat.icon className="w-3 h-3" />
-                                        {stat.label}
-                                    </p>
-                                    <p className="text-xl font-black text-white">{stat.value}</p>
-                                </motion.div>
-                            ))}
+                                <h1 className="text-6xl md:text-9xl font-black italic uppercase tracking-tighter leading-[0.8] text-white">
+                                    P2P <br />
+                                    <span className="gradient-text">LIQUIDITY.</span>
+                                </h1>
+
+                                <p className="text-xl text-text-dim max-w-2xl font-medium leading-tight uppercase italic tracking-tight">
+                                    Access the global clearing layer for digital assets. Connect with institutional liquidity providers and verified peers.
+                                </p>
+                            </motion.div>
                         </div>
+
+                        <div className="lg:col-span-4 lg:text-right">
+                            <Link
+                                href="/marketplace/create"
+                                className="inline-flex items-center px-12 py-5 bg-white text-background rounded-2xl font-black uppercase tracking-widest text-xs hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-white/10 group"
+                            >
+                                Post Order
+                                <ArrowRight className="w-5 h-5 ml-4 group-hover:translate-x-1 transition-transform" />
+                            </Link>
+                        </div>
+                    </div>
+
+                    {/* Stats Bar */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-12 mt-20 pt-12 border-t border-white/5">
+                        {[
+                            { label: "Aggregate Volume", value: "$14.2B", icon: BarChart3 },
+                            { label: "Active Nodes", value: "8,402", icon: Globe },
+                            { label: "Compliance Score", value: "99.8%", icon: Shield },
+                            { label: "Settle Delta", value: "< 90s", icon: Zap },
+                        ].map((stat, i) => (
+                            <motion.div
+                                key={i}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.2 + i * 0.1 }}
+                            >
+                                <p className="text-[10px] font-black text-text-dim uppercase tracking-[0.2em] mb-2 flex items-center gap-2 lg:justify-start">
+                                    <stat.icon className="w-3.5 h-3.5 text-primary" />
+                                    {stat.label}
+                                </p>
+                                <p className="text-3xl font-black text-white italic tracking-tighter">{stat.value}</p>
+                            </motion.div>
+                        ))}
                     </div>
                 </div>
             </section>
 
             {/* Main Marketplace Content */}
-            <MarketOverview hideViewAll={true} />
+            <div className="relative z-10">
+                <MarketOverview hideViewAll={true} />
+            </div>
 
-            {/* Trust Section */}
-            <section className="py-24 bg-surface/30">
-                <div className="container mx-auto px-4 md:px-6">
-                    <div className="glass rounded-[40px] border-border p-8 md:p-16 flex flex-col md:flex-row items-center justify-between gap-12">
-                        <div className="space-y-6 max-w-xl">
-                            <h2 className="text-3xl md:text-4xl font-black tracking-tight">Trade with 100% <br />Peace of Mind</h2>
-                            <p className="text-lg text-text-dim leading-relaxed">
-                                Our institutional-grade escrow protection ensures that your funds never leave your wallet until the trade is successfully completed.
-                            </p>
-                            <div className="flex flex-wrap gap-4">
-                                <div className="flex items-center gap-2 bg-background/50 px-4 py-2 rounded-xl border border-border">
-                                    <Shield className="w-5 h-5 text-accent" />
-                                    <span className="font-bold text-sm">Escrow Secure</span>
-                                </div>
-                                <div className="flex items-center gap-2 bg-background/50 px-4 py-2 rounded-xl border border-border">
-                                    <Zap className="w-5 h-5 text-primary" />
-                                    <span className="font-bold text-sm">Instant Release</span>
+            {/* Support/Trust CTA */}
+            <section className="py-32 px-4 md:px-6">
+                <div className="container mx-auto">
+                    <div className="glass rounded-[3rem] border-white/5 p-8 md:p-20 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 blur-[150px] -z-10" />
+
+                        <div className="flex flex-col lg:flex-row items-center justify-between gap-16">
+                            <div className="max-w-2xl space-y-8">
+                                <h2 className="text-5xl md:text-7xl font-black italic uppercase tracking-tighter leading-[0.9]">
+                                    SECURE <br />
+                                    <span className="text-white/20">CLEARANCE.</span>
+                                </h2>
+                                <p className="text-xl text-text-dim font-bold uppercase tracking-widest leading-loose">
+                                    Every interaction is protected by our proprietary escrow execution layer. Funds are cryptographically locked until absolute consensus is reached.
+                                </p>
+                                <div className="flex flex-wrap gap-4">
+                                    <div className="px-6 py-3 bg-white/5 border border-white/10 rounded-xl flex items-center gap-3">
+                                        <Shield className="w-5 h-5 text-primary" />
+                                        <span className="text-[10px] font-black uppercase tracking-widest">ISO 27001</span>
+                                    </div>
+                                    <div className="px-6 py-3 bg-white/5 border border-white/10 rounded-xl flex items-center gap-3">
+                                        <Globe className="w-5 h-5 text-primary" />
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Global Escrow</span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <div className="w-full max-w-[400px] aspect-square bg-gradient-to-br from-primary/10 to-accent/10 rounded-[40px] border border-border flex items-center justify-center p-12 relative">
-                            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20" />
-                            <Shield className="w-32 h-32 text-white/20" />
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
-                                <p className="text-4xl font-black text-white">100%</p>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-text-dim">Escrow Protected</p>
+
+                            <div className="w-full lg:w-[400px] aspect-square relative group">
+                                <div className="absolute inset-0 bg-primary/20 rounded-full blur-[80px] group-hover:bg-primary/30 transition-all duration-700" />
+                                <div className="absolute inset-0 border-2 border-primary/20 rounded-full animate-[spin_20s_linear_infinite] border-dashed" />
+                                <div className="absolute inset-4 border border-white/10 rounded-full animate-[spin_15s_linear_infinite_reverse]" />
+
+                                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                                    <Shield className="w-20 h-20 text-white mb-4" />
+                                    <p className="text-4xl font-black italic text-white">$0.00</p>
+                                    <p className="text-[10px] font-black text-text-dim uppercase tracking-widest">LOSS RECORD</p>
+                                </div>
                             </div>
                         </div>
                     </div>

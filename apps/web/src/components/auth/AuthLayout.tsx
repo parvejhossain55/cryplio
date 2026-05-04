@@ -26,10 +26,10 @@ const AuthLayout = ({ children, title, subtitle }: AuthLayoutProps) => {
                 <div className="relative z-10">
                     <Link href="/" className="flex items-center space-x-3 group">
                         <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center shadow-2xl shadow-primary/40 group-hover:rotate-12 transition-transform duration-500">
-                            <Wallet className="text-white w-7 h-7" />
+                            <Wallet className="text-background w-7 h-7" />
                         </div>
-                        <span className="text-3xl font-black tracking-tighter text-white">
-                            Cryp<span className="gradient-text">lio</span>
+                        <span className="text-3xl font-black italic uppercase tracking-tighter text-white">
+                            CRYP<span className="text-primary truncate">LIO</span>
                         </span>
                     </Link>
                 </div>
@@ -40,10 +40,10 @@ const AuthLayout = ({ children, title, subtitle }: AuthLayoutProps) => {
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.8, delay: 0.2 }}
                     >
-                        <h2 className="text-5xl font-black text-white leading-tight mb-8">
-                            The best way <br />
-                            to trade <br />
-                            crypto.
+                        <h2 className="text-6xl font-black italic uppercase tracking-tighter text-white leading-[0.8] mb-8">
+                            THE BEST <br />
+                            TO TRADE <br />
+                            <span className="gradient-text">CRPT.</span>
                         </h2>
 
                         <div className="space-y-8">
@@ -102,9 +102,9 @@ const AuthLayout = ({ children, title, subtitle }: AuthLayoutProps) => {
                         animate={{ opacity: 1, y: 0 }}
                         className="w-full max-w-md"
                     >
-                        <div className="mb-10">
-                            <h1 className="text-3xl font-black text-white mb-3">{title}</h1>
-                            <p className="text-text-dim font-medium">{subtitle}</p>
+                        <div className="mb-10 text-center md:text-left">
+                            <h1 className="text-5xl font-black italic uppercase tracking-tighter text-white mb-3">{title}</h1>
+                            <p className="text-text-dim font-bold uppercase tracking-widest text-xs">{subtitle}</p>
                         </div>
 
                         <div className="relative">

@@ -1,109 +1,121 @@
 import React from "react";
 import Link from "next/link";
-import { Wallet, Send, Code2, Briefcase, MessageCircle } from "lucide-react";
+import { Wallet, Send, Code2, Briefcase, MessageCircle, Terminal, Shield, Activity } from "lucide-react";
 
 const Footer = () => {
     const footerLinks = [
         {
-            title: "Product",
+            title: "EXCHANGE",
             links: [
-                { name: "P2P Trading", href: "/marketplace" },
-                { name: "Invest", href: "#" },
-                { name: "Swap", href: "/swap" },
-                { name: "Fees", href: "#" },
+                { name: "P2P Marketplace", href: "/marketplace" },
+                { name: "Institutional OTC", href: "#" },
+                { name: "Mesh Swap", href: "/swap" },
+                { name: "Fee Schedule", href: "#" },
             ],
         },
         {
-            title: "Account",
+            title: "PROTOCOL",
             links: [
-                { name: "Login", href: "/login" },
-                { name: "Register", href: "/register" },
-                { name: "Forgot Password", href: "/forgot-password" },
-                { name: "Security", href: "/security" },
+                { name: "Security Audit", href: "/security" },
+                { name: "Proof of Reserves", href: "#" },
+                { name: "Developer SDK", href: "/api" },
+                { name: "Whitepaper", href: "#" },
             ],
         },
         {
-            title: "Support",
+            title: "RESOURCES",
             links: [
-                { name: "Help Center", href: "/support" },
-                { name: "API Docs", href: "/api" },
-                { name: "Contact Us", href: "/support" },
-                { name: "Community", href: "/community" },
+                { name: "Command Center", href: "/support" },
+                { name: "Status Page", href: "#" },
+                { name: "Compliance", href: "#" },
+                { name: "Registry", href: "#" },
             ],
         },
     ];
 
     return (
-        <footer className="bg-surface border-t border-border pt-16 pb-8">
-            <div className="container mx-auto px-4 md:px-6">
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-10 mb-16">
+        <footer className="bg-background border-t border-white/5 pt-24 pb-12 overflow-hidden relative">
+            {/* Background Texture */}
+            <div className="absolute top-0 right-0 w-1/2 h-full bg-primary/5 blur-[120px] pointer-events-none" />
+
+            <div className="container mx-auto px-4 md:px-6 relative z-10">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-16 mb-20">
                     {/* Brand Column */}
-                    <div className="col-span-2">
-                        <Link href="/" className="flex items-center space-x-2 mb-6">
-                            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                                <Wallet className="text-white w-5 h-5" />
+                    <div className="md:col-span-4 space-y-8">
+                        <Link href="/" className="flex items-center space-x-3 group">
+                            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
+                                <Wallet className="text-background w-6 h-6" />
                             </div>
-                            <span className="text-xl font-bold">
-                                Cryp<span className="gradient-text">lio</span>
+                            <span className="text-2xl font-black italic uppercase tracking-tighter">
+                                CRYP<span className="text-primary">LIO</span>
                             </span>
                         </Link>
-                        <p className="text-text-dim text-sm max-w-xs mb-8 leading-relaxed">
-                            The most trusted P2P cryptocurrency exchange platform. Buy, sell, and trade over 50+ cryptocurrencies with local payment methods.
+                        <p className="text-text-dim text-sm font-bold uppercase tracking-widest leading-loose max-w-sm">
+                            THE INSTITUTIONAL CLEARING LAYER FOR DECENTRALIZED TRADE. BUILT FOR SCALE, PROTECTED BY SECURE ENCLAVES.
                         </p>
-                        <div className="flex items-center space-x-5">
-                            <Link href="#" className="text-text-dim hover:text-primary transition-colors">
-                                <Send className="w-5 h-5" />
-                            </Link>
-                            <Link href="#" className="text-text-dim hover:text-primary transition-colors">
-                                <Code2 className="w-5 h-5" />
-                            </Link>
-                            <Link href="#" className="text-text-dim hover:text-primary transition-colors">
-                                <Briefcase className="w-5 h-5" />
-                            </Link>
-                            <Link href="#" className="text-text-dim hover:text-primary transition-colors">
-                                <MessageCircle className="w-5 h-5" />
-                            </Link>
+
+                        <div className="flex items-center gap-4">
+                            <div className="px-4 py-2 bg-white/5 border border-white/5 rounded-xl flex items-center gap-2">
+                                <Activity className="w-3.5 h-3.5 text-primary animate-pulse" />
+                                <span className="text-[10px] font-black text-white uppercase tracking-widest">NETWORK: ACTIVE</span>
+                            </div>
+                            <div className="px-4 py-2 bg-white/5 border border-white/5 rounded-xl flex items-center gap-2">
+                                <Shield className="w-3.5 h-3.5 text-primary" />
+                                <span className="text-[10px] font-black text-white uppercase tracking-widest">V2.4.0</span>
+                            </div>
                         </div>
                     </div>
 
                     {/* Links Columns */}
-                    {footerLinks.map((group) => (
-                        <div key={group.title} className="col-span-1">
-                            <h3 className="text-white font-semibold mb-6">{group.title}</h3>
-                            <ul className="space-y-4 text-sm">
-                                {group.links.map((link) => (
-                                    <li key={link.name}>
-                                        <Link
-                                            href={link.href}
-                                            className="text-text-dim hover:text-white transition-colors"
-                                        >
-                                            {link.name}
-                                        </Link>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    ))}
-                </div>
-
-                <hr className="border-border mb-8" />
-
-                <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-                    <p className="text-text-dim text-xs">
-                        © {new Date().getFullYear()} Cryplio Inc. All rights reserved.
-                    </p>
-                    <div className="flex items-center space-x-6 text-xs text-text-dim">
-                        <Link href="#" className="hover:text-white transition-colors">
-                            Privacy Policy
-                        </Link>
-                        <Link href="#" className="hover:text-white transition-colors">
-                            Terms of Service
-                        </Link>
-                        <Link href="#" className="hover:text-white transition-colors">
-                            Cookie Policy
-                        </Link>
+                    <div className="md:col-span-8 grid grid-cols-2 md:grid-cols-3 gap-12">
+                        {footerLinks.map((group) => (
+                            <div key={group.title} className="space-y-8">
+                                <h3 className="text-text-dim text-[10px] font-black uppercase tracking-[0.3em]">{group.title}</h3>
+                                <ul className="space-y-4">
+                                    {group.links.map((link) => (
+                                        <li key={link.name}>
+                                            <Link
+                                                href={link.href}
+                                                className="text-xs font-bold text-white uppercase tracking-widest hover:text-primary transition-all flex items-center gap-2 group"
+                                            >
+                                                <span className="w-0 h-[1px] bg-primary group-hover:w-3 transition-all" />
+                                                {link.name}
+                                            </Link>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        ))}
                     </div>
                 </div>
+
+                <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
+                    <div className="flex items-center gap-6">
+                        <p className="text-[10px] font-black text-text-dim uppercase tracking-widest">
+                            © {new Date().getFullYear()} CRYPLIO PROTOCOL. ALL NODES REGISTERED.
+                        </p>
+                    </div>
+
+                    <div className="flex items-center gap-8">
+                        {["Twitter", "Discord", "GitHub", "Telegram"].map(social => (
+                            <Link key={social} href="#" className="text-[10px] font-black text-text-dim hover:text-white uppercase tracking-widest transition-colors">
+                                {social}
+                            </Link>
+                        ))}
+                    </div>
+
+                    <div className="flex items-center gap-8 text-[10px] font-black text-text-dim uppercase tracking-widest">
+                        <Link href="#" className="hover:text-white transition-all">Privacy</Link>
+                        <Link href="#" className="hover:text-white transition-all">Terms</Link>
+                        <Link href="#" className="hover:text-white transition-all">Cookies</Link>
+                    </div>
+                </div>
+            </div>
+
+            {/* Terminal Decoration */}
+            <div className="absolute -bottom-10 right-10 flex items-center gap-2 opacity-10">
+                <Terminal className="w-4 h-4" />
+                <span className="text-[10px] font-mono tracking-tighter">SECURE_UPLINK_ESTABLISHED // PORT_443_SSL_V3</span>
             </div>
         </footer>
     );

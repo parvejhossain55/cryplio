@@ -53,23 +53,29 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 px-4">
-        <div className="container mx-auto max-w-4xl">
-          <div className="relative overflow-hidden bg-primary rounded-[48px] p-10 md:p-20 text-center">
-            {/* Decoration */}
-            <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
+      <section className="py-32 px-4 md:px-6">
+        <div className="container mx-auto max-w-5xl">
+          <div className="relative overflow-hidden bg-surface border border-white/5 rounded-[3rem] p-12 md:p-24 text-center">
+            {/* Ambient Glows */}
+            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2" />
+            <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-secondary/5 rounded-full blur-[120px] translate-y-1/2 -translate-x-1/2" />
 
-            <h2 className="text-4xl md:text-6xl font-black text-white mb-8 relative z-10">Ready to start trading?</h2>
-            <p className="text-white/80 text-lg mb-10 max-w-xl mx-auto relative z-10">
-              Join thousands of traders on Cryplio today. Create an account in seconds and start swapping crypto for cash.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10">
-              <button className="w-full sm:w-auto bg-white text-primary px-10 py-5 rounded-2xl text-xl font-bold hover:scale-105 transition-transform shadow-xl">
-                Create Account
-              </button>
-              <button className="w-full sm:w-auto bg-primary-dark text-white px-10 py-5 rounded-2xl text-xl font-bold border border-white/20 hover:bg-white/10 transition-all">
-                Contact Sales
-              </button>
+            <div className="relative z-10 space-y-8">
+              <h2 className="text-5xl md:text-8xl font-black italic uppercase tracking-tighter leading-[0.8] text-white">
+                READY TO <br />
+                <span className="gradient-text">OPERATE?</span>
+              </h2>
+              <p className="text-text-dim text-xl font-medium max-w-xl mx-auto leading-relaxed uppercase tracking-tight italic">
+                Join the global pool of institutional traders. Initialize your clearing account in less than 120 seconds.
+              </p>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+                <button className="w-full sm:w-auto bg-white text-background px-12 py-5 rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-white/5">
+                  INITIALIZE ACCOUNT
+                </button>
+                <button className="w-full sm:w-auto bg-surface-light text-white border border-white/10 px-12 py-5 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-white/5 transition-all">
+                  CONTACT DEPLOYMENT
+                </button>
+              </div>
             </div>
           </div>
         </div>

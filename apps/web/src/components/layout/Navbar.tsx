@@ -35,69 +35,58 @@ const Navbar = () => {
     };
 
     return (
-        <nav className="fixed top-0 w-full bg-surface/80 backdrop-blur-xl border-b border-white/5 z-50">
-            <div className="container mx-auto px-4">
-                <div className="flex items-center justify-between h-16">
+        <nav className="fixed top-0 w-full bg-background/80 backdrop-blur-xl border-b border-white/5 z-50">
+            <div className="container mx-auto px-4 md:px-6">
+                <div className="flex items-center justify-between h-20">
                     {/* Logo */}
-                    <Link href="/" className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
-                            <Wallet className="w-6 h-6 text-white" />
+                    <Link href="/" className="flex items-center space-x-3 group">
+                        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 group-hover:rotate-12 transition-transform duration-500">
+                            <Wallet className="w-6 h-6 text-background" />
                         </div>
-                        <span className="text-2xl font-black tracking-tight">
-                            Cryp<span className="gradient-text">lio</span>
+                        <span className="text-2xl font-black italic uppercase tracking-tighter text-white">
+                            CRYP<span className="text-primary truncate">LIO</span>
                         </span>
                     </Link>
 
                     {/* Desktop Navigation */}
-                    <div className="hidden md:flex items-center space-x-8">
-                        <Link href="/marketplace" className="text-sm font-bold text-text-dim hover:text-white transition-colors">
-                            Marketplace
-                        </Link>
-                        <Link href="/swap" className="text-sm font-bold text-text-dim hover:text-white transition-colors">
-                            Swap
-                        </Link>
-                        <Link href="/support" className="text-sm font-bold text-text-dim hover:text-white transition-colors">
-                            Support
-                        </Link>
+                    <div className="hidden md:flex items-center space-x-10">
+                        {["Marketplace", "Swap", "Support"].map((item) => (
+                            <Link
+                                key={item}
+                                href={`/${item.toLowerCase()}`}
+                                className="text-[10px] font-black text-text-dim uppercase tracking-[0.2em] hover:text-primary transition-all relative group"
+                            >
+                                {item}
+                                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
+                            </Link>
+                        ))}
+
+                        <div className="h-4 w-px bg-white/10" />
 
                         {user ? (
-                            <>
-                                {/* Email verification warning */}
-                                {!user.emailVerified && (
-                                    <div className="flex items-center space-x-2 bg-yellow-500/10 text-yellow-500 text-xs px-3 py-1.5 rounded-full">
-                                        <Mail className="w-3.5 h-3.5" />
-                                        <span>Verify email</span>
-                                    </div>
-                                )}
-
-                                <div className="flex items-center space-x-4">
-                                    <Link href="/user/dashboard" className="text-sm font-bold text-text-dim hover:text-white transition-colors">
-                                        Dashboard
-                                    </Link>
-                                    <div className="relative group">
-                                        <button className="flex items-center space-x-2 text-sm font-bold text-text-dim hover:text-white transition-colors">
-                                            <User className="w-4 h-4" />
-                                            <span>{user.username}</span>
-                                        </button>
-                                        {/* Dropdown menu could be added here */}
-                                    </div>
-                                    <button
-                                        onClick={handleLogout}
-                                        disabled={isLoading}
-                                        className="flex items-center space-x-2 text-sm font-bold text-red-400 hover:text-red-300 transition-colors"
-                                    >
-                                        <LogOut className="w-4 h-4" />
-                                        <span>Logout</span>
-                                    </button>
-                                </div>
-                            </>
+                            <div className="flex items-center space-x-6">
+                                <Link
+                                    href="/user/dashboard"
+                                    className="text-[10px] font-black text-white px-5 py-2.5 bg-white/5 border border-white/5 rounded-xl hover:bg-white/10 transition-all uppercase tracking-widest"
+                                >
+                                    Portal
+                                </Link>
+                                <button
+                                    onClick={handleLogout}
+                                    disabled={isLoading}
+                                    className="p-2 text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
+                                    title="Logout"
+                                >
+                                    <LogOut className="w-5 h-5" />
+                                </button>
+                            </div>
                         ) : (
-                            <div className="flex items-center space-x-4">
-                                <Link href="/login" className="text-sm font-bold text-white hover:text-primary transition-colors">
+                            <div className="flex items-center space-x-6">
+                                <Link href="/login" className="text-[10px] font-black text-text-dim hover:text-white uppercase tracking-widest transition-colors">
                                     Login
                                 </Link>
-                                <Link href="/register" className="bg-white text-background px-6 py-2.5 rounded-xl text-sm font-black hover:scale-105 transition-transform">
-                                    Sign Up
+                                <Link href="/register" className="bg-white text-background px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-white/5">
+                                    Initialize
                                 </Link>
                             </div>
                         )}
