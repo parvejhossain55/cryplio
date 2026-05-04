@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Filter, ArrowUpRight, ChevronDown, CheckCircle2, ShieldCheck, Clock, Star, TrendingUp } from "lucide-react";
+import Link from "next/link";
 import Pagination from "@/components/ui/Pagination";
 
 const p2pAds = [
@@ -224,9 +225,12 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
                                                                             {ad.user[0]}
                                                                         </div>
                                                                         <div>
-                                                                            <p className="font-black text-lg text-white flex items-center gap-2 mb-1">
+                                                                            <Link
+                                                                                href={`/u/${ad.user}`}
+                                                                                className="font-black text-lg text-white flex items-center gap-2 mb-1 hover:text-primary transition-colors cursor-pointer"
+                                                                            >
                                                                                 {ad.user} <CheckCircle2 className="w-4 h-4 text-accent fill-accent/10" />
-                                                                            </p>
+                                                                            </Link>
                                                                             <div className="flex items-center space-x-3 text-xs font-bold text-text-dim">
                                                                                 <span className="flex items-center gap-1"><Star className="w-3 h-3 text-amber-500 fill-amber-500" /> {ad.rating}</span>
                                                                                 <span>{ad.trades} trades</span>
@@ -310,9 +314,12 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
                                                 {ad.user[0]}
                                             </div>
                                             <div>
-                                                <p className="font-black text-white flex items-center gap-1">
+                                                <Link
+                                                    href={`/u/${ad.user}`}
+                                                    className="font-black text-white flex items-center gap-1 hover:text-primary transition-colors"
+                                                >
                                                     {ad.user} <CheckCircle2 className="w-4 h-4 text-accent" />
-                                                </p>
+                                                </Link>
                                                 <p className="text-[10px] font-bold text-text-dim uppercase tracking-wider">{ad.trades} TRADES | {ad.rating} RATING</p>
                                             </div>
                                         </div>

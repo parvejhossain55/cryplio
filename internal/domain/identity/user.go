@@ -123,6 +123,7 @@ type User struct {
 	SuspendedAt         *time.Time `db:"suspended_at" json:"suspended_at,omitempty"`
 	SuspendedUntil      *time.Time `db:"suspended_until" json:"suspended_until,omitempty"`
 	LastLoginAt         *time.Time `db:"last_login_at" json:"last_login_at,omitempty"`
+	LastSeenAt          *time.Time `db:"last_seen_at" json:"last_seen_at,omitempty"`
 	LoginCount          int        `db:"login_count" json:"login_count"`
 	FailedLoginAttempts int        `db:"failed_login_attempts" json:"failed_login_attempts"`
 	LockedUntil         *time.Time `db:"locked_until" json:"locked_until,omitempty"`
@@ -134,6 +135,14 @@ type User struct {
 	CreatedAt           time.Time  `db:"created_at" json:"created_at"`
 	UpdatedAt           time.Time  `db:"updated_at" json:"updated_at"`
 	DeletedAt           *time.Time `db:"deleted_at" json:"deleted_at,omitempty"`
+}
+
+// IsOnline checks if the user was seen in the last 5 minutes
+func (u *User) IsOnline() bool {
+	if u.LastSeenAt == nil {
+		return false
+	}
+	return time.Since(*u.LastSeenAt) < 5*time.Minute
 }
 
 // IsActive checks if the user account is active

@@ -16,6 +16,8 @@ export interface User {
     kycLevel: number;
     isMerchant: boolean;
     twoFAEnabled: boolean;
+    lastSeenAt?: string;
+    isOnline: boolean;
 }
 
 interface AuthContextType {
@@ -52,22 +54,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [temp2FAToken, setTemp2FAToken] = useState<string | null>(null);
     const router = useRouter();
 
-     useEffect(() => {
-         const checkSession = async () => {
-             try {
-                 const currentUser: BackendUser | null = await authService.getCurrentUser();
-                 if (currentUser) {
-                     setUser(mapBackendUser(currentUser));
-                 }
-             } catch (error) {
-                 console.error("Failed to check session:", error);
-             } finally {
-                 setIsLoading(false);
-             }
-         };
+    useEffect(() => {
+        const checkSession = async () => {
+            try {
+                const currentUser: BackendUser | null = await authService.getCurrentUser();
+                if (currentUser) {
+                    setUser(mapBackendUser(currentUser));
+                }
+            } catch (error) {
+                console.error("Failed to check session:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
 
-         checkSession();
-     }, []);
+        checkSession();
+    }, []);
 
     const mapBackendUser = (backendUser: BackendUser): User => ({
         id: backendUser.id,
@@ -81,6 +83,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         bio: backendUser.bio ?? "",
         avatarUrl: backendUser.avatar_url ?? undefined,
         isMerchant: backendUser.is_merchant ?? false,
+        isOnline: backendUser.is_online ?? false,
     });
 
     const login = async (email: string, password: string) => {

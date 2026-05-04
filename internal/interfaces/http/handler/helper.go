@@ -2,10 +2,12 @@ package handler
 
 import (
 	"net/http"
+	"time"
 
 	"cryplio/internal/domain/identity"
 	"cryplio/internal/interfaces/http/dto"
 	"cryplio/pkg/apperrors"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -32,6 +34,28 @@ func handleError(c *gin.Context, err error) {
 	c.JSON(status, gin.H{"error": err.Error()})
 }
 
+// mapUserStats converts UserStats to DTO
+func mapUserStats(s *identity.UserStats) dto.UserStatsDTO {
+	if s == nil {
+		return dto.UserStatsDTO{}
+	}
+	var lastTradeAt string
+	if s.LastTradeAt != nil {
+		lastTradeAt = s.LastTradeAt.Format(time.RFC3339)
+	}
+	return dto.UserStatsDTO{
+		TotalTrades:           s.TotalTrades,
+		SuccessfulTrades:      s.SuccessfulTrades,
+		DisputeRate:           s.DisputeRate,
+		AvgRating:             s.AvgRating,
+		PositiveFeedbackCount: s.PositiveFeedbackCount,
+		NeutralFeedbackCount:  s.NeutralFeedbackCount,
+		NegativeFeedbackCount: s.NegativeFeedbackCount,
+		TotalVolumeUSD:        s.TotalVolumeUSD,
+		LastTradeAt:           lastTradeAt,
+	}
+}
+
 // mapUser converts a domain User to a DTO UserResponse.
 func mapUser(u *identity.User) dto.UserResponse {
 	if u == nil {
@@ -46,6 +70,10 @@ func mapUser(u *identity.User) dto.UserResponse {
 	case identity.KYCLevel3:
 		kycLevel = 3
 	}
+	var lastSeenAt string
+	if u.LastSeenAt != nil {
+		lastSeenAt = u.LastSeenAt.Format(time.RFC3339)
+	}
 	return dto.UserResponse{
 		ID:            u.UserID.String(),
 		Email:         u.Email,
@@ -56,12 +84,14 @@ func mapUser(u *identity.User) dto.UserResponse {
 		TwoFAEnabled:  u.TwoFASecret != nil,
 		AvatarURL:     u.AvatarURL,
 		Bio:           u.Bio,
+		LastSeenAt:    lastSeenAt,
+		IsOnline:      u.IsOnline(),
+		Stats:         dto.UserStatsDTO{},
 	}
 }
 
 // setAuthCookie sets the authentication cookie.
 func setAuthCookie(c *gin.Context, cfg *Config, token string) {
-	// 86400 seconds = 24h
 	c.SetCookie(cfg.CookieName, token, 86400, "/", "", cfg.CookieSecure, true)
 }
 

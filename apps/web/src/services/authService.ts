@@ -9,6 +9,7 @@ export interface BackendUser {
     is_merchant: boolean;
     two_fa_enabled: boolean;
     avatar_url?: string | null;
+    is_online: boolean;
 }
 
 export interface BackendSession {
@@ -17,6 +18,29 @@ export interface BackendSession {
     device_type?: string;
     ip_address?: string;
     last_used_at: string;
+}
+
+export interface UserStats {
+    total_trades: number;
+    successful_trades: number;
+    dispute_rate: number;
+    avg_rating?: number;
+    positive_feedback_count: number;
+    neutral_feedback_count: number;
+    negative_feedback_count: number;
+    total_volume_usd: number;
+    last_trade_at?: string;
+    success_rate: number;
+}
+
+export interface UserBlock {
+    id: string;
+    blocker_id: string;
+    blocked_id: string;
+    reason?: string;
+    is_permanent: boolean;
+    expires_at?: string;
+    created_at: string;
 }
 
 export interface AuthResponse {
@@ -157,35 +181,35 @@ export const authService = {
             if (data.user) {
                 rememberAuthSession();
             }
-             return data.user;
-         } catch {
-             return null;
-         }
-     },
- 
-     updateCurrentUser: async (updates: {
-         username?: string;
-         bio?: string;
-         avatarUrl?: string | null;
-     }): Promise<BackendUser> => {
-         const response = await fetch("/api/users/me", {
-             method: "PUT",
-             headers: {
-                 "Content-Type": "application/json",
-             },
-             body: JSON.stringify(updates),
-             credentials: "include",
-         });
- 
-         const data = await response.json();
- 
-         if (!response.ok) {
-             throw new Error(data.error || "Failed to update user");
-         }
- 
-         rememberAuthSession();
-         return data.user;
-     },
+            return data.user;
+        } catch {
+            return null;
+        }
+    },
+
+    updateCurrentUser: async (updates: {
+        username?: string;
+        bio?: string;
+        avatarUrl?: string | null;
+    }): Promise<BackendUser> => {
+        const response = await fetch("/api/users/me", {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(updates),
+            credentials: "include",
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Failed to update user");
+        }
+
+        rememberAuthSession();
+        return data.user;
+    },
 
     loginWithGoogle: (): void => {
         window.location.href = "/api/auth/google";
@@ -403,6 +427,76 @@ export const authService = {
             });
             refreshSubscribers = [];
         }
+    },
+
+    // User Profile & Stats
+    getUserByUsername: async (username: string): Promise<{ user: BackendUser; stats: UserStats }> => {
+        const response = await fetch(`/api/users/username/${username}`, {
+            credentials: "include",
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "User not found");
+        }
+
+        const data = await response.json();
+        return {
+            user: data.user,
+            stats: {
+                ...data.stats,
+                success_rate: data.stats?.total_trades > 0
+                    ? (data.stats.successful_trades / data.stats.total_trades) * 100
+                    : 100
+            }
+        };
+    },
+
+    // User Blocking
+    blockUser: async (blockedId: string, reason: string = "No reason provided", isPermanent: boolean = true): Promise<void> => {
+        const response = await fetchWithRefresh("/api/users/me/block", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                blocked_id: blockedId,
+                reason: reason,
+                is_permanent: isPermanent
+            }),
+            credentials: "include",
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "Failed to block user");
+        }
+    },
+
+    unblockUser: async (blockedId: string): Promise<void> => {
+        const response = await fetchWithRefresh(`/api/users/me/block/${blockedId}`, {
+            method: "DELETE",
+            credentials: "include",
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "Failed to unblock user");
+        }
+    },
+
+    getBlocks: async (): Promise<UserBlock[]> => {
+        const response = await fetchWithRefresh("/api/users/me/block", {
+            credentials: "include",
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "Failed to fetch blocked users");
+        }
+
+        const data = await response.json();
+        return data.blocks || [];
     },
 };
 

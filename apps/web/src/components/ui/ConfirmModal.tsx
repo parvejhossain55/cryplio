@@ -11,6 +11,7 @@ interface ConfirmModalProps {
     onClose: () => void;
     confirmText?: string;
     cancelText?: string;
+    isDestructive?: boolean;
 }
 
 const ConfirmModal = ({
@@ -20,7 +21,8 @@ const ConfirmModal = ({
     onConfirm,
     onClose,
     confirmText = "Confirm",
-    cancelText = "Cancel"
+    cancelText = "Cancel",
+    isDestructive = false
 }: ConfirmModalProps) => {
     useEffect(() => {
         const handleEscape = (e: KeyboardEvent) => {
@@ -76,7 +78,10 @@ const ConfirmModal = ({
                             onConfirm();
                             onClose();
                         }}
-                        className="flex-1 px-6 py-3 bg-primary border border-primary text-white rounded-2xl text-sm font-black hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20"
+                        className={`flex-1 px-6 py-3 border rounded-2xl text-sm font-black hover:scale-105 active:scale-95 transition-all shadow-lg ${isDestructive
+                                ? "bg-red-500 border-red-500 text-white shadow-red-500/20"
+                                : "bg-primary border-primary text-white shadow-primary/20"
+                            }`}
                     >
                         {confirmText}
                     </button>
