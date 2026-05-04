@@ -7,9 +7,11 @@ import (
 	domainidentity "cryplio/internal/domain/identity"
 	"cryplio/internal/infrastructure/notification"
 	identitypostgres "cryplio/internal/infrastructure/persistence/postgres/identity"
+	"cryplio/internal/infrastructure/storage"
 	httpapi "cryplio/internal/interfaces/http"
 	"cryplio/pkg/config"
 	"cryplio/pkg/database"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -39,7 +41,6 @@ func New() (*App, error) {
 		cfg.EmailFrom,
 		cfg.FrontendURL,
 	)
-	passwordResetMailer := emailClient
 	authService := domainidentity.NewAuthService(
 		userRepo,
 		cfg.JWTSecret,
@@ -53,9 +54,13 @@ func New() (*App, error) {
 		cfg.GoogleClientID,
 		cfg.GoogleClientSecret,
 		cfg.OAuthRedirectURL,
-	).WithPasswordResetMailer(passwordResetMailer)
+	).WithPasswordResetMailer(emailClient)
 
-	router := httpapi.SetupRouter(cfg, authService)
+	storage, err := storage.NewS3Storage(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("initialize storage: %w", err)
+	}
+	router := httpapi.SetupRouter(cfg, authService, storage)
 
 	return &App{
 		Config: cfg,

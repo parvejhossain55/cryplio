@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"cryplio/internal/domain/identity"
+	"cryplio/internal/infrastructure/storage"
 	"cryplio/internal/interfaces/http/handler"
 	"cryplio/internal/interfaces/http/middleware"
 	"cryplio/pkg/config"
@@ -12,6 +13,7 @@ import (
 func SetupRouter(
 	cfg *config.Config,
 	authService identity.AuthService,
+	storage storage.ObjectStorage,
 ) *gin.Engine {
 	// Set Gin mode
 	if cfg.AppEnv == "development" {
@@ -44,7 +46,7 @@ func SetupRouter(
 			FrontendURL:        cfg.FrontendURL,
 			RefreshTokenExpiry: cfg.RefreshTokenExpiry,
 			JWTSecret:          cfg.JWTSecret,
-		})
+		}, storage)
 
 		// Public
 		public := v1.Group("/")
@@ -68,6 +70,7 @@ func SetupRouter(
 		{
 			auth.GET("/users/me", authHandler.GetUserHandler)
 			auth.PUT("/users/me", authHandler.UpdateUserHandler)
+			auth.POST("/users/me/avatar", authHandler.UploadAvatarHandler)
 			// 2FA management
 			auth.POST("/auth/2fa/setup", authHandler.Setup2FAHandler)
 			auth.POST("/auth/2fa/verify", authHandler.Verify2FAHandler)

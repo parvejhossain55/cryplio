@@ -10,6 +10,7 @@ export interface User {
     email: string;
     username: string;
     bio?: string;
+    avatarUrl?: string;
     role: "user" | "merchant" | "admin" | null;
     emailVerified: boolean;
     kycLevel: number;
@@ -51,33 +52,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [temp2FAToken, setTemp2FAToken] = useState<string | null>(null);
     const router = useRouter();
 
-    useEffect(() => {
-        const checkSession = async () => {
-            try {
-                const currentUser: BackendUser | null = await authService.getCurrentUser();
-                if (currentUser) {
-                    const mappedUser: User = {
-                        id: currentUser.id,
-                        name: currentUser.username || currentUser.email.split("@")[0],
-                        email: currentUser.email,
-                        username: currentUser.username || currentUser.email.split("@")[0],
-                        role: "user",
-                        emailVerified: currentUser.email_verified ?? false,
-                        kycLevel: currentUser.kyc_level ?? 0,
-                        isMerchant: currentUser.is_merchant ?? false,
-                        twoFAEnabled: currentUser.two_fa_enabled ?? false,
-                    };
-                    setUser(mappedUser);
-                }
-            } catch (error) {
-                console.error("Failed to check session:", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
+     useEffect(() => {
+         const checkSession = async () => {
+             try {
+                 const currentUser: BackendUser | null = await authService.getCurrentUser();
+                 if (currentUser) {
+                     setUser(mapBackendUser(currentUser));
+                 }
+             } catch (error) {
+                 console.error("Failed to check session:", error);
+             } finally {
+                 setIsLoading(false);
+             }
+         };
 
-        checkSession();
-    }, []);
+         checkSession();
+     }, []);
 
     const mapBackendUser = (backendUser: BackendUser): User => ({
         id: backendUser.id,
@@ -89,6 +79,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         kycLevel: backendUser.kyc_level ?? 0,
         twoFAEnabled: backendUser.two_fa_enabled ?? false,
         bio: backendUser.bio ?? "",
+        avatarUrl: backendUser.avatar_url ?? undefined,
         isMerchant: backendUser.is_merchant ?? false,
     });
 

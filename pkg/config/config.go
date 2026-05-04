@@ -65,6 +65,14 @@ type Config struct {
 
 	// 2FA Issuer
 	IssuerName string
+
+	// S3/MinIO configuration
+	S3Endpoint        string
+	S3AccessKeyID     string
+	S3SecretAccessKey string
+	S3UseSSL          bool
+	S3BucketName      string
+	S3PublicBaseURL   string // Optional: public URL for accessing objects (if different from endpoint)
 }
 
 func Load() (*Config, error) {
@@ -135,6 +143,14 @@ func Load() (*Config, error) {
 		RateLimitWindow:    rateLimitWindow,
 		CorsAllowedOrigins: []string{getEnvCompat("CORS_ALLOWED_ORIGINS", "*")},
 		IssuerName:         getEnvCompat("ISSUER_NAME", "Cryplio"),
+
+		// S3/MinIO configuration
+		S3Endpoint:        getEnvCompat("S3_ENDPOINT", "localhost:9000"),
+		S3AccessKeyID:     getEnvCompat("S3_ACCESS_KEY_ID", "minioadmin"),
+		S3SecretAccessKey: getEnvCompat("S3_SECRET_ACCESS_KEY", "minioadmin"),
+		S3UseSSL:          getEnvCompat("S3_USE_SSL", "false") == "true",
+		S3BucketName:      getEnvCompat("S3_BUCKET_NAME", "cryplio-storage"),
+		S3PublicBaseURL:   getEnvCompat("S3_PUBLIC_BASE_URL", ""),
 	}
 
 	return cfg, nil

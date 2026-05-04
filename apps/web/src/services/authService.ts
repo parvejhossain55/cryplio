@@ -8,6 +8,7 @@ export interface BackendUser {
     kyc_level: number;
     is_merchant: boolean;
     two_fa_enabled: boolean;
+    avatar_url?: string | null;
 }
 
 export interface BackendSession {
@@ -156,34 +157,35 @@ export const authService = {
             if (data.user) {
                 rememberAuthSession();
             }
-            return data.user;
-        } catch {
-            return null;
-        }
-    },
-
-    updateCurrentUser: async (updates: {
-        username?: string;
-        bio?: string;
-    }): Promise<BackendUser> => {
-        const response = await fetch("/api/users/me", {
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(updates),
-            credentials: "include",
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.error || "Failed to update user");
-        }
-
-        rememberAuthSession();
-        return data.user;
-    },
+             return data.user;
+         } catch {
+             return null;
+         }
+     },
+ 
+     updateCurrentUser: async (updates: {
+         username?: string;
+         bio?: string;
+         avatarUrl?: string | null;
+     }): Promise<BackendUser> => {
+         const response = await fetch("/api/users/me", {
+             method: "PUT",
+             headers: {
+                 "Content-Type": "application/json",
+             },
+             body: JSON.stringify(updates),
+             credentials: "include",
+         });
+ 
+         const data = await response.json();
+ 
+         if (!response.ok) {
+             throw new Error(data.error || "Failed to update user");
+         }
+ 
+         rememberAuthSession();
+         return data.user;
+     },
 
     loginWithGoogle: (): void => {
         window.location.href = "/api/auth/google";

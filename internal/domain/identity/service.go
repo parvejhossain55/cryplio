@@ -59,6 +59,7 @@ type OAuthProvider interface {
 type ProfileManager interface {
 	GetUserByID(ctx context.Context, userID uuid.UUID) (*User, error)
 	UpdateProfile(ctx context.Context, userID uuid.UUID, username, bio *string) (*User, error)
+	UpdateAvatar(ctx context.Context, userID uuid.UUID, avatarURL string) (*User, error)
 }
 
 // EmailVerifier handles email verification flows.
@@ -294,6 +295,23 @@ func (s *authService) UpdateProfile(ctx context.Context, userID uuid.UUID, usern
 		user.Bio = bio
 	}
 
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return nil, apperrors.Internal("failed to update user", err)
+	}
+	return user, nil
+}
+
+// UpdateAvatar updates user's avatar URL
+func (s *authService) UpdateAvatar(ctx context.Context, userID uuid.UUID, avatarURL string) (*User, error) {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, apperrors.NotFound("user not found", err)
+	}
+	if user == nil || user.IsDeleted() {
+		return nil, apperrors.NotFound("user not found", nil)
+	}
+
+	user.AvatarURL = &avatarURL
 	if err := s.userRepo.Update(ctx, user); err != nil {
 		return nil, apperrors.Internal("failed to update user", err)
 	}

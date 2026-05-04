@@ -32,6 +32,30 @@ services:
       retries: 10
     restart: unless-stopped
 
+  minio:
+    image: minio/minio:latest
+    container_name: cryplio-minio
+    command: minio server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: cryplio
+      MINIO_ROOT_PASSWORD: cryplio123
+      MINIO_CORS_ALLOWED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000,http://localhost:8080
+      MINIO_CORS_ALLOWED_METHODS: GET,PUT,POST,DELETE,HEAD
+      MINIO_CORS_ALLOWED_HEADERS: Authorization,Content-Type
+      MINIO_CORS_EXPOSE_HEADERS: ETag,Content-Length,Content-Type
+      MINIO_CORS_MAX_AGE: 86400
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    restart: unless-stopped
+
   api:
     image: golang:1.25
     container_name: cryplio-api
@@ -49,6 +73,12 @@ services:
       REDIS_PORT: 6379
       APP_ENV: development
       APP_PORT: 8080
+      S3_ENDPOINT: minio:9000
+      S3_ACCESS_KEY_ID: cryplio
+      S3_SECRET_ACCESS_KEY: cryplio123
+      S3_USE_SSL: "false"
+      S3_BUCKET_NAME: cryplio-storage
+      S3_PUBLIC_BASE_URL: http://localhost:9000
     ports:
       - "8080:8080"
     volumes:
@@ -58,6 +88,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      minio:
+        condition: service_healthy
 
   web:
     image: node:22-alpine
@@ -65,7 +97,7 @@ services:
     working_dir: /app
     command: sh -c "npm install && npm run dev -- --hostname 0.0.0.0"
     environment:
-      API_GATEWAY_URL: http://localhost:8080
+      API_GATEWAY_URL: http://api:8080
     ports:
       - "3000:3000"
     volumes:
@@ -76,3 +108,4 @@ services:
 volumes:
   pgdata:
   redisdata:
+  miniodata:

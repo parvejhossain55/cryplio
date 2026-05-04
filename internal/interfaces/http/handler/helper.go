@@ -54,6 +54,8 @@ func mapUser(u *identity.User) dto.UserResponse {
 		KYCLevel:      kycLevel,
 		IsMerchant:    u.IsMerchant,
 		TwoFAEnabled:  u.TwoFASecret != nil,
+		AvatarURL:     u.AvatarURL,
+		Bio:           u.Bio,
 	}
 }
 

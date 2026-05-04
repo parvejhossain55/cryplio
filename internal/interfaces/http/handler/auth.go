@@ -3,9 +3,12 @@ package handler
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 
 	"cryplio/internal/domain/identity"
+	"cryplio/internal/infrastructure/storage"
 	"cryplio/internal/interfaces/http/dto"
 	httpvalidator "cryplio/internal/interfaces/http/validator"
 	sharedjwt "cryplio/pkg/jwt"
@@ -17,13 +20,15 @@ import (
 type AuthHandler struct {
 	authService identity.AuthService
 	cfg         *Config
+	storage     storage.ObjectStorage
 }
 
 // NewAuthHandler creates new auth handler
-func NewAuthHandler(authService identity.AuthService, cfg *Config) *AuthHandler {
+func NewAuthHandler(authService identity.AuthService, cfg *Config, storage storage.ObjectStorage) *AuthHandler {
 	return &AuthHandler{
 		authService: authService,
 		cfg:         cfg,
+		storage:     storage,
 	}
 }
 
@@ -156,6 +161,85 @@ func (h *AuthHandler) UpdateUserHandler(c *gin.Context) {
 		return
 	}
 
+	c.JSON(http.StatusOK, gin.H{"user": mapUser(user)})
+}
+
+// UploadAvatarHandler handles avatar upload
+func (h *AuthHandler) UploadAvatarHandler(c *gin.Context) {
+	userIDStr, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	// Log receipt of upload
+	fmt.Printf("[Avatar Upload] Received upload request for user %s\n", userID.String())
+
+	// Get the file from form data
+	file, err := c.FormFile("avatar")
+	if err != nil {
+		fmt.Printf("[Avatar Upload] Error getting file: %v\n", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Avatar file is required"})
+		return
+	}
+
+	// Validate file type
+	if file.Header.Get("Content-Type") != "image/jpeg" && file.Header.Get("Content-Type") != "image/png" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Only JPEG and PNG files are allowed"})
+		return
+	}
+
+	// Validate file size (max 2MB)
+	if file.Size > 2*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File size must be less than 2MB"})
+		return
+	}
+
+	// Open the file
+	fileReader, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open file"})
+		return
+	}
+	defer fileReader.Close()
+
+	// Read file content
+	fileContent, err := io.ReadAll(fileReader)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read file"})
+		return
+	}
+
+	// Upload to storage
+	uploadInput := storage.UploadInput{
+		Key:         fmt.Sprintf("avatars/%s/%s", userID.String(), file.Filename),
+		ContentType: file.Header.Get("Content-Type"),
+		Body:        fileContent,
+	}
+
+	uploadResult, err := h.storage.Upload(c.Request.Context(), uploadInput)
+	if err != nil {
+		fmt.Printf("[Avatar Upload] Storage upload error: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload avatar", "details": err.Error()})
+		return
+	}
+
+	fmt.Printf("[Avatar Upload] Uploaded to storage, URL: %s\n", uploadResult.URL)
+
+	// Update user with avatar URL
+	user, err := h.authService.UpdateAvatar(c.Request.Context(), userID, uploadResult.URL)
+	if err != nil {
+		fmt.Printf("[Avatar Upload] UpdateAvatar error: %v\n", err)
+		handleError(c, err)
+		return
+	}
+
+	fmt.Printf("[Avatar Upload] Successfully updated avatar for user %s\n", userID.String())
 	c.JSON(http.StatusOK, gin.H{"user": mapUser(user)})
 }
 

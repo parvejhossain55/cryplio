@@ -137,53 +137,6 @@ const AlertsSettings = () => {
                         </div>
                     </div>
 
-                    {/* Other Channels */}
-                    {otherChannels.length > 0 && (
-                        <div>
-                            <h4 className="text-sm font-black text-white uppercase tracking-wider mb-4 flex items-center">
-                                <Smartphone className="w-4 h-4 mr-2 text-primary" />
-                                Other Channels
-                            </h4>
-                            <div className="space-y-3">
-                                {otherChannels.map(channel => (
-                                    <ChannelRow key={channel.id} channel={channel} />
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {/* Notification Frequency */}
-            <div className="bg-surface border border-white/10 rounded-[2.5rem] p-8 md:p-10">
-                <h3 className="text-xl font-black text-white mb-6 uppercase tracking-tight flex items-center">
-                    <Volume2 className="w-5 h-5 mr-3 text-primary" />
-                    Notification Frequency
-                </h3>
-
-                <div className="space-y-6">
-                    <div className="flex items-center justify-between p-5 rounded-2xl bg-white/5 border border-white/5">
-                        <div>
-                            <h4 className="font-bold text-white text-sm">Quiet Hours</h4>
-                            <p className="text-[10px] text-text-dim mt-1">Disable push notifications during selected hours</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <span className="text-xs font-bold text-text-dim">10:00 PM - 7:00 AM</span>
-                            <button className="relative w-11 h-6 rounded-full bg-white/10">
-                                <span className="absolute left-1 top-1 w-4 h-4 rounded-full bg-white/40 transition-transform" />
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center justify-between p-5 rounded-2xl bg-white/5 border border-white/5">
-                        <div>
-                            <h4 className="font-bold text-white text-sm">Digest Mode</h4>
-                            <p className="text-[10px] text-text-dim mt-1">Receive a daily summary instead of real-time alerts</p>
-                        </div>
-                        <button className="relative w-11 h-6 rounded-full bg-accent">
-                            <span className="absolute right-1 top-1 w-4 h-4 rounded-full bg-white shadow transition-transform" />
-                        </button>
-                    </div>
                 </div>
             </div>
 
