@@ -13,6 +13,7 @@ import (
 	"cryplio/internal/interfaces/http/dto"
 	httpvalidator "cryplio/internal/interfaces/http/validator"
 	sharedjwt "cryplio/pkg/jwt"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -534,11 +535,10 @@ func (h *AuthHandler) GetUserByUsernameHandler(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"user":   mapUser(user),
-		"stats":  mapUserStats(stats),
-		"public": true,
-	})
+	userResp := mapUser(user)
+	userResp.Stats = mapUserStats(stats)
+
+	c.JSON(http.StatusOK, gin.H{"user": userResp})
 }
 
 // BlockUserHandler blocks another user

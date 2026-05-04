@@ -29,6 +29,14 @@ const (
 	KYCLevel3 KYCLevel = "level_3"
 )
 
+// KYC Limits in USD
+const (
+	KYCLimitLevel0 = 0.0
+	KYCLimitLevel1 = 500.0
+	KYCLimitLevel2 = 10000.0
+	KYCLimitLevel3 = -1.0 // Unlimited
+)
+
 // NullUUID wraps uuid.UUID to handle NULL values
 type NullUUID struct {
 	UUID  uuid.UUID

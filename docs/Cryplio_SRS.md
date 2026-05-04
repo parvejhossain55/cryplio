@@ -71,7 +71,7 @@ The system includes:
 ## 2.1 Product Perspective
 Cryplio is a standalone SaaS platform accessible via web browsers and mobile applications. It interfaces with:
 - Blockchain networks **(Ethereum)** for escrow contracts
-- Third-party KYC providers **(Sumsub)**
+- Third-party KYC providers **(Persona)**
 - Local payment gateways (Bkash, Nagad)
 - Email and SMS notification services (SMTP, Twilio)
 - Cloud infrastructure **(DigitalOcean)**
@@ -112,7 +112,7 @@ Cryplio is a standalone SaaS platform accessible via web browsers and mobile app
 
 ## 2.5 Assumptions & Dependencies
 - Users have access to a compatible smartphone or computer
-- Third-party KYC API **(Sumsub)** remains available and compliant
+- Third-party KYC API **(Persona)** remains available and compliant
 - Blockchain networks **(Ethereum)** remain operational
 - Local payment gateways (Bkash/Nagad) provide merchant API access
 - Platform will operate under an offshore legal entity (Dubai, UAE)
@@ -156,7 +156,7 @@ Cryplio is a standalone SaaS platform accessible via web browsers and mobile app
 | FR-122 | KYC Level 1 | Critical | Email verified — daily trade limit $500 USD equivalent |
 | FR-123 | KYC Level 2 | Critical | Government ID + selfie — daily limit $10,000 USD equivalent |
 | FR-124 | KYC Level 3 | High | Address proof + enhanced due diligence — unlimited trading |
-| FR-125 | KYC Provider | Critical | Integration with **Sumsub API** for document verification |
+| FR-125 | KYC Provider | Critical | Integration with **Persona API** for document verification and identity verification flows |
 | FR-126 | KYC Status Display | High | User profile shows current KYC level and pending status |
 | FR-127 | KYC Rejection Handling | High | User notified with reason and allowed to resubmit once within 7 days |
 | FR-128 | AML Screening | Critical | Automated AML check against OFAC and UN sanctions lists on KYC approval |
@@ -445,7 +445,7 @@ Cryplio is a standalone SaaS platform accessible via web browsers and mobile app
 |-------|--------|
 | Actor | New User |
 | Precondition | User has a valid email address |
-| Main Flow | 1. User visits cryplio.io and clicks Register 2. Enters email, username, password 3. Receives verification email and clicks link 4. Navigates to KYC section 5. Uploads government ID and selfie 6. System sends to Sumsub for verification 7. Verification approved — KYC Level 2 granted |
+| Main Flow | 1. User visits cryplio.io and clicks Register 2. Enters email, username, password 3. Receives verification email and clicks link 4. Navigates to KYC section 5. Uploads government ID and selfie 6. System creates a Persona inquiry and directs user to the Persona verification flow 7. Persona sends a webhook event on completion 8. Verification approved — KYC Level 2 granted |
 | Alternative Flow | KYC rejected: User notified with reason; can resubmit within 7 days |
 | Postcondition | User can now trade up to $10,000/day |
 
@@ -484,7 +484,7 @@ Cryplio is a standalone SaaS platform accessible via web browsers and mobile app
 | Transaction | txn_id, wallet_id, type, amount, txn_hash, chain, status, created_at |
 | Dispute | dispute_id, trade_id, raised_by, reason, status, assigned_admin, resolution, created_at |
 | Message | msg_id, trade_id (or dispute_id), sender_id, content, file_url, created_at |
-| KYC Record | kyc_id, user_id, level, document_type, sumsub_ref, status, created_at |
+| KYC Record | kyc_id, user_id, level, document_type, provider_reference (Persona inquiry_id), status, created_at |
 | Feedback | feedback_id, trade_id, from_user_id, to_user_id, rating, comment, created_at |
 | Referral | referral_id, referrer_id, referee_id, status, commission_earned, expires_at, created_at |
 
@@ -520,7 +520,8 @@ Cryplio is a standalone SaaS platform accessible via web browsers and mobile app
 | POST | /api/v1/auth/register | Register new user account | Public |
 | POST | /api/v1/auth/login | Login and receive JWT token | Public |
 | GET | /api/v1/users/me | Get current user profile | Required |
-| POST | /api/v1/kyc/submit | Submit KYC documents to Sumsub | Required |
+| POST | /api/v1/kyc/submit | Submit KYC documents and create Persona inquiry | Required |
+| POST | /api/v1/webhooks/persona | Receive verification status events from Persona | — (HMAC-secured) |
 | GET | /api/v1/ads | List trade advertisements with filters | Public |
 | POST | /api/v1/ads | Create a new trade advertisement | Required |
 | PUT | /api/v1/ads/:id | Update own trade advertisement | Required |
@@ -568,7 +569,7 @@ Cryplio is a standalone SaaS platform accessible via web browsers and mobile app
 
 ## 10.3 Regulatory Constraints
 - Platform must not accept users from OFAC-sanctioned countries
-- All KYC data processed via Sumsub must be stored in jurisdiction-compliant data centers
+- All KYC data processed via Persona must be stored in jurisdiction-compliant data centers
 - GDPR compliance mandatory for EU user data
 - Financial promotions must comply with local advertising laws per target market
 

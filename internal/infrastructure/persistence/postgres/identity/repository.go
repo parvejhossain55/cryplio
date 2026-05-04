@@ -7,6 +7,7 @@ import (
 	"time"
 
 	domainidentity "cryplio/internal/domain/identity"
+
 	"github.com/google/uuid"
 )
 
@@ -240,13 +241,14 @@ func (r *userRepository) Update(ctx context.Context, u *User) error {
 		UPDATE users
 		SET email = $1, username = $2, phone_country_code = $3, phone_number = $4,
 		    phone_verified = $5, email_verified = $6, kyc_level = $7,
-		    avatar_url = $8, bio = $9, timezone = $10, locale = $11,
-		    is_merchant = $12, is_suspended = $13, suspension_reason = $14,
-		    suspended_at = $15, suspended_until = $16, last_login_at = $17,
-		    login_count = $18, failed_login_attempts = $19, locked_until = $20,
-		    referral_code = $21, referred_by = $22, two_fa_secret = $23,
-		    remember_2fa = $24, remember_2fa_expiry = $25, updated_at = NOW()
-		WHERE user_id = $26 AND deleted_at IS NULL
+		    kyc_last_updated = $8, avatar_url = $9, bio = $10, timezone = $11, 
+		    locale = $12, is_merchant = $13, is_suspended = $14, 
+		    suspension_reason = $15, suspended_at = $16, suspended_until = $17, 
+		    last_login_at = $18, login_count = $19, failed_login_attempts = $20, 
+		    locked_until = $21, referral_code = $22, referred_by = $23, 
+		    two_fa_secret = $24, remember_2fa = $25, remember_2fa_expiry = $26, 
+		    updated_at = NOW()
+		WHERE user_id = $27 AND deleted_at IS NULL
 		RETURNING updated_at
 	`
 	nullReferredBy := sql.NullString{}
@@ -256,12 +258,12 @@ func (r *userRepository) Update(ctx context.Context, u *User) error {
 	err := r.db.QueryRowContext(
 		ctx, query,
 		u.Email, u.Username, u.PhoneCountryCode, u.PhoneNumber,
-		u.PhoneVerified, u.EmailVerified, u.KYCLevel, u.AvatarURL, u.Bio,
-		u.Timezone, u.Locale, u.IsMerchant, u.IsSuspended, u.SuspensionReason,
-		u.SuspendedAt, u.SuspendedUntil, u.LastLoginAt, u.LoginCount,
-		u.FailedLoginAttempts, u.LockedUntil, u.ReferralCode,
-		nullReferredBy, u.TwoFASecret, u.Remember2FA, u.Remember2FAExpiry,
-		u.UserID,
+		u.PhoneVerified, u.EmailVerified, u.KYCLevel, u.KYCLastUpdated,
+		u.AvatarURL, u.Bio, u.Timezone, u.Locale, u.IsMerchant,
+		u.IsSuspended, u.SuspensionReason, u.SuspendedAt, u.SuspendedUntil,
+		u.LastLoginAt, u.LoginCount, u.FailedLoginAttempts, u.LockedUntil,
+		u.ReferralCode, nullReferredBy, u.TwoFASecret, u.Remember2FA,
+		u.Remember2FAExpiry, u.UserID,
 	).Scan(&u.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -857,6 +859,10 @@ func (r *userRepository) GetByUsernameWithStats(ctx context.Context, username st
 	var u User
 	var stats UserStats
 	var referredBy sql.NullString
+	// stats timestamps are NULL when user has no stats row (LEFT JOIN)
+	var lastTradeAt sql.NullTime
+	var statsUpdatedAt sql.NullTime
+
 	err := r.db.QueryRowContext(ctx, query, username).Scan(
 		&u.UserID, &u.Email, &u.Username, &u.PasswordHash,
 		&u.PhoneCountryCode, &u.PhoneNumber, &u.PhoneVerified, &u.EmailVerified,
@@ -868,7 +874,8 @@ func (r *userRepository) GetByUsernameWithStats(ctx context.Context, username st
 		&u.Remember2FAExpiry, &u.CreatedAt, &u.UpdatedAt, &u.DeletedAt,
 		&stats.TotalTrades, &stats.SuccessfulTrades, &stats.DisputeRate,
 		&stats.AvgRating, &stats.PositiveFeedbackCount, &stats.NeutralFeedbackCount,
-		&stats.NegativeFeedbackCount, &stats.TotalVolumeUSD, &stats.LastTradeAt, &stats.UpdatedAt,
+		&stats.NegativeFeedbackCount, &stats.TotalVolumeUSD,
+		&lastTradeAt, &statsUpdatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -881,6 +888,12 @@ func (r *userRepository) GetByUsernameWithStats(ctx context.Context, username st
 		if err == nil {
 			u.ReferredBy = NullUUID{UUID: parsed, Valid: true}
 		}
+	}
+	if lastTradeAt.Valid {
+		stats.LastTradeAt = &lastTradeAt.Time
+	}
+	if statsUpdatedAt.Valid {
+		stats.UpdatedAt = statsUpdatedAt.Time
 	}
 	return &u, &stats, nil
 }

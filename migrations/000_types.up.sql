@@ -8,6 +8,7 @@ BEGIN;
 -- User-related enums
 CREATE TYPE user_status AS ENUM ('pending', 'active', 'suspended', 'banned', 'deleted');
 CREATE TYPE kyc_level AS ENUM ('level_0', 'level_1', 'level_2', 'level_3');
+CREATE TYPE kyc_status AS ENUM ('pending', 'approved', 'rejected');
 
 -- Trade-related enums
 CREATE TYPE ad_type AS ENUM ('buy', 'sell');

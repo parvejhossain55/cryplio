@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"cryplio/pkg/database"
+
 	"github.com/joho/godotenv"
 )
 
@@ -73,6 +74,11 @@ type Config struct {
 	S3UseSSL          bool
 	S3BucketName      string
 	S3PublicBaseURL   string // Optional: public URL for accessing objects (if different from endpoint)
+
+	// Persona KYC
+	PersonaAPIKey        string
+	PersonaWebhookSecret string
+	PersonaTemplateID    string
 }
 
 func Load() (*Config, error) {
@@ -151,6 +157,11 @@ func Load() (*Config, error) {
 		S3UseSSL:          getEnvCompat("S3_USE_SSL", "false") == "true",
 		S3BucketName:      getEnvCompat("S3_BUCKET_NAME", "cryplio-storage"),
 		S3PublicBaseURL:   getEnvCompat("S3_PUBLIC_BASE_URL", ""),
+
+		// Persona
+		PersonaAPIKey:        getEnvCompat("PERSONA_API_KEY", ""),
+		PersonaWebhookSecret: getEnvCompat("PERSONA_WEBHOOK_SECRET", ""),
+		PersonaTemplateID:    getEnvCompat("PERSONA_TEMPLATE_ID", ""),
 	}
 
 	return cfg, nil

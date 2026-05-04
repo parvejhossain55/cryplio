@@ -159,7 +159,7 @@ To become the #1 global P2P crypto platform with 1 million active users by 2027.
 | Queue | **Asynq (Golang)** | Async jobs: notifications, blockchain monitoring |
 | Blockchain | Web3.go + Solidity | Smart contract escrow on EVM chains |
 | Object Storage | **MinIO (self-hosted)** | KYC documents, chat file uploads |
-| KYC | **Sumsub API** | Identity verification — ID + selfie + AML |
+| KYC | **Persona API** | Identity verification — ID + selfie + AML screening |
 | Hosting | **DigitalOcean** | Scalable cloud (managed Kubernetes) |
 | CDN / Security | Cloudflare + WAF | DDoS protection, static assets, bot filtering |
 | Monitoring | **Grafana + Prometheus** | System metrics, error tracking, alerts |
@@ -191,7 +191,7 @@ To become the #1 global P2P crypto platform with 1 million active users by 2027.
 | Platform Development (MVP) | $15,000 – $25,000 |
 | Smart Contract Audit | $3,000 – $5,000 |
 | Company Registration (Dubai) | $2,000 – $3,000 |
-| KYC API Integration (Sumsub) | $1,000 – $2,000 |
+| KYC API Integration (Persona) | $1,000 – $2,000 |
 | Server & Infrastructure — DigitalOcean (Year 1) | $2,400 |
 | MinIO Setup & Storage Infrastructure | $500 – $1,000 |
 | Marketing & Launch Budget | $5,000 – $10,000 |
@@ -209,7 +209,7 @@ To become the #1 global P2P crypto platform with 1 million active users by 2027.
 
 | Phase | Timeline | Milestones |
 |-------|----------|------------|
-| Phase 1 — Build | Month 1–3 | MVP development (Golang), escrow contract, KYC (Sumsub) integration |
+| Phase 1 — Build | Month 1–3 | MVP development (Golang), escrow contract, KYC (Persona) integration |
 | Phase 2 — Beta | Month 4–5 | Closed beta with 100 users, bug fixes, UI polish |
 | Phase 3 — Launch | Month 6 | Public launch in BD, PK markets, referral campaign (20% commission) |
 | Phase 4 — Grow | Month 7–12 | 5,000 users, merchant program, mobile app beta |
@@ -220,7 +220,7 @@ To become the #1 global P2P crypto platform with 1 million active users by 2027.
 
 # 11. Legal & Compliance
 - Company will be registered offshore (Dubai, UAE) for crypto-friendly regulation
-- Full KYC/AML compliance with FATF guidelines via Sumsub API
+- Full KYC/AML compliance with FATF guidelines via Persona API
 - Terms of Service, Privacy Policy, and AML Policy drafted by crypto-specialized legal team
 - Bangladesh users will be served via offshore entity — local legal counsel required
 - Smart contract code will be professionally audited before deployment on Ethereum
