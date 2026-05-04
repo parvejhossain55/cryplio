@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	domainidentity "cryplio/internal/domain/identity"
 	"github.com/google/uuid"
@@ -18,6 +19,7 @@ type EmailVerificationToken = domainidentity.EmailVerificationToken
 type PasswordResetToken = domainidentity.PasswordResetToken
 type UserSession = domainidentity.UserSession
 type TwoFactorPending = domainidentity.TwoFactorPending
+type UserBlock = domainidentity.UserBlock
 
 // UserRepository is the domain interface (aliased for convenience)
 type UserRepository = domainidentity.UserRepository
@@ -827,4 +829,143 @@ func (r *userRepository) DeleteTwoFactorPending(ctx context.Context, userID uuid
 		return fmt.Errorf("delete two factor pending: %w", err)
 	}
 	return nil
+}
+
+// GetByUsernameWithStats returns a user by username with their statistics
+func (r *userRepository) GetByUsernameWithStats(ctx context.Context, username string) (*User, *UserStats, error) {
+	query := `
+		SELECT u.user_id, u.email, u.username, u.password_hash, u.phone_country_code, u.phone_number,
+		       u.phone_verified, u.email_verified, u.kyc_level, u.kyc_last_updated, u.status,
+		       u.avatar_url, u.bio, u.timezone, u.locale, u.is_merchant, u.is_suspended,
+		       u.suspension_reason, u.suspended_at, u.suspended_until, u.last_login_at, u.last_seen_at,
+		       u.login_count, u.failed_login_attempts, u.locked_until, u.referral_code,
+		       u.referred_by, u.two_fa_secret, u.remember_2fa, u.remember_2fa_expiry,
+		       u.created_at, u.updated_at, u.deleted_at,
+		       COALESCE(us.total_trades, 0) AS total_trades,
+		       COALESCE(us.successful_trades, 0) AS successful_trades,
+		       COALESCE(us.dispute_rate, 0) AS dispute_rate,
+		       COALESCE(us.avg_rating, 0) AS avg_rating,
+		       COALESCE(us.positive_feedback_count, 0) AS positive_feedback_count,
+		       COALESCE(us.neutral_feedback_count, 0) AS neutral_feedback_count,
+		       COALESCE(us.negative_feedback_count, 0) AS negative_feedback_count,
+		       COALESCE(us.total_volume_usd, 0) AS total_volume_usd,
+		       us.last_trade_at, us.updated_at AS stats_updated_at
+		FROM users u
+		LEFT JOIN user_stats us ON u.user_id = us.user_id
+		WHERE u.username = $1 AND u.deleted_at IS NULL
+	`
+	var u User
+	var stats UserStats
+	var referredBy sql.NullString
+	err := r.db.QueryRowContext(ctx, query, username).Scan(
+		&u.UserID, &u.Email, &u.Username, &u.PasswordHash,
+		&u.PhoneCountryCode, &u.PhoneNumber, &u.PhoneVerified, &u.EmailVerified,
+		&u.KYCLevel, &u.KYCLastUpdated, &u.Status, &u.AvatarURL, &u.Bio,
+		&u.Timezone, &u.Locale, &u.IsMerchant, &u.IsSuspended,
+		&u.SuspensionReason, &u.SuspendedAt, &u.SuspendedUntil, &u.LastLoginAt, &u.LastSeenAt,
+		&u.LoginCount, &u.FailedLoginAttempts, &u.LockedUntil,
+		&u.ReferralCode, &referredBy, &u.TwoFASecret, &u.Remember2FA,
+		&u.Remember2FAExpiry, &u.CreatedAt, &u.UpdatedAt, &u.DeletedAt,
+		&stats.TotalTrades, &stats.SuccessfulTrades, &stats.DisputeRate,
+		&stats.AvgRating, &stats.PositiveFeedbackCount, &stats.NeutralFeedbackCount,
+		&stats.NegativeFeedbackCount, &stats.TotalVolumeUSD, &stats.LastTradeAt, &stats.UpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil, nil
+		}
+		return nil, nil, fmt.Errorf("query user by username with stats: %w", err)
+	}
+	if referredBy.Valid {
+		parsed, err := uuid.Parse(referredBy.String)
+		if err == nil {
+			u.ReferredBy = NullUUID{UUID: parsed, Valid: true}
+		}
+	}
+	return &u, &stats, nil
+}
+
+// UpdateLastSeen updates the user's last_seen_at timestamp
+func (r *userRepository) UpdateLastSeen(ctx context.Context, userID uuid.UUID) error {
+	query := `
+		UPDATE users
+		SET last_seen_at = NOW(), updated_at = NOW()
+		WHERE user_id = $1 AND deleted_at IS NULL
+	`
+	_, err := r.db.ExecContext(ctx, query, userID)
+	if err != nil {
+		return fmt.Errorf("update last seen: %w", err)
+	}
+	return nil
+}
+
+// BlockUser blocks a user
+func (r *userRepository) BlockUser(ctx context.Context, blockerID, blockedID uuid.UUID, reason string, isPermanent bool, expiresAt *time.Time) error {
+	query := `
+		INSERT INTO user_blocks (blocker_id, blocked_id, reason, is_permanent, expires_at, created_at)
+		VALUES ($1, $2, $3, $4, $5, NOW())
+		ON CONFLICT (blocker_id, blocked_id) DO UPDATE SET
+			reason = EXCLUDED.reason,
+			is_permanent = EXCLUDED.is_permanent,
+			expires_at = EXCLUDED.expires_at,
+			created_at = NOW()
+	`
+	_, err := r.db.ExecContext(ctx, query, blockerID, blockedID, reason, isPermanent, expiresAt)
+	if err != nil {
+		return fmt.Errorf("block user: %w", err)
+	}
+	return nil
+}
+
+// UnblockUser removes a user block
+func (r *userRepository) UnblockUser(ctx context.Context, blockerID, blockedID uuid.UUID) error {
+	query := `DELETE FROM user_blocks WHERE blocker_id = $1 AND blocked_id = $2`
+	_, err := r.db.ExecContext(ctx, query, blockerID, blockedID)
+	if err != nil {
+		return fmt.Errorf("unblock user: %w", err)
+	}
+	return nil
+}
+
+// IsBlocked checks if a user is blocked by another user
+func (r *userRepository) IsBlocked(ctx context.Context, blockerID, blockedID uuid.UUID) (bool, error) {
+	query := `
+		SELECT EXISTS(
+			SELECT 1 FROM user_blocks
+			WHERE blocker_id = $1 AND blocked_id = $2
+			AND (is_permanent = true OR expires_at > NOW() OR expires_at IS NULL)
+		)
+	`
+	var blocked bool
+	err := r.db.QueryRowContext(ctx, query, blockerID, blockedID).Scan(&blocked)
+	if err != nil {
+		return false, fmt.Errorf("check blocked: %w", err)
+	}
+	return blocked, nil
+}
+
+// ListBlocks returns all users blocked by the given user
+func (r *userRepository) ListBlocks(ctx context.Context, userID uuid.UUID) ([]UserBlock, error) {
+	query := `
+		SELECT id, blocker_id, blocked_id, reason, is_permanent, expires_at, created_at
+		FROM user_blocks
+		WHERE blocker_id = $1
+		ORDER BY created_at DESC
+	`
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("query blocks: %w", err)
+	}
+	defer rows.Close()
+
+	var blocks []UserBlock
+	for rows.Next() {
+		var b UserBlock
+		err := rows.Scan(&b.ID, &b.BlockerID, &b.BlockedID, &b.Reason, &b.IsPermanent, &b.ExpiresAt, &b.CreatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("scan block: %w", err)
+		}
+		blocks = append(blocks, b)
+	}
+	return blocks, nil
 }

@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS users (
     suspended_at TIMESTAMP,
     suspended_until TIMESTAMP,
     last_login_at TIMESTAMP,
+    last_seen_at TIMESTAMP,
     login_count INT NOT NULL DEFAULT 0,
     failed_login_attempts INT NOT NULL DEFAULT 0,
     locked_until TIMESTAMP,

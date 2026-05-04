@@ -59,7 +59,9 @@ type OAuthProvider interface {
 type ProfileManager interface {
 	GetUserByID(ctx context.Context, userID uuid.UUID) (*User, error)
 	UpdateProfile(ctx context.Context, userID uuid.UUID, username, bio *string) (*User, error)
+	GetUserByUsername(ctx context.Context, username string) (*User, *UserStats, error)
 	UpdateAvatar(ctx context.Context, userID uuid.UUID, avatarURL string) (*User, error)
+	UpdateLastSeen(ctx context.Context, userID uuid.UUID) error
 }
 
 // EmailVerifier handles email verification flows.
@@ -107,6 +109,12 @@ type AuthService interface {
 	PasswordResetter
 	TwoFactorManager
 	SessionManager
+
+	// User block
+	BlockUser(ctx context.Context, blockerID, blockedID uuid.UUID, reason string, isPermanent bool, expiresAt *time.Time) error
+	UnblockUser(ctx context.Context, blockerID, blockedID uuid.UUID) error
+	IsBlocked(ctx context.Context, blockerID, blockedID uuid.UUID) (bool, error)
+	ListBlocks(ctx context.Context, userID uuid.UUID) ([]UserBlock, error)
 }
 
 type authService struct {
@@ -264,6 +272,23 @@ func (s *authService) Logout(ctx context.Context, tokenID string) error {
 		}
 	}
 	return nil
+}
+
+// GetUserByUsername fetches a user with their stats
+func (s *authService) GetUserByUsername(ctx context.Context, username string) (*User, *UserStats, error) {
+	user, stats, err := s.userRepo.GetByUsernameWithStats(ctx, username)
+	if err != nil {
+		return nil, nil, apperrors.NotFound("user not found", err)
+	}
+	if user == nil || user.IsDeleted() {
+		return nil, nil, apperrors.NotFound("user not found", nil)
+	}
+	return user, stats, nil
+}
+
+// UpdateLastSeen updates the user last seen timestamp
+func (s *authService) UpdateLastSeen(ctx context.Context, userID uuid.UUID) error {
+	return s.userRepo.UpdateLastSeen(ctx, userID)
 }
 
 // GetUserByID fetches a user
@@ -541,6 +566,8 @@ func (s *authService) generateUniqueUsername(ctx context.Context, base string) s
 func (s *authService) completeLogin(ctx context.Context, user *User) (string, string, error) {
 	// Increment login stats
 	_ = s.userRepo.IncrementLogin(ctx, user.UserID)
+	// Update last seen
+	_ = s.userRepo.UpdateLastSeen(ctx, user.UserID)
 
 	// Create session
 	sessionID := uuid.New()
@@ -931,6 +958,26 @@ func (s *authService) CreateSession(ctx context.Context, userID uuid.UUID, token
 		return nil, err
 	}
 	return session, nil
+}
+
+// BlockUser blocks another user
+func (s *authService) BlockUser(ctx context.Context, blockerID, blockedID uuid.UUID, reason string, isPermanent bool, expiresAt *time.Time) error {
+	return s.userRepo.BlockUser(ctx, blockerID, blockedID, reason, isPermanent, expiresAt)
+}
+
+// UnblockUser unblocks a user
+func (s *authService) UnblockUser(ctx context.Context, blockerID, blockedID uuid.UUID) error {
+	return s.userRepo.UnblockUser(ctx, blockerID, blockedID)
+}
+
+// IsBlocked checks if a user is blocked
+func (s *authService) IsBlocked(ctx context.Context, blockerID, blockedID uuid.UUID) (bool, error) {
+	return s.userRepo.IsBlocked(ctx, blockerID, blockedID)
+}
+
+// ListBlocks lists all users blocked by the given user
+func (s *authService) ListBlocks(ctx context.Context, userID uuid.UUID) ([]UserBlock, error) {
+	return s.userRepo.ListBlocks(ctx, userID)
 }
 
 func (s *authService) GetSession(ctx context.Context, tokenID string) (*UserSession, error) {

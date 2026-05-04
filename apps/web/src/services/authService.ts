@@ -43,6 +43,25 @@ export interface UserBlock {
     created_at: string;
 }
 
+export interface AdResponse {
+    ad_id: string;
+    user_id: string;
+    username: string;
+    user_avatar?: string;
+    user_rating: number;
+    user_trades: number;
+    type: "buy" | "sell";
+    crypto_symbol: string;
+    fiat_symbol: string;
+    price_type: string;
+    price: number;
+    min_amount: number;
+    max_amount: number;
+    payment_methods: string[];
+    payment_window_minutes: number;
+    is_online: boolean;
+}
+
 export interface AuthResponse {
     user: BackendUser;
     token?: string;
@@ -497,6 +516,43 @@ export const authService = {
 
         const data = await response.json();
         return data.blocks || [];
+    },
+
+    // Marketplace
+    getAds: async (params: { type?: string; cryptoId?: number; fiatId?: number } = {}): Promise<AdResponse[]> => {
+        const queryParams = new URLSearchParams();
+        if (params.type) queryParams.append("type", params.type);
+        if (params.cryptoId) queryParams.append("crypto_id", params.cryptoId.toString());
+        if (params.fiatId) queryParams.append("fiat_id", params.fiatId.toString());
+
+        const response = await fetch(`/api/v1/marketplace/ads?${queryParams.toString()}`, {
+            credentials: "include",
+        });
+
+        if (!response.ok) {
+            throw new Error("Failed to fetch advertisements");
+        }
+
+        const data = await response.json();
+        return data.ads || [];
+    },
+
+    initiateTrade: async (adId: string, amount: number): Promise<{ trade_id: string; message: string }> => {
+        const response = await fetch(`/api/v1/marketplace/ads/${adId}/trades`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ amount }),
+            credentials: "include",
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || "Failed to initiate trade");
+        }
+
+        return await response.json();
     },
 };
 

@@ -2,10 +2,12 @@ package httpapi
 
 import (
 	"cryplio/internal/domain/identity"
+	"cryplio/internal/domain/trading"
 	"cryplio/internal/infrastructure/storage"
 	"cryplio/internal/interfaces/http/handler"
 	"cryplio/internal/interfaces/http/middleware"
 	"cryplio/pkg/config"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -13,6 +15,7 @@ import (
 func SetupRouter(
 	cfg *config.Config,
 	authService identity.AuthService,
+	tradeService trading.TradeService,
 	storage storage.ObjectStorage,
 ) *gin.Engine {
 	// Set Gin mode
@@ -48,37 +51,50 @@ func SetupRouter(
 			JWTSecret:          cfg.JWTSecret,
 		}, storage)
 
-		// Public
-		public := v1.Group("/")
-		{
-			public.POST("/auth/register", authHandler.RegisterHandler)
-			public.POST("/auth/login", authHandler.LoginHandler)
-			public.POST("/auth/logout", authHandler.LogoutHandler)
-			public.POST("/auth/refresh", authHandler.RefreshTokenHandler)
-			public.GET("/auth/oauth/google", authHandler.GoogleAuthHandler)
-			public.GET("/auth/oauth/google/callback", authHandler.GoogleCallbackHandler)
-			public.POST("/auth/email/request", authHandler.RequestEmailVerificationHandler)
-			public.POST("/auth/email/verify", authHandler.VerifyEmailHandler)
-			public.POST("/auth/password/reset-request", authHandler.RequestPasswordResetHandler)
-			public.POST("/auth/password/reset", authHandler.ResetPasswordHandler)
-			public.POST("/auth/2fa/complete-login", authHandler.Complete2FALoginHandler)
-		}
+		tradeHandler := handler.NewTradeHandler(tradeService)
 
-		// Authenticated
+		// Routes on v1
+		// Public
+		v1.POST("/auth/register", authHandler.RegisterHandler)
+		v1.POST("/auth/login", authHandler.LoginHandler)
+		v1.POST("/auth/logout", authHandler.LogoutHandler)
+		v1.POST("/auth/refresh", authHandler.RefreshTokenHandler)
+		v1.GET("/auth/oauth/google", authHandler.GoogleAuthHandler)
+		v1.GET("/auth/oauth/google/callback", authHandler.GoogleCallbackHandler)
+		v1.POST("/auth/email/request", authHandler.RequestEmailVerificationHandler)
+		v1.POST("/auth/email/verify", authHandler.VerifyEmailHandler)
+		v1.POST("/auth/password/reset-request", authHandler.RequestPasswordResetHandler)
+		v1.POST("/auth/password/reset", authHandler.ResetPasswordHandler)
+		v1.POST("/auth/2fa/complete-login", authHandler.Complete2FALoginHandler)
+		v1.GET("/users/username/:username", authHandler.GetUserByUsernameHandler)
+
+		// Marketplace (Public)
+		v1.GET("/marketplace/ads", tradeHandler.ListAdsHandler)
+
+		// Authenticated Routes
 		auth := v1.Group("/")
 		auth.Use(middleware.AuthMiddleware(cfg.JWTSecret))
 		{
 			auth.GET("/users/me", authHandler.GetUserHandler)
 			auth.PUT("/users/me", authHandler.UpdateUserHandler)
 			auth.POST("/users/me/avatar", authHandler.UploadAvatarHandler)
+
+			// User block management
+			auth.POST("/users/me/block", authHandler.BlockUserHandler)
+			auth.DELETE("/users/me/block/:blocked_id", authHandler.UnblockUserHandler)
+			auth.GET("/users/me/block", authHandler.ListBlocksHandler)
+
 			// 2FA management
 			auth.POST("/auth/2fa/setup", authHandler.Setup2FAHandler)
 			auth.POST("/auth/2fa/verify", authHandler.Verify2FAHandler)
 			auth.POST("/auth/2fa/disable", authHandler.Disable2FAHandler)
+
 			// Session management
 			auth.GET("/sessions", authHandler.GetSessionsHandler)
 			auth.DELETE("/sessions/:tokenId", authHandler.DeleteSessionHandler)
-			// TODO: other domain routes to be added
+
+			// Trading (Authenticated)
+			auth.POST("/marketplace/ads/:id/trades", tradeHandler.InitiateTradeHandler)
 		}
 	}
 

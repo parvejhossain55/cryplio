@@ -5,8 +5,10 @@ import (
 	"fmt"
 
 	domainidentity "cryplio/internal/domain/identity"
+	domaintraing "cryplio/internal/domain/trading"
 	"cryplio/internal/infrastructure/notification"
 	identitypostgres "cryplio/internal/infrastructure/persistence/postgres/identity"
+	tradingpostgres "cryplio/internal/infrastructure/persistence/postgres/trading"
 	"cryplio/internal/infrastructure/storage"
 	httpapi "cryplio/internal/interfaces/http"
 	"cryplio/pkg/config"
@@ -56,11 +58,14 @@ func New() (*App, error) {
 		cfg.OAuthRedirectURL,
 	).WithPasswordResetMailer(emailClient)
 
+	tradeRepo := tradingpostgres.NewTradeRepository(db)
+	tradeService := domaintraing.NewTradeService(tradeRepo, userRepo)
+
 	storage, err := storage.NewS3Storage(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("initialize storage: %w", err)
 	}
-	router := httpapi.SetupRouter(cfg, authService, storage)
+	router := httpapi.SetupRouter(cfg, authService, tradeService, storage)
 
 	return &App{
 		Config: cfg,

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"cryplio/internal/domain/identity"
 	"cryplio/internal/infrastructure/storage"
@@ -506,4 +507,139 @@ func (h *AuthHandler) clearRefreshCookie(c *gin.Context, cfg *Config) {
 func (h *AuthHandler) loginAfterRegister(ctx context.Context, email, password string) (string, string, error) {
 	access, refresh, _, err := h.authService.Login(ctx, email, password)
 	return access, refresh, err
+}
+
+// GetUserByUsernameHandler returns a public user profile by username
+func (h *AuthHandler) GetUserByUsernameHandler(c *gin.Context) {
+	username := c.Param("username")
+	if username == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Username is required"})
+		return
+	}
+
+	user, stats, err := h.authService.GetUserByUsername(c.Request.Context(), username)
+	if err != nil {
+		handleError(c, err)
+		return
+	}
+	if user == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Update last seen for the viewer (if authenticated)
+	if viewerIDStr, exists := c.Get("user_id"); exists {
+		if viewerID, err := uuid.Parse(viewerIDStr.(string)); err == nil {
+			_ = h.authService.UpdateLastSeen(c.Request.Context(), viewerID)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"user":   mapUser(user),
+		"stats":  mapUserStats(stats),
+		"public": true,
+	})
+}
+
+// BlockUserHandler blocks another user
+func (h *AuthHandler) BlockUserHandler(c *gin.Context) {
+	blockerIDStr, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	blockerID, err := uuid.Parse(blockerIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	var req struct {
+		BlockedID   string  `json:"blocked_id" binding:"required"`
+		Reason      *string `json:"reason,omitempty"`
+		IsPermanent bool    `json:"is_permanent"`
+		ExpiresAt   *string `json:"expires_at,omitempty"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request", "details": err.Error()})
+		return
+	}
+
+	blockedID, err := uuid.Parse(req.BlockedID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid blocked user ID"})
+		return
+	}
+	var expiresAt *time.Time
+	if req.ExpiresAt != nil && *req.ExpiresAt != "" {
+		t, err := time.Parse(time.RFC3339, *req.ExpiresAt)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid expires_at format"})
+			return
+		}
+		expiresAt = &t
+	}
+
+	err = h.authService.BlockUser(c.Request.Context(), blockerID, blockedID, *req.Reason, req.IsPermanent, expiresAt)
+	if err != nil {
+		handleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "User blocked successfully"})
+}
+
+// UnblockUserHandler unblocks another user
+func (h *AuthHandler) UnblockUserHandler(c *gin.Context) {
+	blockerIDStr, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	blockerID, err := uuid.Parse(blockerIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	blockedIDStr := c.Param("blocked_id")
+	if blockedIDStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Blocked user ID is required"})
+		return
+	}
+	blockedID, err := uuid.Parse(blockedIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid blocked user ID"})
+		return
+	}
+
+	err = h.authService.UnblockUser(c.Request.Context(), blockerID, blockedID)
+	if err != nil {
+		handleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "User unblocked successfully"})
+}
+
+// ListBlocksHandler lists all users blocked by the current user
+func (h *AuthHandler) ListBlocksHandler(c *gin.Context) {
+	userIDStr, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	blocks, err := h.authService.ListBlocks(c.Request.Context(), userID)
+	if err != nil {
+		handleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"blocks": blocks})
 }

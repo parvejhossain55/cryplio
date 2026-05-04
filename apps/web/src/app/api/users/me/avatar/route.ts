@@ -5,14 +5,6 @@ const AUTH_COOKIE_NAME = process.env.COOKIE_NAME || "auth_token";
 
 export const runtime = 'nodejs';
 
-// Increase body size limit for file uploads (max 2MB)
-export const config = {
-    api: {
-        bodyParser: {
-            sizeLimit: '5mb',
-        },
-    },
-} as const;
 
 export async function POST(request: NextRequest) {
     try {

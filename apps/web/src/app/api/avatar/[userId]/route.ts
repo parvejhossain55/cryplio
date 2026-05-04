@@ -6,11 +6,12 @@ export const runtime = 'nodejs';
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { userId: string } }
+    context: { params: Promise<{ userId: string }> }
 ) {
+    const { userId } = await context.params;
     try {
         const cookieHeader = request.headers.get("cookie") || "";
-        console.log("[Avatar Proxy] Request for user:", params.userId, "cookies:", !!cookieHeader);
+        console.log("[Avatar Proxy] Request for user:", userId, "cookies:", !!cookieHeader);
 
         // Fetch current user from backend using forwarded cookies
         const backendResponse = await fetch(`${API_BASE_URL}/api/v1/users/me`, {
@@ -32,14 +33,14 @@ export async function GET(
         }
 
         // Verify the requested userId matches the authenticated user
-        if (currentUser.id !== params.userId) {
-            console.log("[Avatar Proxy] User ID mismatch:", currentUser.id, "vs", params.userId);
+        if (currentUser.id !== userId) {
+            console.log("[Avatar Proxy] User ID mismatch:", currentUser.id, "vs", userId);
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         const avatarUrl = currentUser.avatar_url;
         if (!avatarUrl) {
-            console.log("[Avatar Proxy] No avatar for user:", params.userId);
+            console.log("[Avatar Proxy] No avatar for user:", userId);
             return NextResponse.json({ error: "No avatar found" }, { status: 404 });
         }
 

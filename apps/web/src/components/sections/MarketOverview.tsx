@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Search, Filter, ArrowUpRight, ChevronDown, CheckCircle2, ShieldCheck, Clock, Star, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import Pagination from "@/components/ui/Pagination";
+import { authService, AdResponse } from "@/services/authService";
 
 const p2pAds = [
     // USD - BUY
@@ -56,12 +57,60 @@ interface MarketOverviewProps {
 }
 
 const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
-    const [activeTab, setActiveTab] = useState("buy");
+    const [activeTab, setActiveTab] = useState<"buy" | "sell">("buy");
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedCoin, setSelectedCoin] = useState("USDT");
     const [selectedFiat, setSelectedFiat] = useState("USD");
     const [currentPage, setCurrentPage] = useState(1);
+    const [ads, setAds] = useState<AdResponse[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const itemsPerPage = 6;
+    const [selectedAd, setSelectedAd] = useState<AdResponse | null>(null);
+    const [tradeAmount, setTradeAmount] = useState<string>("");
+    const [isInitiating, setIsInitiating] = useState(false);
+    const [initiationError, setInitiationError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchAds = async () => {
+            setIsLoading(true);
+            try {
+                const data = await authService.getAds({
+                    type: activeTab,
+                });
+
+                if (!data || data.length === 0) {
+                    const mockMapped: AdResponse[] = p2pAds
+                        .filter(ad => ad.type === activeTab && ad.currency === selectedFiat && ad.coin === selectedCoin)
+                        .map((ad, idx) => ({
+                            ad_id: `mock-${idx}`,
+                            user_id: `user-${ad.user}`,
+                            username: ad.user,
+                            user_trades: parseInt(ad.trades.replace(/\D/g, "")),
+                            user_rating: parseFloat(ad.rating.replace("%", "")),
+                            type: ad.type as "buy" | "sell",
+                            crypto_symbol: ad.coin,
+                            fiat_symbol: ad.currency,
+                            price: parseFloat(ad.price.replace(/,/g, "")),
+                            min_amount: parseFloat(ad.limits.split("-")[0].replace(/,/g, "")),
+                            max_amount: parseFloat(ad.limits.split("-")[1].replace(/,/g, "")),
+                            payment_methods: ad.methods,
+                            payment_window_minutes: parseInt(ad.time.split(" ")[0]),
+                            is_online: true,
+                            price_type: "fixed"
+                        }));
+                    setAds(mockMapped);
+                } else {
+                    setAds(data);
+                }
+            } catch (error) {
+                console.error("Failed to fetch ads", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchAds();
+    }, [activeTab, selectedCoin, selectedFiat]);
 
     const fiats = [
         { code: "USD", name: "US Dollar" },
@@ -71,23 +120,17 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
         { code: "GBP", name: "British Pound" },
     ];
 
-    // Filter logic
     const filteredAds = useMemo(() => {
-        return p2pAds.filter(ad =>
-            (ad.user.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                ad.methods.some(m => m.toLowerCase().includes(searchQuery.toLowerCase()))) &&
-            ad.type === activeTab &&
-            ad.currency === selectedFiat &&
-            ad.coin === selectedCoin
+        return ads.filter(ad =>
+        (ad.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            ad.payment_methods.some((m: string) => m.toLowerCase().includes(searchQuery.toLowerCase())))
         );
-    }, [searchQuery, activeTab, selectedFiat, selectedCoin]);
+    }, [searchQuery, ads]);
 
-    // Reset page when filters change
     useEffect(() => {
         setCurrentPage(1);
     }, [searchQuery, activeTab, selectedFiat, selectedCoin]);
 
-    // Pagination logic
     const totalPages = Math.ceil(filteredAds.length / itemsPerPage);
     const currentAds = filteredAds.slice(
         (currentPage - 1) * itemsPerPage,
@@ -96,7 +139,6 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
 
     const handlePageChange = (page: number) => {
         setCurrentPage(page);
-        // Smooth scroll to top of table/grid
         const element = document.getElementById("marketplace");
         if (element) {
             element.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -140,7 +182,6 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
                     </div>
                 </div>
 
-                {/* Filters and Controls */}
                 <div className="glass rounded-[32px] border-border mb-8 p-4 md:p-6 flex flex-col xl:flex-row items-center gap-4 shadow-2xl">
                     <div className="flex-1 w-full relative">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-dim w-5 h-5" />
@@ -185,7 +226,6 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
                     </div>
                 </div>
 
-                {/* Table for Desktop */}
                 <div className="hidden lg:block glass rounded-[40px] border-border overflow-hidden shadow-2xl relative">
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
@@ -199,93 +239,78 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-white/5">
-                                <AnimatePresence mode="wait">
-                                    {currentAds.length > 0 ? (
-                                        <motion.tr
-                                            key={`${activeTab}-${searchQuery}-${selectedFiat}-${selectedCoin}-${currentPage}`}
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            exit={{ opacity: 0 }}
-                                        >
-                                            <td colSpan={5} className="p-0">
-                                                <table className="w-full border-collapse">
-                                                    <tbody className="divide-y divide-white/5">
-                                                        {currentAds.map((ad, i) => (
-                                                            <motion.tr
-                                                                key={`${ad.user}-${i}`}
-                                                                initial={{ opacity: 0, y: 10 }}
-                                                                animate={{ opacity: 1, y: 0 }}
-                                                                exit={{ opacity: 0, y: -10 }}
-                                                                transition={{ duration: 0.2, delay: i * 0.05 }}
-                                                                className="hover:bg-white/5 transition-all group cursor-pointer"
-                                                            >
-                                                                <td className="px-8 py-10">
-                                                                    <div className="flex items-center space-x-4">
-                                                                        <div className="w-14 h-14 rounded-2xl bg-surface border border-border flex items-center justify-center font-black text-xl text-primary shadow-inner">
-                                                                            {ad.user[0]}
-                                                                        </div>
-                                                                        <div>
-                                                                            <Link
-                                                                                href={`/u/${ad.user}`}
-                                                                                className="font-black text-lg text-white flex items-center gap-2 mb-1 hover:text-primary transition-colors cursor-pointer"
-                                                                            >
-                                                                                {ad.user} <CheckCircle2 className="w-4 h-4 text-accent fill-accent/10" />
-                                                                            </Link>
-                                                                            <div className="flex items-center space-x-3 text-xs font-bold text-text-dim">
-                                                                                <span className="flex items-center gap-1"><Star className="w-3 h-3 text-amber-500 fill-amber-500" /> {ad.rating}</span>
-                                                                                <span>{ad.trades} trades</span>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </td>
-                                                                <td className="px-8 py-10">
-                                                                    <p className="text-3xl font-black text-white group-hover:text-primary transition-colors">{ad.price} <span className="text-xs font-bold text-text-dim uppercase tracking-widest">{ad.currency}</span></p>
-                                                                    <div className="flex items-center gap-2 mt-2">
-                                                                        <Clock className="w-3 h-3 text-text-dim" />
-                                                                        <span className="text-[10px] font-bold text-text-dim uppercase">Avg speed: {ad.time}</span>
-                                                                    </div>
-                                                                </td>
-                                                                <td className="px-8 py-10">
-                                                                    <p className="text-sm font-bold text-white mb-2">Available: {ad.available} {ad.coin}</p>
-                                                                    <div className="flex items-center space-x-2">
-                                                                        <ShieldCheck className="w-3.5 h-3.5 text-accent" />
-                                                                        <span className="text-xs font-medium text-text-dim">L: {ad.limits} {ad.currency}</span>
-                                                                    </div>
-                                                                </td>
-                                                                <td className="px-8 py-10">
-                                                                    <div className="flex flex-wrap gap-2">
-                                                                        {ad.methods.map((m) => (
-                                                                            <span key={m} className="px-4 py-1.5 rounded-full bg-surface-light text-[10px] font-black text-white uppercase border border-white/5 tracking-wider">
-                                                                                {m}
-                                                                            </span>
-                                                                        ))}
-                                                                    </div>
-                                                                </td>
-                                                                <td className="px-8 py-10 text-right">
-                                                                    <button
-                                                                        onClick={() => window.location.href = "/register"}
-                                                                        className={`px-10 py-5 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-xl hover:scale-105 active:scale-95 ${activeTab === "buy" ? "bg-accent text-background shadow-accent/20 hover:shadow-accent/40" : "bg-primary text-white shadow-primary/20 hover:shadow-primary/40"
-                                                                            }`}>
-                                                                        {activeTab === "buy" ? `Buy ${ad.coin}` : `Sell ${ad.coin}`}
-                                                                    </button>
-                                                                </td>
-                                                            </motion.tr>
+                                <AnimatePresence>
+                                    {isLoading ? (
+                                        <tr><td colSpan={5} className="p-20 text-center text-text-dim">Loading offers...</td></tr>
+                                    ) : currentAds.length > 0 ? (
+                                        currentAds.map((ad, i) => (
+                                            <motion.tr
+                                                key={ad.ad_id}
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: -10 }}
+                                                transition={{ duration: 0.2, delay: i * 0.05 }}
+                                                className="hover:bg-white/5 transition-all group cursor-pointer"
+                                            >
+                                                <td className="px-8 py-10">
+                                                    <div className="flex items-center space-x-4">
+                                                        <div className="w-14 h-14 rounded-2xl bg-surface border border-border flex items-center justify-center font-black text-xl text-primary shadow-inner">
+                                                            {ad.username[0]}
+                                                        </div>
+                                                        <div>
+                                                            <Link href={`/u/${ad.username}`} className="font-black text-lg text-white flex items-center gap-2 mb-1 hover:text-primary transition-colors cursor-pointer">
+                                                                {ad.username} <CheckCircle2 className="w-4 h-4 text-accent fill-accent/10" />
+                                                            </Link>
+                                                            <div className="flex items-center space-x-3 text-xs font-bold text-text-dim">
+                                                                <span className="flex items-center gap-1"><Star className="w-3 h-3 text-amber-500 fill-amber-500" /> {ad.user_rating}{ad.user_rating > 10 ? "%" : ""}</span>
+                                                                <span>{ad.user_trades} trades</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-8 py-10">
+                                                    <p className="text-3xl font-black text-white group-hover:text-primary transition-colors">{ad.price.toLocaleString()} <span className="text-xs font-bold text-text-dim uppercase tracking-widest">{ad.fiat_symbol}</span></p>
+                                                    <div className="flex items-center gap-2 mt-2">
+                                                        <Clock className="w-3 h-3 text-text-dim" />
+                                                        <span className="text-[10px] font-bold text-text-dim uppercase">Avg speed: {ad.payment_window_minutes} min</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-8 py-10">
+                                                    <p className="text-sm font-bold text-white mb-2">Limits: {ad.min_amount.toLocaleString()} - {ad.max_amount.toLocaleString()} {ad.fiat_symbol}</p>
+                                                    <div className="flex items-center space-x-2">
+                                                        <ShieldCheck className="w-3.5 h-3.5 text-accent" />
+                                                        <span className="text-xs font-medium text-text-dim">Verified Merchant</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-8 py-10">
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {ad.payment_methods.map((m: string, idx: number) => (
+                                                            <span key={idx} className="px-4 py-1.5 rounded-full bg-surface-light text-[10px] font-black text-white uppercase border border-white/5 tracking-wider">
+                                                                {m}
+                                                            </span>
                                                         ))}
-                                                    </tbody>
-                                                </table>
-                                            </td>
-                                        </motion.tr>
+                                                    </div>
+                                                </td>
+                                                <td className="px-8 py-10 text-right">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSelectedAd(ad);
+                                                            setTradeAmount(ad.min_amount.toString());
+                                                            setInitiationError(null);
+                                                        }}
+                                                        className={`px-10 py-5 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-xl hover:scale-105 active:scale-95 ${activeTab === "buy" ? "bg-accent text-background shadow-accent/20 hover:shadow-accent/40" : "bg-primary text-white shadow-primary/20 hover:shadow-primary/40"}`}
+                                                    >
+                                                        {activeTab === "buy" ? `Buy ${ad.crypto_symbol}` : `Sell ${ad.crypto_symbol}`}
+                                                    </button>
+                                                </td>
+                                            </motion.tr>
+                                        ))
                                     ) : (
-                                        <motion.tr
-                                            key="empty-state"
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                        >
+                                        <motion.tr key="empty-state" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                                             <td colSpan={5} className="px-8 py-24 text-center">
-                                                <div className="max-w-xs mx-auto">
-                                                    <p className="text-xl font-bold text-white mb-2">No offers found</p>
-                                                    <p className="text-text-dim">Try adjusting your filters or search terms to find more advertisements.</p>
-                                                </div>
+                                                <p className="text-xl font-bold text-white mb-2">No offers found</p>
+                                                <p className="text-text-dim">Try adjusting your filters.</p>
                                             </td>
                                         </motion.tr>
                                     )}
@@ -295,66 +320,51 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
                     </div>
                 </div>
 
-                {/* Card Layout for Mobile/Tablet */}
                 <div className="lg:hidden space-y-6">
-                    <AnimatePresence mode="popLayout">
-                        {currentAds.length > 0 ? (
+                    <AnimatePresence>
+                        {isLoading ? (
+                            <div className="text-center py-10 text-text-dim">Loading...</div>
+                        ) : currentAds.length > 0 ? (
                             currentAds.map((ad, i) => (
-                                <motion.div
-                                    key={`${ad.user}-${i}`}
-                                    initial={{ opacity: 0, y: 20 }}
-                                    whileInView={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, scale: 0.95 }}
-                                    viewport={{ once: true }}
-                                    className="glass rounded-[32px] border-border p-6 space-y-6"
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center space-x-3">
-                                            <div className="w-12 h-12 rounded-xl bg-surface border border-border flex items-center justify-center font-black text-primary">
-                                                {ad.user[0]}
-                                            </div>
+                                <motion.div key={ad.ad_id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} viewport={{ once: true }} className="glass rounded-[1.5rem] border-border p-5 relative">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-12 h-12 rounded-xl bg-surface border border-border flex items-center justify-center font-black text-primary">{ad.username[0]}</div>
                                             <div>
-                                                <Link
-                                                    href={`/u/${ad.user}`}
-                                                    className="font-black text-white flex items-center gap-1 hover:text-primary transition-colors"
-                                                >
-                                                    {ad.user} <CheckCircle2 className="w-4 h-4 text-accent" />
+                                                <Link href={`/u/${ad.username}`} className="font-black text-white flex items-center gap-1 hover:text-primary transition-colors">
+                                                    {ad.username} <CheckCircle2 className="w-4 h-4 text-accent" />
                                                 </Link>
-                                                <p className="text-[10px] font-bold text-text-dim uppercase tracking-wider">{ad.trades} TRADES | {ad.rating} RATING</p>
+                                                <p className="text-[10px] font-bold text-text-dim uppercase tracking-wider">{ad.user_trades} TRADES | {ad.user_rating}{ad.user_rating > 10 ? "%" : ""} RATING</p>
                                             </div>
                                         </div>
-                                        <div className="text-right">
-                                            <p className="text-xs font-black text-text-dim uppercase tracking-widest mb-1">Time</p>
-                                            <p className="text-sm font-bold text-white">{ad.time}</p>
+                                        <div className="bg-accent/5 px-3 py-1 rounded-lg border border-accent/10">
+                                            <span className="text-[10px] font-black text-accent">{ad.payment_window_minutes} MIN</span>
                                         </div>
                                     </div>
-
-                                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/5">
-                                        <div>
-                                            <p className="text-[10px] font-black text-text-dim uppercase tracking-widest mb-1">Price</p>
-                                            <p className="text-xl font-black text-white">{ad.price} {ad.currency}</p>
+                                    <div className="mb-4 bg-white/5 p-4 rounded-2xl">
+                                        <div className="flex justify-between items-baseline mb-1">
+                                            <span className="text-[10px] font-black text-text-dim uppercase tracking-widest">Price</span>
+                                            <span className="text-xl font-black text-white">{ad.price.toLocaleString()} {ad.fiat_symbol}</span>
                                         </div>
-                                        <div className="text-right">
-                                            <p className="text-[10px] font-black text-text-dim uppercase tracking-widest mb-1">Limits</p>
-                                            <p className="text-sm font-bold text-white">{ad.limits} {ad.currency}</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="pb-2">
-                                        <p className="text-[10px] font-black text-text-dim uppercase tracking-widest mb-3">Accepted Payments</p>
-                                        <div className="flex flex-wrap gap-2">
-                                            {ad.methods.map((m) => (
-                                                <span key={m} className="px-3 py-1 rounded-lg bg-surface-light text-[10px] font-bold text-white uppercase border border-border">
-                                                    {m}
-                                                </span>
-                                            ))}
+                                        <div className="flex justify-between text-[10px] font-bold">
+                                            <span className="text-text-dim">Limits</span>
+                                            <span className="text-white">{ad.min_amount.toLocaleString()} - {ad.max_amount.toLocaleString()} {ad.fiat_symbol}</span>
                                         </div>
                                     </div>
-
+                                    <div className="flex gap-2 mb-5 overflow-x-auto pb-1 no-scrollbar">
+                                        {ad.payment_methods.map((method: string, idx: number) => (
+                                            <span key={idx} className="px-2 py-1 bg-white/5 border border-white/10 rounded-md text-[8px] font-bold text-text-dim uppercase whitespace-nowrap">{method}</span>
+                                        ))}
+                                    </div>
                                     <button
-                                        onClick={() => window.location.href = "/register"}
-                                        className={`w-full py-5 rounded-2xl font-black text-sm uppercase tracking-widest transition-all ${activeTab === "buy" ? "bg-accent text-background" : "bg-primary text-white"}`}>
-                                        {activeTab === "buy" ? `Buy ${ad.coin}` : `Sell ${ad.coin}`}
+                                        onClick={() => {
+                                            setSelectedAd(ad);
+                                            setTradeAmount(ad.min_amount.toString());
+                                            setInitiationError(null);
+                                        }}
+                                        className="w-full py-4 bg-primary text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20"
+                                    >
+                                        {activeTab === "buy" ? "Buy" : "Sell"} {ad.crypto_symbol}
                                     </button>
                                 </motion.div>
                             ))
@@ -366,6 +376,88 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
                         )}
                     </AnimatePresence>
                 </div>
+
+                {/* Trade Initiation Modal */}
+                <AnimatePresence>
+                    {selectedAd && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                onClick={() => setSelectedAd(null)}
+                                className="absolute inset-0 bg-background/80 backdrop-blur-md"
+                            />
+                            <motion.div
+                                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                                animate={{ scale: 1, opacity: 1, y: 0 }}
+                                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                                className="glass border-border p-8 md:p-10 rounded-[3rem] max-w-lg w-full relative overflow-hidden"
+                            >
+                                <div className="flex justify-between items-start mb-8">
+                                    <div>
+                                        <h3 className="text-2xl font-black text-white mb-2 uppercase tracking-tight">Initiate Trade</h3>
+                                        <p className="text-text-dim text-sm font-bold uppercase tracking-widest">Trading with <span className="text-primary">{selectedAd.username}</span></p>
+                                    </div>
+                                    <button onClick={() => setSelectedAd(null)} className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition-colors">×</button>
+                                </div>
+
+                                <div className="space-y-6 mb-10">
+                                    <div>
+                                        <label className="text-[10px] font-black text-text-dim uppercase tracking-[0.2em] mb-3 block">Amount to {activeTab === "buy" ? "Pay" : "Receive"} ({selectedAd.fiat_symbol})</label>
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                value={tradeAmount}
+                                                onChange={(e) => setTradeAmount(e.target.value)}
+                                                placeholder={`Min: ${selectedAd.min_amount}`}
+                                                className="w-full bg-white/5 border-2 border-white/10 rounded-2xl py-5 px-6 text-xl font-black text-white focus:border-primary outline-none transition-all pr-16"
+                                            />
+                                            <div className="absolute right-6 top-1/2 -translate-y-1/2 font-black text-text-dim">{selectedAd.fiat_symbol}</div>
+                                        </div>
+                                        <p className="mt-3 text-[10px] font-bold text-text-dim uppercase tracking-wider">
+                                            Approx. {selectedAd && (parseFloat(tradeAmount || "0") / selectedAd.price).toFixed(8)} {selectedAd.crypto_symbol}
+                                        </p>
+                                    </div>
+
+                                    {initiationError && (
+                                        <motion.div
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: "auto" }}
+                                            className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl"
+                                        >
+                                            <p className="text-xs font-black text-red-500 uppercase tracking-widest leading-loose">
+                                                ⚠️ Error: {initiationError}
+                                            </p>
+                                        </motion.div>
+                                    )}
+                                </div>
+
+                                <div className="flex gap-4">
+                                    <button
+                                        disabled={isInitiating}
+                                        onClick={async () => {
+                                            setIsInitiating(true);
+                                            setInitiationError(null);
+                                            try {
+                                                const amount = parseFloat(tradeAmount);
+                                                const result = await authService.initiateTrade(selectedAd.ad_id, amount);
+                                                window.location.href = `/trade/${result.trade_id}`;
+                                            } catch (err: any) {
+                                                setInitiationError(err.message);
+                                            } finally {
+                                                setIsInitiating(false);
+                                            }
+                                        }}
+                                        className="flex-1 py-6 bg-primary text-white rounded-[2rem] font-black uppercase tracking-widest text-xs hover:scale-105 active:scale-95 transition-all shadow-xl shadow-primary/20 disabled:opacity-50"
+                                    >
+                                        {isInitiating ? "Initiating..." : `Start ${activeTab === "buy" ? "Buy" : "Sell"} Trade`}
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>
 
                 {/* Pagination component */}
                 <Pagination

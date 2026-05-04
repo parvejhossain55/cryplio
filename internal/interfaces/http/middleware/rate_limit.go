@@ -73,23 +73,23 @@ func (rl *endpointRateLimiter) cleanupLoop() {
 
 // Global limiters per endpoint
 var (
-	globalLimiter    *endpointRateLimiter
-	twoFALimiter     *endpointRateLimiter
-	loginLimiter     *endpointRateLimiter
-	registerLimiter  *endpointRateLimiter
-	passwordLimiter  *endpointRateLimiter
-	emailLimiter     *endpointRateLimiter
-	sessionLimiter   *endpointRateLimiter
+	globalLimiter   *endpointRateLimiter
+	twoFALimiter    *endpointRateLimiter
+	loginLimiter    *endpointRateLimiter
+	registerLimiter *endpointRateLimiter
+	passwordLimiter *endpointRateLimiter
+	emailLimiter    *endpointRateLimiter
+	sessionLimiter  *endpointRateLimiter
 )
 
 func init() {
-	globalLimiter   = newEndpointRateLimiter(100, time.Second)
-	twoFALimiter    = newEndpointRateLimiter(5, 5*time.Minute)
-	loginLimiter    = newEndpointRateLimiter(10, 5*time.Minute)
+	globalLimiter = newEndpointRateLimiter(100, time.Second)
+	twoFALimiter = newEndpointRateLimiter(5, 5*time.Minute)
+	loginLimiter = newEndpointRateLimiter(10, 5*time.Minute)
 	registerLimiter = newEndpointRateLimiter(5, 10*time.Minute)
 	passwordLimiter = newEndpointRateLimiter(3, 15*time.Minute)
-	emailLimiter    = newEndpointRateLimiter(5, 30*time.Minute)
-	sessionLimiter  = newEndpointRateLimiter(50, time.Minute)
+	emailLimiter = newEndpointRateLimiter(5, 30*time.Minute)
+	sessionLimiter = newEndpointRateLimiter(50, time.Minute)
 }
 
 func getIP(c *gin.Context) string {

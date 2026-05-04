@@ -2,6 +2,7 @@ package identity
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -11,11 +12,13 @@ type UserRepository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*User, error)
 	GetByEmail(ctx context.Context, email string) (*User, error)
 	GetByUsername(ctx context.Context, username string) (*User, error)
+	GetByUsernameWithStats(ctx context.Context, username string) (*User, *UserStats, error)
 	Create(ctx context.Context, user *User) error
 	Update(ctx context.Context, user *User) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	GetAll(ctx context.Context, limit, offset int) ([]User, error)
 	IncrementLogin(ctx context.Context, userID uuid.UUID) error
+	UpdateLastSeen(ctx context.Context, userID uuid.UUID) error
 	IncrementFailedAttempts(ctx context.Context, userID uuid.UUID) (int, error)
 	GetStats(ctx context.Context, userID uuid.UUID) (*UserStats, error)
 	// OAuth
@@ -45,4 +48,9 @@ type UserRepository interface {
 	DeleteSession(ctx context.Context, tokenID string) error
 	DeleteSessionsByUserID(ctx context.Context, userID uuid.UUID) error
 	UpdateSessionLastUsed(ctx context.Context, tokenID string) error
+	// User block
+	BlockUser(ctx context.Context, blockerID, blockedID uuid.UUID, reason string, isPermanent bool, expiresAt *time.Time) error
+	UnblockUser(ctx context.Context, blockerID, blockedID uuid.UUID) error
+	IsBlocked(ctx context.Context, blockerID, blockedID uuid.UUID) (bool, error)
+	ListBlocks(ctx context.Context, userID uuid.UUID) ([]UserBlock, error)
 }
