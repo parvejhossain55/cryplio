@@ -6,11 +6,13 @@ import (
 
 	"cryplio/internal/application/user"
 	domainidentity "cryplio/internal/domain/identity"
+	"cryplio/internal/domain/platform"
 	domaintraing "cryplio/internal/domain/trading"
 	kycinfra "cryplio/internal/infrastructure/kyc"
 	"cryplio/internal/infrastructure/notification"
 	identitypostgres "cryplio/internal/infrastructure/persistence/postgres/identity"
 	kycpostgres "cryplio/internal/infrastructure/persistence/postgres/kyc"
+	platformpostgres "cryplio/internal/infrastructure/persistence/postgres/platform"
 	tradingpostgres "cryplio/internal/infrastructure/persistence/postgres/trading"
 	"cryplio/internal/infrastructure/storage"
 	httpapi "cryplio/internal/interfaces/http"
@@ -64,6 +66,9 @@ func New() (*App, error) {
 	tradeRepo := tradingpostgres.NewTradeRepository(db)
 	tradeService := domaintraing.NewTradeService(tradeRepo, userRepo)
 
+	platformRepo := platformpostgres.NewPlatformRepository(db)
+	platformService := platform.NewPlatformService(platformRepo)
+
 	storage, err := storage.NewS3Storage(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("initialize storage: %w", err)
@@ -81,7 +86,7 @@ func New() (*App, error) {
 	submitKYCUC := user.NewSubmitKYCUseCase(kycRepo, userRepo, personaClient, cfg.PersonaTemplateID)
 	verifyKYCUC := user.NewVerifyKYCUseCase(kycRepo, userRepo)
 
-	router := httpapi.SetupRouter(cfg, authService, tradeService, storage, submitKYCUC, verifyKYCUC, personaClient)
+	router := httpapi.SetupRouter(cfg, authService, tradeService, platformService, storage, submitKYCUC, verifyKYCUC, personaClient)
 
 	return &App{
 		Config: cfg,

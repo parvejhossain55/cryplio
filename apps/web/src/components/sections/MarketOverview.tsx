@@ -123,7 +123,7 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
     const filteredAds = useMemo(() => {
         return ads.filter(ad =>
         (ad.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            ad.payment_methods.some((m: string) => m.toLowerCase().includes(searchQuery.toLowerCase())))
+            (ad.payment_methods && ad.payment_methods.some((m: string) => m.toLowerCase().includes(searchQuery.toLowerCase()))))
         );
     }, [searchQuery, ads]);
 
@@ -284,7 +284,7 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
                                                 </td>
                                                 <td className="px-8 py-10">
                                                     <div className="flex flex-wrap gap-2">
-                                                        {ad.payment_methods.map((m: string, idx: number) => (
+                                                        {ad.payment_methods?.map((m: string, idx: number) => (
                                                             <span key={idx} className="px-4 py-1.5 rounded-full bg-surface-light text-[10px] font-black text-white uppercase border border-white/5 tracking-wider">
                                                                 {m}
                                                             </span>
@@ -352,7 +352,7 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
                                         </div>
                                     </div>
                                     <div className="flex gap-2 mb-5 overflow-x-auto pb-1 no-scrollbar">
-                                        {ad.payment_methods.map((method: string, idx: number) => (
+                                        {ad.payment_methods?.map((method: string, idx: number) => (
                                             <span key={idx} className="px-2 py-1 bg-white/5 border border-white/10 rounded-md text-[8px] font-bold text-text-dim uppercase whitespace-nowrap">{method}</span>
                                         ))}
                                     </div>

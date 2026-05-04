@@ -19,7 +19,9 @@ import {
     Store,
     BarChart3,
     UserCheck,
-    X
+    X,
+    Coins,
+    DollarSign
 } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -89,6 +91,9 @@ const Sidebar = ({ role, isMobile }: SidebarProps) => {
             { name: "Merchants", href: "/admin/dashboard/merchants", icon: Store },
             { name: "KYC Reviews", href: "/admin/dashboard/kyc", icon: UserCheck },
             { name: "System Stats", href: "/admin/dashboard/stats", icon: BarChart3 },
+            { name: "Payment Methods", href: "/admin/dashboard/payment-methods", icon: CreditCard },
+            { name: "Crypto Assets", href: "/admin/dashboard/crypto-assets", icon: Coins },
+            { name: "Fiat Currencies", href: "/admin/dashboard/fiat-currencies", icon: DollarSign },
         ],
     };
 

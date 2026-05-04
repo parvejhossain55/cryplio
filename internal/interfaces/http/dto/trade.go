@@ -33,7 +33,7 @@ type CreateAdRequest struct {
 	FloatingMarkup       *float64 `json:"floating_markup"`
 	MinAmount            float64  `json:"min_amount" binding:"required,gt=0"`
 	MaxAmount            float64  `json:"max_amount" binding:"required,gt=0"`
-	PaymentMethods       []int    `json:"payment_methods" binding:"required,min=1"`
+	PaymentMethods       []string `json:"payment_methods" binding:"required,min=1"`
 	TradeTerms           string   `json:"trade_terms"`
 	PaymentWindowMinutes int      `json:"payment_window_minutes" binding:"required,min=5,max=60"`
 	RequiresKYCLevel     int      `json:"requires_kyc_level"`

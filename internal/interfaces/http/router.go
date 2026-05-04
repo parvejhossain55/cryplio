@@ -3,6 +3,7 @@ package httpapi
 import (
 	"cryplio/internal/application/user"
 	"cryplio/internal/domain/identity"
+	"cryplio/internal/domain/platform"
 	"cryplio/internal/domain/trading"
 	kycinfra "cryplio/internal/infrastructure/kyc"
 	"cryplio/internal/infrastructure/storage"
@@ -18,6 +19,7 @@ func SetupRouter(
 	cfg *config.Config,
 	authService identity.AuthService,
 	tradeService trading.TradeService,
+	platformService platform.PlatformService,
 	storage storage.ObjectStorage,
 	submitKYCUC *user.SubmitKYCUseCase,
 	verifyKYCUC *user.VerifyKYCUseCase,
@@ -58,6 +60,7 @@ func SetupRouter(
 
 		tradeHandler := handler.NewTradeHandler(tradeService)
 		kycHandler := handler.NewKYCHandler(submitKYCUC, verifyKYCUC, personaClient, cfg.PersonaWebhookSecret)
+		platformHandler := handler.NewPlatformHandler(platformService)
 
 		// Public routes
 		v1.POST("/auth/register", authHandler.RegisterHandler)
@@ -115,10 +118,33 @@ func SetupRouter(
 			auth.GET("/marketplace/trades/:id/messages", tradeHandler.GetChatHistoryHandler)
 			auth.POST("/marketplace/trades/:id/messages", tradeHandler.SendMessageHandler)
 
-			// Admin Routes (TODO: Add AdminRoleMiddleware)
+			// Admin Routes
 			admin := auth.Group("/admin")
+			admin.Use(middleware.AdminRoleMiddleware())
 			{
+				// KYC
 				admin.POST("/kyc/:id/verify", kycHandler.VerifyKYCHandler)
+
+				// Crypto Assets
+				admin.POST("/crypto-assets", platformHandler.CreateCryptoAssetHandler)
+				admin.GET("/crypto-assets", platformHandler.GetCryptoAssetsHandler)
+				admin.GET("/crypto-assets/:id", platformHandler.GetCryptoAssetHandler)
+				admin.PUT("/crypto-assets/:id", platformHandler.UpdateCryptoAssetHandler)
+				admin.DELETE("/crypto-assets/:id", platformHandler.DeleteCryptoAssetHandler)
+
+				// Fiat Currencies
+				admin.POST("/fiat-currencies", platformHandler.CreateFiatCurrencyHandler)
+				admin.GET("/fiat-currencies", platformHandler.GetFiatCurrenciesHandler)
+				admin.GET("/fiat-currencies/:id", platformHandler.GetFiatCurrencyHandler)
+				admin.PUT("/fiat-currencies/:id", platformHandler.UpdateFiatCurrencyHandler)
+				admin.DELETE("/fiat-currencies/:id", platformHandler.DeleteFiatCurrencyHandler)
+
+				// Payment Methods
+				admin.POST("/payment-methods", platformHandler.CreatePaymentMethodHandler)
+				admin.GET("/payment-methods", platformHandler.GetPaymentMethodsHandler)
+				admin.GET("/payment-methods/:id", platformHandler.GetPaymentMethodHandler)
+				admin.PUT("/payment-methods/:id", platformHandler.UpdatePaymentMethodHandler)
+				admin.DELETE("/payment-methods/:id", platformHandler.DeletePaymentMethodHandler)
 			}
 		}
 	}

@@ -129,6 +129,16 @@ func (h *TradeHandler) CreateAdHandler(c *gin.Context) {
 	userIDStr, _ := c.Get("user_id")
 	userID, _ := uuid.Parse(userIDStr.(string))
 
+	paymentMethods := make([]int, 0, len(req.PaymentMethods))
+	for _, pm := range req.PaymentMethods {
+		id, err := strconv.Atoi(pm)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("invalid payment method ID: %s", pm)})
+			return
+		}
+		paymentMethods = append(paymentMethods, id)
+	}
+
 	ad := &trading.TradeAd{
 		AdID:                 uuid.New(),
 		UserID:               userID,
@@ -140,10 +150,10 @@ func (h *TradeHandler) CreateAdHandler(c *gin.Context) {
 		FloatingMarkup:       req.FloatingMarkup,
 		MinAmount:            req.MinAmount,
 		MaxAmount:            req.MaxAmount,
-		PaymentMethods:       req.PaymentMethods,
+		PaymentMethods:       paymentMethods,
 		TradeTerms:           &req.TradeTerms,
 		PaymentWindowMinutes: req.PaymentWindowMinutes,
-		RequiresKYCLevel:     identity.KYCLevel(req.RequiresKYCLevel),
+		RequiresKYCLevel:     identity.KYCLevel(fmt.Sprintf("level_%d", req.RequiresKYCLevel)),
 		IsPublic:             true,
 		IsPaused:             false,
 		Timezone:             "UTC",

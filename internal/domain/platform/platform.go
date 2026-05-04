@@ -6,6 +6,17 @@ import (
 	"github.com/google/uuid"
 )
 
+// PaymentCategory represents payment method categories
+type PaymentCategory string
+
+const (
+	PaymentCategoryMobileMoney  PaymentCategory = "mobile_money"
+	PaymentCategoryBankTransfer PaymentCategory = "bank_transfer"
+	PaymentCategoryOnlineWallet PaymentCategory = "online_wallet"
+	PaymentCategoryCrypto       PaymentCategory = "crypto"
+	PaymentCategoryCash         PaymentCategory = "cash"
+)
+
 // PlatformConfig represents a key-value platform configuration
 type PlatformConfig struct {
 	Key         string    `db:"key" json:"key"`
@@ -65,4 +76,41 @@ func (a *Announcement) IsForMerchants() bool {
 // IsForVerifiedUsers checks if the announcement targets verified users
 func (a *Announcement) IsForVerifiedUsers() bool {
 	return a.TargetAudience != nil && *a.TargetAudience == "verified_users"
+}
+
+// CryptoAsset represents a supported cryptocurrency
+type CryptoAsset struct {
+	ID              int       `db:"id" json:"id"`
+	Symbol          string    `db:"symbol" json:"symbol"`
+	Name            string    `db:"name" json:"name"`
+	Blockchain      string    `db:"blockchain" json:"blockchain"`
+	ContractAddress *string   `db:"contract_address" json:"contract_address,omitempty"`
+	Decimals        int       `db:"decimals" json:"decimals"`
+	MinConfirmation int       `db:"min_confirmation" json:"min_confirmation"`
+	IsActive        bool      `db:"is_active" json:"is_active"`
+	CreatedAt       time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt       time.Time `db:"updated_at" json:"updated_at"`
+}
+
+// FiatCurrency represents a supported fiat currency
+type FiatCurrency struct {
+	ID        int       `db:"id" json:"id"`
+	Code      string    `db:"code" json:"code"`
+	Name      string    `db:"name" json:"name"`
+	Symbol    string    `db:"symbol" json:"symbol"`
+	IsActive  bool      `db:"is_active" json:"is_active"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+}
+
+// PaymentMethod represents a supported payment method
+type PaymentMethod struct {
+	ID          int             `db:"id" json:"id"`
+	Code        string          `db:"code" json:"code"`
+	Name        string          `db:"name" json:"name"`
+	Category    PaymentCategory `db:"category" json:"category"`
+	IconURL     *string         `db:"icon_url" json:"icon_url,omitempty"`
+	Description *string         `db:"description" json:"description,omitempty"`
+	IsActive    bool            `db:"is_active" json:"is_active"`
+	SortOrder   int             `db:"sort_order" json:"sort_order"`
+	CreatedAt   time.Time       `db:"created_at" json:"created_at"`
 }

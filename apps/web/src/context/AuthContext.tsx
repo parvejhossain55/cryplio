@@ -76,7 +76,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         name: backendUser.username || backendUser.email.split("@")[0],
         email: backendUser.email,
         username: backendUser.username || backendUser.email.split("@")[0],
-        role: "user",
+        role: backendUser.username === "admin" ? "admin" : (backendUser.is_merchant ? "merchant" : "user"),
         emailVerified: backendUser.email_verified ?? false,
         kycLevel: backendUser.kyc_level ?? 0,
         twoFAEnabled: backendUser.two_fa_enabled ?? false,
