@@ -17,6 +17,19 @@ type TradeService interface {
 
 	// Trades
 	InitiateTrade(ctx context.Context, adID, buyerID uuid.UUID, amount float64) (*Trade, error)
+	ListTrades(ctx context.Context, userID uuid.UUID, role string) ([]Trade, error)
+	GetTrade(ctx context.Context, id uuid.UUID) (*Trade, error)
+	MarkAsPaid(ctx context.Context, tradeID, userID uuid.UUID) error
+	ReleaseEscrow(ctx context.Context, tradeID, userID uuid.UUID) error
+	CancelTrade(ctx context.Context, tradeID, userID uuid.UUID, reason string) error
+
+	// Messages
+	SendMessage(ctx context.Context, tradeID, senderID uuid.UUID, content string) (*TradeMessage, error)
+	GetChatHistory(ctx context.Context, tradeID, userID uuid.UUID) ([]TradeMessage, error)
+
+	// Merchant Management
+	ListUserAds(ctx context.Context, userID uuid.UUID) ([]TradeAd, int, error)
+	ToggleAdStatus(ctx context.Context, adID, userID uuid.UUID) error
 }
 
 type tradeService struct {
@@ -115,4 +128,136 @@ func (s *tradeService) InitiateTrade(ctx context.Context, adID, buyerID uuid.UUI
 	}
 
 	return trade, nil
+}
+
+func (s *tradeService) ListUserAds(ctx context.Context, userID uuid.UUID) ([]TradeAd, int, error) {
+	filter := AdFilter{
+		UserID: &userID,
+		Limit:  100, // Show all for now
+	}
+	return s.tradeRepo.ListAds(ctx, filter)
+}
+
+func (s *tradeService) ToggleAdStatus(ctx context.Context, adID, userID uuid.UUID) error {
+	ad, err := s.tradeRepo.GetAdByID(ctx, adID)
+	if err != nil {
+		return err
+	}
+	if ad == nil {
+		return errors.New("ad not found")
+	}
+	if ad.UserID != userID {
+		return errors.New("unauthorized")
+	}
+
+	ad.IsPaused = !ad.IsPaused
+	return s.tradeRepo.UpdateAd(ctx, ad)
+}
+
+func (s *tradeService) ListTrades(ctx context.Context, userID uuid.UUID, role string) ([]Trade, error) {
+	return s.tradeRepo.ListTrades(ctx, userID, role)
+}
+
+func (s *tradeService) GetTrade(ctx context.Context, id uuid.UUID) (*Trade, error) {
+	return s.tradeRepo.GetTradeByID(ctx, id)
+}
+
+func (s *tradeService) MarkAsPaid(ctx context.Context, tradeID, userID uuid.UUID) error {
+	trade, err := s.tradeRepo.GetTradeByID(ctx, tradeID)
+	if err != nil {
+		return err
+	}
+	if trade == nil {
+		return errors.New("trade not found")
+	}
+	if trade.BuyerID != userID {
+		return errors.New("unauthorized")
+	}
+	if trade.Status != TradeStatusPending && trade.Status != TradeStatusActive {
+		return errors.New("invalid trade status")
+	}
+
+	trade.MarkAsPaid()
+	return s.tradeRepo.UpdateTrade(ctx, trade)
+}
+
+func (s *tradeService) ReleaseEscrow(ctx context.Context, tradeID, userID uuid.UUID) error {
+	trade, err := s.tradeRepo.GetTradeByID(ctx, tradeID)
+	if err != nil {
+		return err
+	}
+	if trade == nil {
+		return errors.New("trade not found")
+	}
+	if trade.SellerID != userID {
+		return errors.New("unauthorized")
+	}
+	if trade.Status != TradeStatusPaid {
+		return errors.New("trade must be marked as paid before releasing escrow")
+	}
+
+	trade.Release()
+	// In a real app, this would also trigger the actual blockchain release
+	return s.tradeRepo.UpdateTrade(ctx, trade)
+}
+
+func (s *tradeService) CancelTrade(ctx context.Context, tradeID, userID uuid.UUID, reason string) error {
+	trade, err := s.tradeRepo.GetTradeByID(ctx, tradeID)
+	if err != nil {
+		return err
+	}
+	if trade == nil {
+		return errors.New("trade not found")
+	}
+	if trade.BuyerID != userID && trade.SellerID != userID {
+		return errors.New("unauthorized")
+	}
+	if !trade.CanCancel() {
+		return errors.New("trade cannot be cancelled at this stage")
+	}
+
+	trade.Cancel(reason)
+	return s.tradeRepo.UpdateTrade(ctx, trade)
+}
+
+func (s *tradeService) SendMessage(ctx context.Context, tradeID, senderID uuid.UUID, content string) (*TradeMessage, error) {
+	trade, err := s.tradeRepo.GetTradeByID(ctx, tradeID)
+	if err != nil {
+		return nil, err
+	}
+	if trade == nil {
+		return nil, errors.New("trade not found")
+	}
+	if trade.BuyerID != senderID && trade.SellerID != senderID {
+		return nil, errors.New("unauthorized")
+	}
+
+	msg := &TradeMessage{
+		MessageID:   uuid.New(),
+		TradeID:     tradeID,
+		SenderID:    senderID,
+		MessageType: TradeMessageTypeText,
+		Content:     &content,
+	}
+
+	err = s.tradeRepo.CreateTradeMessage(ctx, msg)
+	if err != nil {
+		return nil, err
+	}
+	return msg, nil
+}
+
+func (s *tradeService) GetChatHistory(ctx context.Context, tradeID, userID uuid.UUID) ([]TradeMessage, error) {
+	trade, err := s.tradeRepo.GetTradeByID(ctx, tradeID)
+	if err != nil {
+		return nil, err
+	}
+	if trade == nil {
+		return nil, errors.New("trade not found")
+	}
+	if trade.BuyerID != userID && trade.SellerID != userID {
+		return nil, errors.New("unauthorized")
+	}
+
+	return s.tradeRepo.ListTradeMessages(ctx, tradeID)
 }

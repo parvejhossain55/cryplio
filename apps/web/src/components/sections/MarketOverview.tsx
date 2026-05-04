@@ -442,7 +442,7 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
                                             try {
                                                 const amount = parseFloat(tradeAmount);
                                                 const result = await authService.initiateTrade(selectedAd.ad_id, amount);
-                                                window.location.href = `/trade/${result.trade_id}`;
+                                                window.location.href = `/marketplace/trade/${result.trade_id}`;
                                             } catch (err: any) {
                                                 setInitiationError(err.message);
                                             } finally {

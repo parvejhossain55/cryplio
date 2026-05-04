@@ -5,7 +5,8 @@ import MarketOverview from "@/components/sections/MarketOverview";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { motion } from "framer-motion";
-import { Search, Shield, Zap, Globe } from "lucide-react";
+import Link from "next/link";
+import { Search, Shield, Zap, Globe, ArrowRight } from "lucide-react";
 
 const MarketplacePage = () => {
     return (
@@ -34,6 +35,15 @@ const MarketplacePage = () => {
                             <p className="text-xl text-text-dim max-w-2xl leading-relaxed font-medium">
                                 Browse thousands of secure offers from verified merchants worldwide. Use our advanced filters to find the perfect trade partner in seconds.
                             </p>
+                            <div className="pt-4">
+                                <Link
+                                    href="/marketplace/create"
+                                    className="inline-flex items-center px-8 py-4 bg-white text-background rounded-2xl font-black uppercase tracking-widest text-xs hover:scale-105 active:scale-95 transition-all shadow-xl shadow-white/10 group"
+                                >
+                                    Post Your Own Offer
+                                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                                </Link>
+                            </div>
                         </motion.div>
 
                         {/* Stats Info */}

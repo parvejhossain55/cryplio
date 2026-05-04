@@ -554,6 +554,117 @@ export const authService = {
 
         return await response.json();
     },
+
+    createAd: async (adData: any): Promise<any> => {
+        const response = await fetch(`/api/v1/marketplace/ads`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(adData),
+            credentials: "include",
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || "Failed to create advertisement");
+        }
+
+        return await response.json();
+    },
+
+    getMyAds: async (): Promise<any> => {
+        const response = await fetch(`/api/v1/marketplace/my-ads`, {
+            credentials: "include",
+        });
+
+        if (!response.ok) {
+            throw new Error("Failed to fetch your advertisements");
+        }
+
+        return await response.json();
+    },
+
+    toggleAdStatus: async (adId: string): Promise<any> => {
+        const response = await fetch(`/api/v1/marketplace/ads/${adId}/status`, {
+            method: "PATCH",
+            credentials: "include",
+        });
+
+        if (!response.ok) {
+            throw new Error("Failed to update advertisement status");
+        }
+
+        return await response.json();
+    },
+
+    getMyTrades: async (role?: string): Promise<any> => {
+        const url = role ? `/api/v1/marketplace/trades?role=${role}` : `/api/v1/marketplace/trades`;
+        const response = await fetch(url, {
+            credentials: "include",
+        });
+
+        if (!response.ok) {
+            throw new Error("Failed to fetch your trades");
+        }
+
+        return await response.json();
+    },
+
+    getTradeDetails: async (tradeId: string): Promise<any> => {
+        const response = await fetch(`/api/v1/marketplace/trades/${tradeId}`, {
+            credentials: "include",
+        });
+
+        if (!response.ok) {
+            throw new Error("Failed to fetch trade details");
+        }
+
+        return await response.json();
+    },
+
+    updateTradeStatus: async (tradeId: string, action: string, reason?: string): Promise<any> => {
+        const response = await fetch(`/api/v1/marketplace/trades/${tradeId}/status`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action, reason }),
+            credentials: "include",
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "Failed to update trade status");
+        }
+
+        return await response.json();
+    },
+
+    getTradeMessages: async (tradeId: string): Promise<any> => {
+        const response = await fetch(`/api/v1/marketplace/trades/${tradeId}/messages`, {
+            credentials: "include",
+        });
+
+        if (!response.ok) {
+            throw new Error("Failed to fetch messages");
+        }
+
+        return await response.json();
+    },
+
+    sendTradeMessage: async (tradeId: string, content: string): Promise<any> => {
+        const response = await fetch(`/api/v1/marketplace/trades/${tradeId}/messages`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content }),
+            credentials: "include",
+        });
+
+        if (!response.ok) {
+            throw new Error("Failed to send message");
+        }
+
+        return await response.json();
+    },
 };
 
 // Wrap fetch to automatically refresh on 401

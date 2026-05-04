@@ -20,6 +20,10 @@ type TradeRepository interface {
 	GetTradeByID(ctx context.Context, id uuid.UUID) (*Trade, error)
 	ListTrades(ctx context.Context, userID uuid.UUID, role string) ([]Trade, error)
 	UpdateTrade(ctx context.Context, trade *Trade) error
+
+	// Messages
+	CreateTradeMessage(ctx context.Context, msg *TradeMessage) error
+	ListTradeMessages(ctx context.Context, tradeID uuid.UUID) ([]TradeMessage, error)
 }
 
 // AdFilter holds filtering options for trade ads
@@ -29,6 +33,7 @@ type AdFilter struct {
 	FiatID         *int
 	PaymentMethods []int
 	MinAmount      *float64
+	UserID         *uuid.UUID
 	Status         *TradeAdStatus
 	Limit          int
 	Offset         int

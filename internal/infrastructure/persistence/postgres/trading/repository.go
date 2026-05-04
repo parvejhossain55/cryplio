@@ -2,12 +2,11 @@ package trading
 
 import (
 	"context"
+	domainidentity "cryplio/internal/domain/identity"
+	"cryplio/internal/domain/trading"
 	"database/sql"
 	"fmt"
 	"strings"
-
-	domainidentity "cryplio/internal/domain/identity"
-	domain "cryplio/internal/domain/trading"
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
@@ -17,11 +16,12 @@ type tradeRepository struct {
 	db *sql.DB
 }
 
-func NewTradeRepository(db *sql.DB) domain.TradeRepository {
+// NewTradeRepository creates a new postgres trade repository
+func NewTradeRepository(db *sql.DB) trading.TradeRepository {
 	return &tradeRepository{db: db}
 }
 
-func (r *tradeRepository) CreateAd(ctx context.Context, ad *domain.TradeAd) error {
+func (r *tradeRepository) CreateAd(ctx context.Context, ad *trading.TradeAd) error {
 	query := `
 		INSERT INTO trade_ads (
 			ad_id, user_id, type, crypto_id, fiat_id, price_type, price,
@@ -34,6 +34,7 @@ func (r *tradeRepository) CreateAd(ctx context.Context, ad *domain.TradeAd) erro
 			$15, $16, $17, $18, NOW(), NOW(), NOW()
 		) RETURNING created_at, updated_at
 	`
+
 	err := r.db.QueryRowContext(
 		ctx, query,
 		ad.AdID, ad.UserID, ad.Type, ad.CryptoID, ad.FiatID, ad.PriceType,
@@ -48,37 +49,41 @@ func (r *tradeRepository) CreateAd(ctx context.Context, ad *domain.TradeAd) erro
 	return nil
 }
 
-func (r *tradeRepository) GetAdByID(ctx context.Context, id uuid.UUID) (*domain.TradeAd, error) {
-	query := `SELECT * FROM trade_ads WHERE ad_id = $1 AND deleted_at IS NULL`
-	ad := &domain.TradeAd{}
+func (r *tradeRepository) GetAdByID(ctx context.Context, id uuid.UUID) (*trading.TradeAd, error) {
+	query := `
+		SELECT ad_id, user_id, type, crypto_id, fiat_id, price_type, price,
+		       floating_markup, min_amount, max_amount, payment_methods,
+		       trade_terms, payment_window_minutes, requires_kyc_level,
+		       is_public, is_paused, timezone, status, published_at,
+		       created_at, updated_at
+		FROM trade_ads
+		WHERE ad_id = $1 AND deleted_at IS NULL
+	`
+	var ad trading.TradeAd
 	var paymentMethods []int64
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&ad.AdID, &ad.UserID, &ad.Type, &ad.CryptoID, &ad.FiatID, &ad.PriceType,
 		&ad.Price, &ad.FloatingMarkup, &ad.MinAmount, &ad.MaxAmount,
 		pq.Array(&paymentMethods), &ad.TradeTerms, &ad.PaymentWindowMinutes,
-		&ad.RequiresKYCLevel, &ad.IsPublic, &ad.IsPaused, &ad.VisibilityStartAt,
-		&ad.VisibilityEndAt, &ad.Timezone, &ad.AutoRepost, &ad.RepostCount,
-		&ad.ViewsCount, &ad.ResponseCount, &ad.LockedBalance, &ad.Status,
-		&ad.FirstPublishedAt, &ad.PublishedAt, &ad.ExpiresAt, &ad.CreatedAt,
-		&ad.UpdatedAt, &ad.DeletedAt,
+		&ad.RequiresKYCLevel, &ad.IsPublic, &ad.IsPaused, &ad.Timezone,
+		&ad.Status, &ad.PublishedAt, &ad.CreatedAt, &ad.UpdatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("get ad by id: %w", err)
+		return nil, fmt.Errorf("get ad: %w", err)
 	}
 
-	// Convert int64 array to int array
 	ad.PaymentMethods = make([]int, len(paymentMethods))
-	for i, v := range paymentMethods {
-		ad.PaymentMethods[i] = int(v)
+	for i, pm := range paymentMethods {
+		ad.PaymentMethods[i] = int(pm)
 	}
 
-	return ad, nil
+	return &ad, nil
 }
 
-func (r *tradeRepository) ListAds(ctx context.Context, filter domain.AdFilter) ([]domain.TradeAd, int, error) {
+func (r *tradeRepository) ListAds(ctx context.Context, filter trading.AdFilter) ([]trading.TradeAd, int, error) {
 	var args []interface{}
 	var conditions []string
 	placeholder := 1
@@ -98,6 +103,11 @@ func (r *tradeRepository) ListAds(ctx context.Context, filter domain.AdFilter) (
 		args = append(args, *filter.FiatID)
 		placeholder++
 	}
+	if filter.UserID != nil {
+		conditions = append(conditions, fmt.Sprintf("a.user_id = $%d", placeholder))
+		args = append(args, *filter.UserID)
+		placeholder++
+	}
 	if filter.Status != nil {
 		conditions = append(conditions, fmt.Sprintf("a.status = $%d", placeholder))
 		args = append(args, *filter.Status)
@@ -107,8 +117,10 @@ func (r *tradeRepository) ListAds(ctx context.Context, filter domain.AdFilter) (
 	}
 
 	conditions = append(conditions, "a.deleted_at IS NULL")
-	conditions = append(conditions, "a.is_public = true")
-	conditions = append(conditions, "a.is_paused = false")
+	if filter.UserID == nil {
+		conditions = append(conditions, "a.is_public = true")
+		conditions = append(conditions, "a.is_paused = false")
+	}
 
 	where := ""
 	if len(conditions) > 0 {
@@ -149,9 +161,9 @@ func (r *tradeRepository) ListAds(ctx context.Context, filter domain.AdFilter) (
 	}
 	defer rows.Close()
 
-	var ads []domain.TradeAd
+	var ads []trading.TradeAd
 	for rows.Next() {
-		var ad domain.TradeAd
+		var ad trading.TradeAd
 		ad.User = &domainidentity.User{}
 		ad.Stats = &domainidentity.UserStats{}
 		var paymentMethods []int64
@@ -179,7 +191,7 @@ func (r *tradeRepository) ListAds(ctx context.Context, filter domain.AdFilter) (
 	return ads, total, nil
 }
 
-func (r *tradeRepository) UpdateAd(ctx context.Context, ad *domain.TradeAd) error {
+func (r *tradeRepository) UpdateAd(ctx context.Context, ad *trading.TradeAd) error {
 	query := `
 		UPDATE trade_ads
 		SET type = $1, crypto_id = $2, fiat_id = $3, price_type = $4,
@@ -209,7 +221,7 @@ func (r *tradeRepository) DeleteAd(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
-func (r *tradeRepository) CreateTrade(ctx context.Context, trade *domain.Trade) error {
+func (r *tradeRepository) CreateTrade(ctx context.Context, trade *trading.Trade) error {
 	query := `
 		INSERT INTO trades (
 			trade_id, ad_id, buyer_id, seller_id, crypto_id, fiat_id,
@@ -235,14 +247,134 @@ func (r *tradeRepository) CreateTrade(ctx context.Context, trade *domain.Trade) 
 	return nil
 }
 
-func (r *tradeRepository) GetTradeByID(ctx context.Context, id uuid.UUID) (*domain.Trade, error) {
-	return nil, fmt.Errorf("not implemented")
+func (r *tradeRepository) GetTradeByID(ctx context.Context, id uuid.UUID) (*trading.Trade, error) {
+	query := `
+		SELECT trade_id, ad_id, buyer_id, seller_id, crypto_id, fiat_id,
+		       crypto_amount, fiat_amount, exchange_rate, payment_method,
+		       price_type, agreed_price, status, payment_window_minutes,
+		       created_at, updated_at
+		FROM trades
+		WHERE trade_id = $1 AND deleted_at IS NULL
+	`
+	var t trading.Trade
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&t.TradeID, &t.AdID, &t.BuyerID, &t.SellerID, &t.CryptoID, &t.FiatID,
+		&t.CryptoAmount, &t.FiatAmount, &t.ExchangeRate, &t.PaymentMethod,
+		&t.PriceType, &t.AgreedPrice, &t.Status, &t.PaymentWindowMinutes,
+		&t.CreatedAt, &t.UpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get trade: %w", err)
+	}
+	return &t, nil
 }
 
-func (r *tradeRepository) ListTrades(ctx context.Context, userID uuid.UUID, role string) ([]domain.Trade, error) {
-	return nil, fmt.Errorf("not implemented")
+func (r *tradeRepository) ListTrades(ctx context.Context, userID uuid.UUID, role string) ([]trading.Trade, error) {
+	var query string
+	if role == "buyer" {
+		query = `SELECT * FROM trades WHERE buyer_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC`
+	} else if role == "seller" {
+		query = `SELECT * FROM trades WHERE seller_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC`
+	} else {
+		query = `SELECT * FROM trades WHERE (buyer_id = $1 OR seller_id = $1) AND deleted_at IS NULL ORDER BY created_at DESC`
+	}
+
+	// For simplicity, using SELECT * but in production should list columns
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("query trades: %w", err)
+	}
+	defer rows.Close()
+
+	var trades []trading.Trade
+	for rows.Next() {
+		var t trading.Trade
+		// Manual scan to avoid issues with NULLs or count mismatches
+		err := rows.Scan(
+			&t.TradeID, &t.AdID, &t.BuyerID, &t.SellerID, &t.CryptoID, &t.FiatID,
+			&t.CryptoAmount, &t.FiatAmount, &t.ExchangeRate, &t.PaymentMethod,
+			&t.PriceType, &t.AgreedPrice, &t.Status, &t.DisputeID, &t.ChatRoomID,
+			&t.StartedAt, &t.PaymentMarkedAt, &t.ReleasedAt, &t.CancelledAt,
+			&t.CompletedAt, &t.ExpiredAt, &t.PaymentWindowMinutes,
+			&t.IsAutoDisputeTriggered, &t.CancelReason, &t.EscrowTxnHash,
+			&t.EscrowContractAddress, &t.CreatedAt, &t.UpdatedAt, &t.DeletedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan trade: %w", err)
+		}
+		trades = append(trades, t)
+	}
+	return trades, nil
 }
 
-func (r *tradeRepository) UpdateTrade(ctx context.Context, trade *domain.Trade) error {
-	return fmt.Errorf("not implemented")
+func (r *tradeRepository) UpdateTrade(ctx context.Context, t *trading.Trade) error {
+	query := `
+		UPDATE trades
+		SET status = $1, payment_marked_at = $2, released_at = $3,
+		    cancelled_at = $4, completed_at = $5, expired_at = $6,
+		    cancel_reason = $7, dispute_id = $8, updated_at = NOW()
+		WHERE trade_id = $9 AND deleted_at IS NULL
+	`
+	_, err := r.db.ExecContext(
+		ctx, query,
+		t.Status, t.PaymentMarkedAt, t.ReleasedAt, t.CancelledAt,
+		t.CompletedAt, t.ExpiredAt, t.CancelReason, t.DisputeID, t.TradeID,
+	)
+	if err != nil {
+		return fmt.Errorf("update trade: %w", err)
+	}
+	return nil
+}
+
+func (r *tradeRepository) CreateTradeMessage(ctx context.Context, msg *trading.TradeMessage) error {
+	query := `
+		INSERT INTO trade_messages (
+			message_id, trade_id, sender_id, message_type, content,
+			file_url, created_at
+		) VALUES (
+			$1, $2, $3, $4, $5, $6, NOW()
+		) RETURNING created_at
+	`
+	err := r.db.QueryRowContext(
+		ctx, query,
+		msg.MessageID, msg.TradeID, msg.SenderID, msg.MessageType,
+		msg.Content, msg.FileURL,
+	).Scan(&msg.CreatedAt)
+
+	if err != nil {
+		return fmt.Errorf("create message: %w", err)
+	}
+	return nil
+}
+
+func (r *tradeRepository) ListTradeMessages(ctx context.Context, tradeID uuid.UUID) ([]trading.TradeMessage, error) {
+	query := `
+		SELECT message_id, trade_id, sender_id, message_type, content,
+		       file_url, is_read, read_at, created_at
+		FROM trade_messages
+		WHERE trade_id = $1 AND deleted_at IS NULL
+		ORDER BY created_at ASC
+	`
+	rows, err := r.db.QueryContext(ctx, query, tradeID)
+	if err != nil {
+		return nil, fmt.Errorf("query messages: %w", err)
+	}
+	defer rows.Close()
+
+	var messages []trading.TradeMessage
+	for rows.Next() {
+		var m trading.TradeMessage
+		err := rows.Scan(
+			&m.MessageID, &m.TradeID, &m.SenderID, &m.MessageType,
+			&m.Content, &m.FileURL, &m.IsRead, &m.ReadAt, &m.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan message: %w", err)
+		}
+		messages = append(messages, m)
+	}
+	return messages, nil
 }

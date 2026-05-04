@@ -23,3 +23,22 @@ type ListAdsResponse struct {
 	Ads   []AdResponse `json:"ads"`
 	Total int          `json:"total"`
 }
+
+type CreateAdRequest struct {
+	Type                 string   `json:"type" binding:"required,oneof=buy sell"`
+	CryptoID             int      `json:"crypto_id" binding:"required"`
+	FiatID               int      `json:"fiat_id" binding:"required"`
+	PriceType            string   `json:"price_type" binding:"required,oneof=fixed floating"`
+	Price                float64  `json:"price" binding:"required,gt=0"`
+	FloatingMarkup       *float64 `json:"floating_markup"`
+	MinAmount            float64  `json:"min_amount" binding:"required,gt=0"`
+	MaxAmount            float64  `json:"max_amount" binding:"required,gt=0"`
+	PaymentMethods       []int    `json:"payment_methods" binding:"required,min=1"`
+	TradeTerms           string   `json:"trade_terms"`
+	PaymentWindowMinutes int      `json:"payment_window_minutes" binding:"required,min=5,max=60"`
+	RequiresKYCLevel     int      `json:"requires_kyc_level"`
+}
+
+type InitiateTradeRequest struct {
+	Amount float64 `json:"amount" binding:"required,gt=0"`
+}

@@ -94,7 +94,15 @@ func SetupRouter(
 			auth.DELETE("/sessions/:tokenId", authHandler.DeleteSessionHandler)
 
 			// Trading (Authenticated)
+			auth.POST("/marketplace/ads", tradeHandler.CreateAdHandler)
+			auth.GET("/marketplace/my-ads", tradeHandler.ListMyAdsHandler)
+			auth.PATCH("/marketplace/ads/:id/status", tradeHandler.ToggleAdStatusHandler)
 			auth.POST("/marketplace/ads/:id/trades", tradeHandler.InitiateTradeHandler)
+			auth.GET("/marketplace/trades", tradeHandler.ListTradesHandler)
+			auth.GET("/marketplace/trades/:id", tradeHandler.GetTradeHandler)
+			auth.PATCH("/marketplace/trades/:id/status", tradeHandler.UpdateTradeStatusHandler)
+			auth.GET("/marketplace/trades/:id/messages", tradeHandler.GetChatHistoryHandler)
+			auth.POST("/marketplace/trades/:id/messages", tradeHandler.SendMessageHandler)
 		}
 	}
 
