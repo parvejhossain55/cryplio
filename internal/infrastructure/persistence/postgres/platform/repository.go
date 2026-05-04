@@ -60,7 +60,23 @@ func (r *platformRepository) GetCryptoAsset(ctx context.Context, id int) (*platf
 	return asset, nil
 }
 
-func (r *platformRepository) GetCryptoAssets(ctx context.Context, activeOnly bool) ([]*platform.CryptoAsset, error) {
+func (r *platformRepository) GetCryptoAssets(ctx context.Context, activeOnly bool, limit, offset int) ([]*platform.CryptoAsset, int, error) {
+	// Get total count
+	countQuery := `SELECT COUNT(*) FROM crypto_assets`
+	countArgs := []interface{}{}
+
+	if activeOnly {
+		countQuery += " WHERE is_active = $1"
+		countArgs = append(countArgs, true)
+	}
+
+	var total int
+	err := r.db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("get crypto assets count: %w", err)
+	}
+
+	// Get paginated results
 	query := `
 		SELECT id, symbol, name, blockchain, contract_address, decimals, min_confirmation, is_active, created_at, updated_at
 		FROM crypto_assets
@@ -73,10 +89,18 @@ func (r *platformRepository) GetCryptoAssets(ctx context.Context, activeOnly boo
 	}
 
 	query += " ORDER BY symbol"
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT $%d", len(args)+1)
+		args = append(args, limit)
+	}
+	if offset > 0 {
+		query += fmt.Sprintf(" OFFSET $%d", len(args)+1)
+		args = append(args, offset)
+	}
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("get crypto assets: %w", err)
+		return nil, 0, fmt.Errorf("get crypto assets: %w", err)
 	}
 	defer rows.Close()
 
@@ -88,12 +112,12 @@ func (r *platformRepository) GetCryptoAssets(ctx context.Context, activeOnly boo
 			&asset.Decimals, &asset.MinConfirmation, &asset.IsActive, &asset.CreatedAt, &asset.UpdatedAt,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("scan crypto asset: %w", err)
+			return nil, 0, fmt.Errorf("scan crypto asset: %w", err)
 		}
 		assets = append(assets, asset)
 	}
 
-	return assets, rows.Err()
+	return assets, total, rows.Err()
 }
 
 func (r *platformRepository) UpdateCryptoAsset(ctx context.Context, asset *platform.CryptoAsset) error {
@@ -178,7 +202,23 @@ func (r *platformRepository) GetFiatCurrency(ctx context.Context, id int) (*plat
 	return currency, nil
 }
 
-func (r *platformRepository) GetFiatCurrencies(ctx context.Context, activeOnly bool) ([]*platform.FiatCurrency, error) {
+func (r *platformRepository) GetFiatCurrencies(ctx context.Context, activeOnly bool, limit, offset int) ([]*platform.FiatCurrency, int, error) {
+	// Get total count
+	countQuery := `SELECT COUNT(*) FROM fiat_currencies`
+	countArgs := []interface{}{}
+
+	if activeOnly {
+		countQuery += " WHERE is_active = $1"
+		countArgs = append(countArgs, true)
+	}
+
+	var total int
+	err := r.db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("get fiat currencies count: %w", err)
+	}
+
+	// Get paginated results
 	query := `
 		SELECT id, code, name, symbol, is_active, created_at
 		FROM fiat_currencies
@@ -191,10 +231,18 @@ func (r *platformRepository) GetFiatCurrencies(ctx context.Context, activeOnly b
 	}
 
 	query += " ORDER BY code"
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT $%d", len(args)+1)
+		args = append(args, limit)
+	}
+	if offset > 0 {
+		query += fmt.Sprintf(" OFFSET $%d", len(args)+1)
+		args = append(args, offset)
+	}
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("get fiat currencies: %w", err)
+		return nil, 0, fmt.Errorf("get fiat currencies: %w", err)
 	}
 	defer rows.Close()
 
@@ -206,12 +254,12 @@ func (r *platformRepository) GetFiatCurrencies(ctx context.Context, activeOnly b
 			&currency.IsActive, &currency.CreatedAt,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("scan fiat currency: %w", err)
+			return nil, 0, fmt.Errorf("scan fiat currency: %w", err)
 		}
 		currencies = append(currencies, currency)
 	}
 
-	return currencies, rows.Err()
+	return currencies, total, rows.Err()
 }
 
 func (r *platformRepository) UpdateFiatCurrency(ctx context.Context, currency *platform.FiatCurrency) error {
@@ -294,7 +342,23 @@ func (r *platformRepository) GetPaymentMethod(ctx context.Context, id int) (*pla
 	return method, nil
 }
 
-func (r *platformRepository) GetPaymentMethods(ctx context.Context, activeOnly bool) ([]*platform.PaymentMethod, error) {
+func (r *platformRepository) GetPaymentMethods(ctx context.Context, activeOnly bool, limit, offset int) ([]*platform.PaymentMethod, int, error) {
+	// Get total count
+	countQuery := `SELECT COUNT(*) FROM payment_methods`
+	countArgs := []interface{}{}
+
+	if activeOnly {
+		countQuery += " WHERE is_active = $1"
+		countArgs = append(countArgs, true)
+	}
+
+	var total int
+	err := r.db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("get payment methods count: %w", err)
+	}
+
+	// Get paginated results
 	query := `
 		SELECT id, code, name, category, icon_url, description, is_active, sort_order, created_at
 		FROM payment_methods
@@ -307,10 +371,18 @@ func (r *platformRepository) GetPaymentMethods(ctx context.Context, activeOnly b
 	}
 
 	query += " ORDER BY sort_order, name"
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT $%d", len(args)+1)
+		args = append(args, limit)
+	}
+	if offset > 0 {
+		query += fmt.Sprintf(" OFFSET $%d", len(args)+1)
+		args = append(args, offset)
+	}
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("get payment methods: %w", err)
+		return nil, 0, fmt.Errorf("get payment methods: %w", err)
 	}
 	defer rows.Close()
 
@@ -322,12 +394,12 @@ func (r *platformRepository) GetPaymentMethods(ctx context.Context, activeOnly b
 			&method.Description, &method.IsActive, &method.SortOrder, &method.CreatedAt,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("scan payment method: %w", err)
+			return nil, 0, fmt.Errorf("scan payment method: %w", err)
 		}
 		methods = append(methods, method)
 	}
 
-	return methods, rows.Err()
+	return methods, total, rows.Err()
 }
 
 func (r *platformRepository) UpdatePaymentMethod(ctx context.Context, method *platform.PaymentMethod) error {

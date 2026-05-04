@@ -10,21 +10,21 @@ type PlatformService interface {
 	// Crypto Assets
 	CreateCryptoAsset(ctx context.Context, symbol, name, blockchain string, contractAddress *string, decimals, minConfirmation int) (*CryptoAsset, error)
 	GetCryptoAsset(ctx context.Context, id int) (*CryptoAsset, error)
-	GetCryptoAssets(ctx context.Context, activeOnly bool) ([]*CryptoAsset, error)
+	GetCryptoAssets(ctx context.Context, activeOnly bool, page, limit int) ([]*CryptoAsset, int, error)
 	UpdateCryptoAsset(ctx context.Context, id int, symbol, name, blockchain string, contractAddress *string, decimals, minConfirmation int, isActive bool) (*CryptoAsset, error)
 	DeleteCryptoAsset(ctx context.Context, id int) error
 
 	// Fiat Currencies
 	CreateFiatCurrency(ctx context.Context, code, name, symbol string) (*FiatCurrency, error)
 	GetFiatCurrency(ctx context.Context, id int) (*FiatCurrency, error)
-	GetFiatCurrencies(ctx context.Context, activeOnly bool) ([]*FiatCurrency, error)
+	GetFiatCurrencies(ctx context.Context, activeOnly bool, page, limit int) ([]*FiatCurrency, int, error)
 	UpdateFiatCurrency(ctx context.Context, id int, code, name, symbol string, isActive bool) (*FiatCurrency, error)
 	DeleteFiatCurrency(ctx context.Context, id int) error
 
 	// Payment Methods
 	CreatePaymentMethod(ctx context.Context, code, name string, category PaymentCategory, iconURL, description *string, sortOrder int) (*PaymentMethod, error)
 	GetPaymentMethod(ctx context.Context, id int) (*PaymentMethod, error)
-	GetPaymentMethods(ctx context.Context, activeOnly bool) ([]*PaymentMethod, error)
+	GetPaymentMethods(ctx context.Context, activeOnly bool, page, limit int) ([]*PaymentMethod, int, error)
 	UpdatePaymentMethod(ctx context.Context, id int, code, name string, category PaymentCategory, iconURL, description *string, isActive bool, sortOrder int) (*PaymentMethod, error)
 	DeletePaymentMethod(ctx context.Context, id int) error
 }
@@ -71,8 +71,9 @@ func (s *platformService) GetCryptoAsset(ctx context.Context, id int) (*CryptoAs
 	return s.repo.GetCryptoAsset(ctx, id)
 }
 
-func (s *platformService) GetCryptoAssets(ctx context.Context, activeOnly bool) ([]*CryptoAsset, error) {
-	return s.repo.GetCryptoAssets(ctx, activeOnly)
+func (s *platformService) GetCryptoAssets(ctx context.Context, activeOnly bool, page, limit int) ([]*CryptoAsset, int, error) {
+	offset := (page - 1) * limit
+	return s.repo.GetCryptoAssets(ctx, activeOnly, limit, offset)
 }
 
 func (s *platformService) UpdateCryptoAsset(ctx context.Context, id int, symbol, name, blockchain string, contractAddress *string, decimals, minConfirmation int, isActive bool) (*CryptoAsset, error) {
@@ -132,8 +133,9 @@ func (s *platformService) GetFiatCurrency(ctx context.Context, id int) (*FiatCur
 	return s.repo.GetFiatCurrency(ctx, id)
 }
 
-func (s *platformService) GetFiatCurrencies(ctx context.Context, activeOnly bool) ([]*FiatCurrency, error) {
-	return s.repo.GetFiatCurrencies(ctx, activeOnly)
+func (s *platformService) GetFiatCurrencies(ctx context.Context, activeOnly bool, page, limit int) ([]*FiatCurrency, int, error) {
+	offset := (page - 1) * limit
+	return s.repo.GetFiatCurrencies(ctx, activeOnly, limit, offset)
 }
 
 func (s *platformService) UpdateFiatCurrency(ctx context.Context, id int, code, name, symbol string, isActive bool) (*FiatCurrency, error) {
@@ -189,8 +191,9 @@ func (s *platformService) GetPaymentMethod(ctx context.Context, id int) (*Paymen
 	return s.repo.GetPaymentMethod(ctx, id)
 }
 
-func (s *platformService) GetPaymentMethods(ctx context.Context, activeOnly bool) ([]*PaymentMethod, error) {
-	return s.repo.GetPaymentMethods(ctx, activeOnly)
+func (s *platformService) GetPaymentMethods(ctx context.Context, activeOnly bool, page, limit int) ([]*PaymentMethod, int, error) {
+	offset := (page - 1) * limit
+	return s.repo.GetPaymentMethods(ctx, activeOnly, limit, offset)
 }
 
 func (s *platformService) UpdatePaymentMethod(ctx context.Context, id int, code, name string, category PaymentCategory, iconURL, description *string, isActive bool, sortOrder int) (*PaymentMethod, error) {

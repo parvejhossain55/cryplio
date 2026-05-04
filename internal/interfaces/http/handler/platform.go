@@ -55,14 +55,35 @@ func (h *PlatformHandler) CreateCryptoAssetHandler(c *gin.Context) {
 // GetCryptoAssetsHandler handles GET /admin/crypto-assets
 func (h *PlatformHandler) GetCryptoAssetsHandler(c *gin.Context) {
 	activeOnly := c.Query("active_only") == "true"
+	page := 1
+	limit := 50
 
-	assets, err := h.platformService.GetCryptoAssets(c.Request.Context(), activeOnly)
+	if pageStr := c.Query("page"); pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
+		}
+	}
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
+			limit = l
+		}
+	}
+
+	assets, total, err := h.platformService.GetCryptoAssets(c.Request.Context(), activeOnly, page, limit)
 	if err != nil {
 		handleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"crypto_assets": assets})
+	c.JSON(http.StatusOK, gin.H{
+		"crypto_assets": assets,
+		"pagination": gin.H{
+			"page":  page,
+			"limit": limit,
+			"total": total,
+			"pages": (total + limit - 1) / limit,
+		},
+	})
 }
 
 // GetCryptoAssetHandler handles GET /admin/crypto-assets/:id
@@ -168,14 +189,35 @@ func (h *PlatformHandler) CreateFiatCurrencyHandler(c *gin.Context) {
 // GetFiatCurrenciesHandler handles GET /admin/fiat-currencies
 func (h *PlatformHandler) GetFiatCurrenciesHandler(c *gin.Context) {
 	activeOnly := c.Query("active_only") == "true"
+	page := 1
+	limit := 50
 
-	currencies, err := h.platformService.GetFiatCurrencies(c.Request.Context(), activeOnly)
+	if pageStr := c.Query("page"); pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
+		}
+	}
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
+			limit = l
+		}
+	}
+
+	currencies, total, err := h.platformService.GetFiatCurrencies(c.Request.Context(), activeOnly, page, limit)
 	if err != nil {
 		handleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"fiat_currencies": currencies})
+	c.JSON(http.StatusOK, gin.H{
+		"fiat_currencies": currencies,
+		"pagination": gin.H{
+			"page":  page,
+			"limit": limit,
+			"total": total,
+			"pages": (total + limit - 1) / limit,
+		},
+	})
 }
 
 // GetFiatCurrencyHandler handles GET /admin/fiat-currencies/:id
@@ -282,14 +324,35 @@ func (h *PlatformHandler) CreatePaymentMethodHandler(c *gin.Context) {
 // GetPaymentMethodsHandler handles GET /admin/payment-methods
 func (h *PlatformHandler) GetPaymentMethodsHandler(c *gin.Context) {
 	activeOnly := c.Query("active_only") == "true"
+	page := 1
+	limit := 50
 
-	methods, err := h.platformService.GetPaymentMethods(c.Request.Context(), activeOnly)
+	if pageStr := c.Query("page"); pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
+		}
+	}
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
+			limit = l
+		}
+	}
+
+	methods, total, err := h.platformService.GetPaymentMethods(c.Request.Context(), activeOnly, page, limit)
 	if err != nil {
 		handleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"payment_methods": methods})
+	c.JSON(http.StatusOK, gin.H{
+		"payment_methods": methods,
+		"pagination": gin.H{
+			"page":  page,
+			"limit": limit,
+			"total": total,
+			"pages": (total + limit - 1) / limit,
+		},
+	})
 }
 
 // GetPaymentMethodHandler handles GET /admin/payment-methods/:id
