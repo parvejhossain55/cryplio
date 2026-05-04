@@ -29,6 +29,7 @@ help:
 	@echo "  make migrate-status   Show migration status"
 	@echo "  make env-up           Start Docker Compose services"
 	@echo "  make env-down         Stop Docker Compose services"
+	@echo "  make seed             Seed the database with initial/dummy data"
 
 install:
 	cd $(WEB_DIR) && $(NPM) install
@@ -110,3 +111,9 @@ env-up:
 
 env-down:
 	docker compose down
+
+seed:
+	@set -a; \
+	[ -f "$(ENV_FILE)" ] && source "$(ENV_FILE)"; \
+	set +a; \
+	$(GO) run ./cmd/seed
