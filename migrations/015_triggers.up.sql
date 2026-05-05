@@ -24,7 +24,7 @@ BEGIN
         FROM pg_tables
         WHERE schemaname = 'public'
           AND tablename IN (
-              'users', 'user_stats', 'kyc_records', 'trade_ads', 'trades',
+              'users', 'user_stats', 'trade_ads', 'trades',
               'wallets', 'wallet_transactions', 'disputes', 'notifications',
               'referrals', 'merchant_applications', 'announcements', 'platform_config',
               'admin_actions', 'blockchain_links', 'merchant_analytics', 'user_blocks'

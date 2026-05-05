@@ -2,29 +2,30 @@
 ## P2P Crypto Exchange Platform
 *Trade Crypto. Trust the Process.*
 
-**Business Plan | 2025–2027**
+**Business Plan | 2025–2026 | MVP Edition** | **Prepared by: Parvej Hossain**
 
 ---
 
 # 1. Executive Summary
 
-Cryplio is a next-generation global P2P (Peer-to-Peer) cryptocurrency exchange platform designed to connect buyers and sellers of digital assets directly — securely, quickly, and transparently.
+Cryplio is a global P2P (Peer-to-Peer) cryptocurrency exchange platform that lets buyers and sellers trade crypto directly — safely, quickly, and without a central custodian.
 
-Unlike centralized exchanges, Cryplio uses an escrow-based system to facilitate trustless trades between users worldwide. The platform supports multiple payment methods including bank transfer, mobile banking (Bkash, Nagad), and international wire transfers.
+The MVP focuses on one goal: **let users trade USDT via Bkash/Nagad with escrow protection** — no KYC, no complex onboarding, just register, deposit, and trade.
 
 ## Mission
-To democratize crypto access by building the most trusted and user-friendly P2P trading platform in the world.
+To build the simplest and most trusted P2P crypto trading experience for underserved markets.
 
 ## Vision
-To become the #1 global P2P crypto platform with 1 million active users by 2027.
+Become the #1 P2P crypto platform in South Asia and Africa by 2027.
 
-## Key Highlights
-- Global P2P crypto trading with escrow protection
-- Multi-currency & multi-payment method support
-- Revenue from trading fees, merchant subscriptions & premium plans
-- Target: $500K monthly trading volume by end of Year 1
-- Scalable architecture built for global expansion
-- Simplified onboarding with fast account setup
+## MVP Goal
+Launch a working P2P trading platform within 6 months with:
+- Email registration
+- USDT trading on Ethereum (ERC20)
+- Bkash, Nagad, Bank Transfer payment support
+- Escrow-protected trades
+- Dispute resolution
+- Admin panel
 
 ---
 
@@ -32,11 +33,11 @@ To become the #1 global P2P crypto platform with 1 million active users by 2027.
 
 | Detail | Information |
 |--------|-------------|
-| Company Name | Cryplio Inc. |
+| Company Name | Cryplio |
 | Platform Type | P2P Crypto Exchange |
-| Founded | 2025 |
-| Headquarters | Dubai, UAE (offshore operations) |
-| Target Market | Global — Asia, Middle East, Africa, Europe |
+| Founded | Dec 2025 |
+| Headquarters | Dubai, UAE |
+| Target Market | Bangladesh — expanding globally |
 | Website | www.cryplio.io |
 | Tagline | Trade Crypto. Trust the Process. |
 
@@ -45,59 +46,92 @@ To become the #1 global P2P crypto platform with 1 million active users by 2027.
 # 3. Problem & Solution
 
 ## The Problem
-- Centralized exchanges charge high fees (0.5%–2% per trade)
-- Many countries have limited access to global banking systems
-- Users lack trust in custodial platforms after high-profile exchange collapses
-- Slow fiat withdrawal & settlement times frustrate traders
+- Centralized exchanges charge high fees (0.5%–5%)
+- Users fear losing funds on custodial platforms
+- No easy way to buy/sell crypto
+- Complex KYC blocks millions of potential users
 
-## The Solution — Cryplio
+## The Solution — Cryplio MVP
 - Escrow-backed P2P trades — no custody of user funds
-- Support for local payment methods (Bkash, Nagad, UPI, etc.)
-- Transparent dispute resolution system
-- Simplified onboarding with fast account setup
-- Near-instant trade settlement via escrow release
+- Bkash, Nagad, and bank transfer support from day one
+- Email-only registration — start trading in 2 minutes
+- Transparent dispute resolution by admin
 
 ---
 
-# 4. Product & Features
+# 4. MVP Features
 
-## Core Platform Features
+> **MVP Scope:** Only Critical features ship in MVP. High/Medium/Future features are post-MVP.
 
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| Escrow System | Smart contract-based trade escrow for all P2P trades | Critical |
-| Order Book | Buy/sell ad listings with filters by currency & payment | High |
-| Live Chat | In-trade secure messaging between buyer & seller | High |
-| Dispute Resolution | Admin-mediated dispute process with evidence upload | High |
-| Multi-Payment | Bkash, Nagad, Bank, Wise, PayPal, USDT TRC20 | High |
-| Rating System | Star-based trust score for all traders | Medium |
-| Referral Program | Earn commission for inviting new users | Medium |
-| Merchant Dashboard | Verified merchants get advanced analytics & bulk tools | Medium |
-| Mobile App | iOS & Android app for trading on the go | Planned |
+## MVP Feature List
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| Email Registration | Register with email + password, Social Login (Google) | ✅ MVP |
+| Email Verification | Verify email before trading | ✅ MVP |
+| Password Login + Reset | Standard auth + forgot password | ✅ MVP |
+| 2FA (TOTP) | Google Authenticator — required for withdrawal | ✅ MVP |
+| User Profile | Username, trade count, rating, join date | ✅ MVP |
+| Create Buy/Sell Ad | Post ad with price, limits, payment method | ✅ MVP |
+| Browse & Filter Ads | Filter by crypto, fiat, payment method | ✅ MVP |
+| Execute Trade | Initiate, chat, pay, release, complete | ✅ MVP |
+| Trade Chat | Real-time in-trade chat with file upload | ✅ MVP |
+| Escrow System | USDT locked on trade start, released on confirm | ✅ MVP |
+| Payment Timer | Auto-cancel trade if buyer doesn't pay in time | ✅ MVP |
+| Feedback System | Rate counterparty after trade | ✅ MVP |
+| Trade History | View all past trades | ✅ MVP |
+| USDT Wallet (ERC20) | Deposit, withdraw, balance display | ✅ MVP |
+| Dispute Resolution | Raise dispute, upload evidence, admin rules | ✅ MVP |
+| Email Notifications | Trade events, dispute, withdrawal alerts | ✅ MVP |
+| In-App Notifications | Bell icon for all trade events | ✅ MVP |
+| Admin Panel | User management, trade monitor, dispute tool | ✅ MVP |
+
+## Post-MVP Features (Phase 2+)
+
+| Feature | Phase |
+|---------|-------|
+| KYC / Identity Verification | Phase 2 |
+| Multi-chain support (TRON, BNB Chain) | Phase 2 |
+| BTC, ETH, BNB wallets | Phase 2 |
+| Merchant System | Phase 2 |
+| Referral Program | Phase 2 |
+| Mobile App (iOS & Android) | Phase 2 |
+| Premium Membership | Phase 2 |
+| API Access for merchants | Phase 2 |
+| Advanced Admin Analytics | Phase 2 |
+| Address Whitelisting | Phase 2 |
+| CSV Export | Phase 2 |
+| Multi-language (Bengali, Arabic) | Phase 2 |
+| Native Token | Phase 3 |
 
 ---
 
 # 5. Business Model & Revenue Streams
 
-## Revenue Sources
+## MVP Revenue (Active from Day 1)
 
-| Revenue Stream | Description | Rate/Price |
-|----------------|-------------|------------|
-| Trading Fee | Fee on every completed trade | 0.1% – 0.5% per trade |
-| Merchant Subscription | Monthly fee for verified merchant badge | $30 – $100/month |
-| Premium Membership | Pro & VIP user plans with lower fees | $10 – $50/month |
-| Advertisement | Banner ads from crypto projects & exchanges | Custom CPM pricing |
-| API Access | Third-party API integration for businesses | $200–$500/month |
-| Native Token (future) | Platform utility token for fee discounts | Token sale revenue |
+| Revenue Stream | Description | Rate |
+|----------------|-------------|------|
+| Trading Fee | Charged on every completed trade | 0.3% per trade |
+
+## Post-MVP Revenue (Phase 2)
+
+| Revenue Stream | Description | Rate |
+|----------------|-------------|------|
+| Merchant Subscription | Verified merchant badge + features | $30–$100/month |
+| Premium Membership | Lower fees, priority support | $10–$50/month |
+| Advertisement | Banner ads from crypto projects | Custom CPM |
+| API Access | Third-party integration | $200–$500/month |
+| Native Token (future) | Utility token for fee discounts | Token sale |
 
 ## Revenue Projection
 
-| Period | Monthly Volume | Avg. Fee | Monthly Revenue | Annual Revenue |
-|--------|----------------|----------|-----------------|----------------|
-| Month 1–3 | $50,000 | 0.4% | $200 | $600 |
-| Month 4–6 | $200,000 | 0.4% | $800 | $4,800 |
-| Month 7–12 | $500,000 | 0.4% | $2,000 | $24,000 |
-| Year 2 | $2,000,000 | 0.35% | $7,000 | $84,000 |
+| Period | Monthly Volume | Fee | Monthly Revenue | Annual Revenue |
+|--------|----------------|-----|-----------------|----------------|
+| Month 1–3 | $50,000 | 0.3% | $150 | $450 |
+| Month 4–6 | $200,000 | 0.3% | $600 | $3,600 |
+| Month 7–12 | $500,000 | 0.3% | $1,500 | $18,000 |
+| Year 2 | $2,000,000 | 0.3% | $6,000 | $72,000 |
 | Year 3 | $10,000,000 | 0.3% | $30,000 | $360,000 |
 
 ---
@@ -108,119 +142,133 @@ To become the #1 global P2P crypto platform with 1 million active users by 2027.
 - Global crypto market cap: $2.5+ Trillion (2025)
 - P2P crypto trading volume: $10+ Billion monthly
 - Fastest growing markets: South Asia, Southeast Asia, Africa, MENA
-- Bangladesh alone has 3M+ crypto users with limited local P2P options
-- Competitors like LocalBitcoins, Paxful, Binance P2P dominate — but have UX gaps
+- Bangladesh alone has 3M+ crypto users with no good local P2P option
+- Competitors have UX gaps and don't support Bkash/Nagad natively
 
 ## Competitive Analysis
 
-| Platform | Fees | Local Payments | Dispute System | Weakness |
-|----------|------|----------------|----------------|----------|
-| Binance P2P | 0% | Limited | Basic | Complex for beginners |
-| Paxful | 1% | Good | Good | High fraud reports |
-| LocalBitcoins | 0.5% | Limited | Medium | Low volume, declining |
-| Cryplio (us) | 0.3% | Excellent | Advanced | New entrant |
+| Platform | Fee | Bkash/Nagad | KYC Required | Weakness |
+|----------|-----|-------------|--------------|----------|
+| Binance P2P | 0% | No | Yes | Complex UX, no local pay |
+| Paxful | 1% | No | Yes | High fraud reports |
+| Remitano | 0.5% | No | Yes | Outdated UI |
+| **Cryplio MVP** | **0.3%** | **Yes** | **No** | New entrant |
 
 ---
 
 # 7. Marketing & Growth Strategy
 
-## Go-to-Market Strategy
-- Phase 1: Launch in Bangladesh & Pakistan with local payment focus
-- Phase 2: Expand to India, Nigeria, Turkey, and Egypt
-- Phase 3: Full global launch with 20+ supported currencies
+## MVP Launch Strategy
+- Phase 1: Bangladesh — Bkash/Nagad/bank focus
+- Phase 2: India, Nigeria, Egypt, Pakistan
+- Phase 3: Full global launch, 20+ fiat currencies
 
 ## Marketing Channels
 
 | Channel | Strategy | Budget % |
 |---------|----------|----------|
-| Social Media | YouTube, TikTok, Twitter — crypto influencer campaigns | 30% |
-| Referral Program | **20% commission** on referee's platform fees for first **90 days** | 20% |
-| SEO / Content | Crypto blog, guides, tutorials targeting Google traffic | 15% |
-| Community | Telegram, Discord groups in target countries | 15% |
-| Paid Ads | Google & Facebook ads targeting crypto keywords | 20% |
+| Social Media | YouTube, TikTok, Twitter — crypto influencer campaigns | 35% |
+| Community | Telegram, Facebook groups in BD crypto communities | 25% |
+| SEO / Content | Crypto guides and tutorials for local markets | 20% |
+| Paid Ads | Google & Facebook targeting crypto keywords | 20% |
 
+> **Note:** Referral program launches in Phase 2 with 20% commission for 90 days.
 
 ---
 
 # 8. Technology & Infrastructure
 
-## Confirmed Tech Stack (Rev 1.1 — Aligned with SRS v1.0)
+## MVP Tech Stack
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| Frontend | React.js / Next.js | Fast, SEO-friendly web interface |
-| Mobile (Phase 2) | React Native | iOS & Android cross-platform app |
-| API Gateway | Nginx + Golang | Request routing, rate limiting, auth middleware |
-| Backend | **Golang + Gin** | Trade engine, escrow management, user logic |
-| Real-Time | **WebSocket (Gorilla)** | Live trade chat, price feeds, notifications |
-| Database | PostgreSQL 14+ | Primary relational data store |
-| Cache | **Redis 7+** | Sessions, rate limits, market data caching |
-| Queue | **Asynq (Golang)** | Async jobs: notifications, blockchain monitoring |
-| Blockchain | Web3.go + Solidity | Smart contract escrow on EVM chains |
-| Object Storage | **MinIO (self-hosted)** | Chat file uploads |
-| Hosting | **DigitalOcean** | Scalable cloud (managed Kubernetes) |
-| CDN / Security | Cloudflare + WAF | DDoS protection, static assets, bot filtering |
-| Monitoring | **Grafana + Prometheus** | System metrics, error tracking, alerts |
+| Frontend | React.js / Next.js | Web UI — responsive, SEO-friendly |
+| Backend | **Golang + Gin** | Trade engine, escrow, user logic |
+| Real-Time | **WebSocket (Gorilla)** | Trade chat, live notifications |
+| Database | PostgreSQL 14+ | All platform data |
+| Cache | **Redis 7+** | Sessions, rate limits, caching |
+| Queue | **Asynq (Golang)** | Async notifications, blockchain jobs |
+| Blockchain | **Web3.go + Solidity** | USDT ERC20 escrow on Ethereum |
+| Object Storage | **MinIO (self-hosted)** | Trade chat file uploads |
+| Auth | JWT + TOTP (2FA) | Secure login & withdrawals |
+| Email | SMTP | Transactional emails |
+| Hosting | **DigitalOcean** | App server + managed PostgreSQL |
+| CDN / Security | **Cloudflare + WAF** | DDoS protection, static assets |
+| Monitoring | **Grafana + Prometheus** | Metrics, uptime alerts |
 
+## MVP Blockchain Support
 
-## Supported Blockchain Networks (Rev 1.1)
+| Network | Asset | Standard | Purpose |
+|---------|-------|---------|---------|
+| Ethereum | USDT | ERC20 | Only MVP trading asset |
 
-| Network | Purpose | Standard |
-|---------|---------|---------|
-| **Ethereum** | Primary EVM chain, USDT, USDC | ERC20 |
+> **Post-MVP:** TRON (USDT TRC20), BNB Chain, BTC, ETH, USDC added in Phase 2.
 
+## MVP Payment Methods
 
-## Supported Crypto Assets at Launch (Rev 1.1)
+| Payment Method | Region | Type |
+|----------------|--------|------|
+| Bkash | Bangladesh | Mobile Money |
+| Nagad | Bangladesh | Mobile Money |
+| Bank Transfer | Global | Fiat Banking |
 
-| Asset | Network | Priority |
-|-------|---------|---------|
-| **USDT** | Ethereum (ERC20) | Critical — global standard |
-| **USDC** | Ethereum (ERC20) | High |
-| **ETH** | Ethereum | High |
+> **Post-MVP:** Wise, PayPal, SEPA, UPI, M-Pesa, GCash added in Phase 2.
 
 ---
 
 # 9. Financial Plan
 
-## Startup Cost Estimate
+## MVP Startup Cost
 
 | Item | Estimated Cost (USD) |
 |------|----------------------|
 | Platform Development (MVP) | $15,000 – $25,000 |
-| Smart Contract Audit | $3,000 – $5,000 |
+| Smart Contract Audit (Ethereum) | $3,000 – $5,000 |
 | Company Registration (Dubai) | $2,000 – $3,000 |
-| Server & Infrastructure — DigitalOcean (Year 1) | $2,400 |
-| MinIO Setup & Storage Infrastructure | $500 – $1,000 |
+| MinIO Setup & Storage | $500 – $1,000 |
+| DigitalOcean Infrastructure (Year 1) | $2,400 |
 | Marketing & Launch Budget | $5,000 – $10,000 |
 | Legal & Compliance | $2,000 – $3,000 |
-| **Total Estimated Budget** | **$29,900 – $49,400** |
+| **Total MVP Budget** | **$29,900 – $49,400** |
 
 ## Break-Even Analysis
 - Fixed monthly costs: ~$3,000 (server, team, marketing)
-- Break-even at: $750,000 monthly trading volume at 0.4% fee
+- Break-even at: $1,000,000 monthly trading volume at 0.3% fee
 - Expected to reach break-even: Month 8–10
 
 ---
 
 # 10. Roadmap
 
-| Phase | Timeline | Milestones |
-|-------|----------|------------|
-| Phase 1 — Build | Month 1–3 | MVP development (Golang), escrow contract |
-| Phase 2 — Beta | Month 4–5 | Closed beta with 100 users, bug fixes, UI polish |
-| Phase 3 — Launch | Month 6 | Public launch in BD, PK markets, referral campaign (20% commission) |
-| Phase 4 — Grow | Month 7–12 | 5,000 users, merchant program, mobile app beta |
-| Phase 5 — Scale | Year 2 | Global expansion, 50,000 users, native token launch |
-| Phase 6 — Dominate | Year 3 | 1M users, $10M monthly volume, Series A funding |
+## MVP Roadmap (6 Months)
+
+| Phase | Timeline | Deliverables |
+|-------|----------|-------------|
+| Phase 1 — Build | Month 1–2 | Golang backend, PostgreSQL schema, USDT ERC20 wallet, escrow contract |
+| Phase 2 — Core Features | Month 2–3 | Trade ad system, trade execution, escrow lock/release, trade chat |
+| Phase 3 — Supporting Features | Month 3–4 | Dispute system, notifications, admin panel, feedback |
+| Phase 4 — Beta | Month 5 | Closed beta (100 users), bug fixes, load testing, UI polish |
+| Phase 5 — Launch | Month 6 | Public launch in Bangladesh |
+
+## Post-MVP Roadmap
+
+| Phase | Timeline | Deliverables |
+|-------|----------|-------------|
+| Phase 6 — Grow | Month 7–12 | KYC, TRON/BNB chain, merchant system, referral program, mobile app |
+| Phase 7 — Scale | Year 2 | Global expansion, 50,000 users, native token |
+| Phase 8 — Dominate | Year 3 | 1M users, $10M monthly volume, Series A funding |
 
 ---
 
 # 11. Legal & Compliance
-- Company will be registered offshore (Dubai, UAE) for crypto-friendly regulation
-- Terms of Service and Privacy Policy drafted by crypto-specialized legal team
-- Bangladesh users will be served via offshore entity — local legal counsel required
-- Smart contract code will be professionally audited before deployment on Ethereum
+
+- Company registered offshore (Dubai, UAE) for crypto-friendly regulation
+- No KYC in MVP — trade limits apply ($500/day per user)
+- Terms of Service and Privacy Policy required before launch
+- Smart contract audited before Ethereum mainnet deployment
 - GDPR-compliant data handling for EU users
+- Bangladesh users served via offshore entity — local legal counsel required
+- All user data encrypted at rest (AES-256) and in transit (TLS 1.3)
 
 ---
 
@@ -230,24 +278,23 @@ To become the #1 global P2P crypto platform with 1 million active users by 2027.
 |------|----------------|
 | Founder / CEO | Vision, strategy, fundraising, partnerships |
 | CTO / Lead Developer | Golang architecture, smart contracts, security |
-| Frontend Developer | React.js / Next.js UI, mobile app |
+| Frontend Developer | React.js / Next.js UI |
 | Backend Developer | Golang APIs, PostgreSQL, Redis, Asynq |
-| Blockchain Developer | Solidity escrow contracts, Web3.go integration |
+| Blockchain Developer | Solidity escrow, Web3.go integration |
 | Marketing Manager | Growth, social media, influencer campaigns |
-| Community Manager | Telegram, Discord, user support |
-| Legal Advisor | Compliance, contracts, regulatory guidance |
+| Community Manager | Telegram, Facebook groups, user support |
 
 ---
 
 # 13. Conclusion
 
-Cryplio is positioned to become a leading global P2P crypto exchange by combining local payment intelligence, robust escrow technology, and a user-first design philosophy.
+Cryplio MVP is laser-focused: **make it dead simple for anyone in Bangladesh to buy or sell USDT using Bkash or Nagad — safely and without KYC friction.**
 
-The P2P crypto market is underserved — especially in high-growth regions like South Asia, Africa, and the Middle East. Cryplio directly addresses this gap with a platform built for trust, speed, and accessibility.
+By removing KYC from the MVP, we remove the #1 barrier to adoption in our target markets. Escrow protection ensures safety without identity requirements. We earn from every trade.
 
-
-**With the right team, a focused go-to-market strategy, and a scalable technology stack, Cryplio is built to grow from a regional champion to a global leader in P2P crypto trading.**
+**Ship fast. Build trust. Scale globally.**
 
 ---
 
 *cryplio.io | Trade Crypto. Trust the Process.*
+*Business Plan — MVP Edition | 2025*

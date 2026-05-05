@@ -261,9 +261,6 @@ export default function SettingsPage() {
                             <h3 className="mt-4 text-xl font-black text-white">
                                 {user?.username || "User"}
                             </h3>
-                            <p className="text-[10px] font-medium text-text-dim uppercase tracking-widest mt-1">
-                                {user?.kycLevel ? `Level ${user.kycLevel} Trader` : "Unverified"}
-                            </p>
                         </div>
                     </div> */}
 

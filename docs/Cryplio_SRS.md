@@ -1,159 +1,167 @@
 # CRYPLIO
 ## Software Requirements Specification
-### P2P Cryptocurrency Exchange Platform
+### P2P Cryptocurrency Exchange Platform — MVP Edition
 *Trade Crypto. Trust the Process.*
 
 | Field | Detail |
 |-------|--------|
-| Document Version | 1.0 |
-| Status | Draft |
+| Document Version | 1.0 — MVP |
 | Prepared By | Parvej Hossain |
-| Date | 2025 |
+| Date | Dec 2025 |
+| Scope | MVP only — Phase 2+ features excluded |
+
+---
+
+> **MVP Scope Statement:** This SRS covers only the features required to launch Cryplio MVP. KYC, multi-chain support, merchant system, referral program, mobile app, SMS notifications, and premium membership are **excluded from MVP**.
 
 ---
 
 # 1. Introduction
 
 ## 1.1 Purpose
-This Software Requirements Specification (SRS) document describes the complete functional and non-functional requirements for Cryplio — a global Peer-to-Peer (P2P) cryptocurrency exchange platform. This document is intended for the development team, QA engineers, stakeholders, and investors to clearly understand what the system must do and how it must behave.
+This SRS defines the complete functional and non-functional requirements for Cryplio MVP — a P2P USDT trading platform with escrow protection, trade chat, and dispute resolution. Intended for the development team, QA, and stakeholders.
 
-## 1.2 Scope
-Cryplio is a web and mobile-based P2P crypto trading platform that enables users to buy and sell cryptocurrencies directly with each other using a secure escrow mechanism. The platform serves global users with support for local payment methods including Bkash, Nagad, bank transfers, and international payment rails.
+## 1.2 MVP Scope
+The MVP includes:
+- Web application only (no mobile app)
+- Email and Social registration
+- USDT ERC20 trading on Ethereum only
+- Payment methods: Bkash, Nagad, Bank Transfer
+- Escrow-protected P2P trades
+- Trade chat with file upload
+- Basic dispute resolution (admin-mediated)
+- Email + in-app notifications
+- Admin panel
 
-The system includes:
-- A web application (desktop and mobile browser)
-- Native mobile apps (iOS & Android — Phase 2)
-- An admin panel for platform management
-- A merchant portal for high-volume traders
-- RESTful APIs for third-party integrations
+**Explicitly out of MVP scope:**
+- KYC / identity verification
+- TRON, BNB Chain, BTC, ETH, USDC support
+- Merchant system
+- Referral program
+- Mobile app (iOS/Android)
+- SMS notifications
+- Premium membership
+- Native token
+- API access for third parties
+- Multi-language support
 
 ## 1.3 Definitions & Acronyms
 
 | Term | Definition |
 |------|-----------|
-| P2P | Peer-to-Peer — direct trade between two users without a central intermediary |
-| Escrow | A smart contract or system that holds crypto until trade conditions are met |
-| AML | Anti-Money Laundering — compliance checks against illegal financial activity |
-| USDT | Tether — a USD-pegged stablecoin widely used in P2P trades |
-| Maker | The user who creates a trade advertisement on the platform |
-| Taker | The user who responds and initiates a trade from an existing ad |
-| Merchant | A verified high-volume trader with a special badge and features |
-| Fiat | Government-issued currency (BDT, USD, EUR, etc.) |
-| 2FA | Two-Factor Authentication for additional account security |
-| WAF | Web Application Firewall — protection against web attacks |
-| API | Application Programming Interface |
-| MVP | Minimum Viable Product — the first launch-ready version |
-| TRC20 | Token standard on the TRON blockchain (used for USDT transfers) |
-| ERC20 | Token standard on the Ethereum blockchain |
-| BEP20 | Token standard on the BNB Chain blockchain |
+| P2P | Peer-to-Peer — direct trade between two users |
+| Escrow | System that holds USDT until trade conditions are met |
+| Maker | User who creates a trade advertisement |
+| Taker | User who responds to and initiates a trade from an ad |
+| USDT | Tether (ERC20) — the only trading asset in MVP |
+| Fiat | Local currency (BDT, PKR, USD, etc.) |
+| 2FA | TOTP-based Two-Factor Authentication (Google Authenticator) |
+| JWT | JSON Web Token — used for session authentication |
+| WAF | Web Application Firewall |
+| MVP | Minimum Viable Product |
+| ERC20 | Token standard on Ethereum blockchain |
 
-## 1.4 Document Conventions
+## 1.4 Priority Conventions
 
 | Priority | Meaning |
 |----------|---------|
-| MUST / Critical | Mandatory — system cannot launch without this |
-| SHOULD / High | Important — strongly recommended for launch |
-| MAY / Medium | Nice to have — can be added post-launch |
-| FUTURE / Low | Planned for later phases |
+| **Critical** | Must ship in MVP — platform cannot launch without it |
+| **High** | Ships in MVP — strongly needed for good UX |
+| **Post-MVP** | Excluded from MVP — Phase 2 or later |
 
 ## 1.5 References
-- Cryplio Business Plan v1.0 (2025)
-- IEEE 830-1998 SRS Standard
-- FATF Virtual Asset Guidelines (2021)
-- Binance P2P & Paxful platform analysis
+- Cryplio Business Plan — MVP Edition (2025)
 - OWASP Top 10 Security Standards
+- Ethereum ERC20 Token Standard
 
 ---
 
 # 2. Overall System Description
 
 ## 2.1 Product Perspective
-Cryplio is a standalone SaaS platform accessible via web browsers and mobile applications. It interfaces with:
-- Blockchain networks **(Ethereum)** for escrow contracts
-- Local payment gateways (Bkash, Nagad)
-- Email and SMS notification services (SMTP, Twilio)
-- Cloud infrastructure **(DigitalOcean)**
+Cryplio MVP is a web-based P2P crypto trading platform. It interfaces with:
+- **Ethereum blockchain** — USDT ERC20 escrow smart contract
+- **SMTP** — transactional email notifications
+- **AWS/DigitalOcean** — cloud hosting
+- **Cloudflare** — CDN and DDoS protection
+- **MinIO** — self-hosted file storage for chat uploads
 
-## 2.2 Product Functions — High Level
+## 2.2 MVP Module Overview
 
 | Module | Core Function |
 |--------|--------------|
-| User Management | Registration, login, profile, 2FA |
-| Trade Engine | Create ads, match trades, escrow management |
-| Wallet System | Crypto deposit, withdrawal, balance tracking |
-| Payment Gateway | Fiat payment confirmation & multi-method support |
-| Dispute System | Raise, manage, and resolve trade disputes |
-| Merchant System | Merchant verification, dashboard, analytics |
-| Notification System | Email, SMS, in-app push notifications |
-| Admin Panel | Platform management, user control, analytics |
-| Referral System | Invite tracking and commission payout |
-| API Layer | RESTful APIs for mobile app and third-party access |
+| User Auth | Registration, login, 2FA, password reset |
+| User Profile | Public profile, stats, trade history |
+| Trade Ads | Create, browse, filter, manage buy/sell ads |
+| Trade Engine | Initiate, escrow, chat, pay, release, complete |
+| Wallet | USDT ERC20 deposit, withdrawal, balance |
+| Dispute System | Raise, evidence upload, admin resolution |
+| Notifications | Email + in-app for all trade events |
+| Admin Panel | User mgmt, trade monitor, dispute management |
 
-## 2.3 User Classes & Characteristics
+## 2.3 User Types
 
-| User Type | Description | Access Level |
-|-----------|-------------|--------------|
-| Guest | Unregistered visitor — can browse trade ads only | Read-only |
-| Basic User | Registered & email-verified user | Trade, wallet, chat |
-| Merchant | Verified high-volume trader with subscription | Advanced dashboard |
-| Admin | Platform staff managing users, disputes, settings | Full system access |
-| Super Admin | Top-level access for system configuration | All + configuration |
+| User Type | Description | Access |
+|-----------|-------------|--------|
+| Guest | Unregistered — can browse ads only | Read-only |
+| Registered User | Email-verified — can trade, deposit, withdraw | Full trading |
+| Admin | Platform staff — manages disputes, users | Admin panel |
+| Super Admin | System configuration access | All + settings |
 
 ## 2.4 Operating Environment
 - Web: Chrome, Firefox, Safari, Edge (latest 2 versions)
-- Mobile Web: iOS Safari 15+, Android Chrome 90+
-- Mobile App (Phase 2): iOS 14+, Android 9+
-- Backend: **Golang 1.21+** on Linux (Ubuntu 22.04)
-- Database: PostgreSQL 14+, Redis 7+
-- Blockchain: **EVM-compatible chains (Ethereum, BNB Chain) + TRON**
+- Mobile Web: iOS Safari 15+, Android Chrome 90+ (responsive)
+- Backend: Golang 1.21+ on Ubuntu 22.04
+- Database: PostgreSQL 14+ + Redis 7+
+- Blockchain: Ethereum mainnet (USDT ERC20)
 
-## 2.5 Assumptions & Dependencies
-- Users have access to a compatible smartphone or computer
-- Blockchain networks **(Ethereum)** remain operational
-- Local payment gateways (Bkash/Nagad) provide merchant API access
-- Platform will operate under an offshore legal entity (Dubai, UAE)
+## 2.5 Assumptions
+- Users have a compatible browser and internet connection
+- Ethereum network remains operational
+- Bkash/Nagad payment confirmation is manual (user uploads receipt)
+- Platform operates under Dubai offshore entity
 
 ---
 
 # 3. Functional Requirements
 
-## 3.1 User Registration & Authentication
+## 3.1 User Authentication
 
 ### 3.1.1 Registration
 
-| Req. ID | Requirement | Priority | Description |
-|---------|------------|---------|-------------|
-| FR-101 | Email Registration | Critical | User must register with a valid email address and password |
-| FR-102 | Email Verification | Critical | System must send a verification link; user cannot trade until email is verified |
-| FR-103 | Phone Registration | High | User can optionally register/link a phone number for SMS 2FA |
-| FR-104 | Social Login | Medium | Optional sign-up via Google OAuth 2.0 |
-| FR-105 | Username Selection | Critical | User selects a unique public username shown on trade ads |
-| FR-106 | Password Policy | Critical | Minimum 8 characters, must include uppercase, number, and special character |
-| FR-107 | Duplicate Check | Critical | System must reject duplicate email or username at registration |
+| ID | Requirement | Priority |
+|----|------------|---------|
+| FR-101 | User registers with email + password, Social Login (Google) | Critical |
+| FR-102 | System sends email verification link; user cannot trade until verified | Critical |
+| FR-105 | User chooses a unique public username at registration | Critical |
+| FR-106 | Password: min 8 chars, must include uppercase + number + special char | Critical |
+| FR-107 | System rejects duplicate email or username | Critical |
+
+**Excluded from MVP:** Phone registration (FR-103), Social login (Facebook, Whatsapp) (FR-104)
 
 ### 3.1.2 Login & Session
 
-| Req. ID | Requirement | Priority | Description |
-|---------|------------|---------|-------------|
-| FR-111 | Email/Password Login | Critical | User authenticates with email and password |
-| FR-112 | Two-Factor Auth (2FA) | Critical | TOTP-based 2FA via Google Authenticator; mandatory for withdrawals |
-| FR-113 | SMS 2FA | High | Optional SMS OTP as secondary 2FA method |
-| FR-114 | Session Management | Critical | JWT tokens; sessions expire after 24h of inactivity |
-| FR-115 | Device Management | High | User can view and revoke active sessions/devices |
-| FR-116 | Login Attempt Limit | Critical | Account locked after 5 failed attempts; unlock via email |
-| FR-117 | Password Reset | Critical | Secure password reset via email with time-limited token (15 min) |
-| FR-118 | Remember Device | Medium | Optional trusted device flag to skip 2FA for 30 days |
+| ID | Requirement | Priority |
+|----|------------|---------|
+| FR-111 | User logs in with email + password | Critical |
+| FR-112 | TOTP 2FA via Google Authenticator — mandatory for withdrawals | Critical |
+| FR-114 | JWT sessions expire after 24h inactivity | Critical |
+| FR-116 | Account locked after 5 failed login attempts; unlock via email | Critical |
+| FR-117 | Password reset via time-limited email link (expires in 15 min) | Critical |
 
-### 3.1.4 User Profile
+**Excluded from MVP:** SMS 2FA (FR-113), Device management (FR-115), Remember device (FR-118)
 
-| Req. ID | Requirement | Priority | Description |
-|---------|------------|---------|-------------|
-| FR-131 | Profile Page | Critical | Public profile with username, join date, trade count, and rating |
-| FR-132 | Profile Photo | Medium | User uploads avatar (max 2MB, jpg/png) |
-| FR-133 | Bio / Description | Low | Optional 200-character bio on public profile |
-| FR-134 | Trade Statistics | High | Total trades, completion rate %, positive feedback % shown publicly |
-| FR-135 | Online Status | Medium | Last seen indicator visible to other users during active trade |
-| FR-136 | Block User | High | User can block another user — blocked user cannot initiate trades |
+### 3.1.3 User Profile
+
+| ID | Requirement | Priority |
+|----|------------|---------|
+| FR-131 | Public profile: username, join date, trade count, completion rate, rating | Critical |
+| FR-132 | Add or Update user profile photo | Critical |
+| FR-133 | User can set their bio | Critical |
+| FR-134 | Trade stats shown publicly: total trades, completion %, positive feedback % | High |
+| FR-136 | User can block another user — blocked user cannot initiate trades with them | High |
+
+**Excluded from MVP:**  Online status (FR-135)
 
 ---
 
@@ -161,405 +169,373 @@ Cryplio is a standalone SaaS platform accessible via web browsers and mobile app
 
 ### 3.2.1 Create Trade Ad
 
-| Req. ID | Requirement | Priority | Description |
-|---------|------------|---------|-------------|
-| FR-201 | Buy/Sell Ad | Critical | Maker creates buy or sell ad specifying: crypto, fiat currency, amount, price, payment methods |
-| FR-202 | Price Type | Critical | Fixed price OR floating (% above/below live market rate) |
-| FR-203 | Trade Limits | Critical | Maker sets min/max fiat amount per trade |
-| FR-204 | Payment Window | Critical | Maker sets payment time limit (15–90 minutes) |
-| FR-205 | Payment Methods | Critical | Maker selects accepted payment methods (Bkash, Nagad, Bank, etc.) |
-| FR-206 | Trade Terms | High | Maker can add trade terms/instructions (500 char max) |
-| FR-207 | Ad Visibility | Critical | Ad is active only when maker has sufficient crypto in escrow wallet (sell) or balance (buy) |
-| FR-208 | Ad Management | Critical | Maker can pause, edit, or delete own ads at any time |
+| ID | Requirement | Priority |
+|----|------------|---------|
+| FR-201 | Maker creates buy or sell ad: crypto (USDT), fiat, amount range, price, payment method | Critical |
+| FR-202 | Price type: fixed (manual) OR floating (% above/below live market rate) | Critical |
+| FR-203 | Maker sets min and max fiat amount per trade | Critical |
+| FR-204 | Maker sets payment time limit: 15, 30, 45, or 60 minutes | Critical |
+| FR-205 | Maker selects accepted payment methods: Bkash / Nagad / Bank Transfer | Critical |
+| FR-206 | Maker can add optional trade instructions (max 500 characters) | High |
+| FR-207 | Sell ad is only active when maker has sufficient USDT in wallet | Critical |
+| FR-208 | Maker can pause, edit, or delete own ads at any time | Critical |
+
+**Excluded from MVP:** KYC requirement on taker (FR-209)
 
 ### 3.2.2 Browse & Filter Ads
 
-| Req. ID | Requirement | Priority | Description |
-|---------|------------|---------|-------------|
-| FR-211 | Ad Listing | Critical | All active ads displayed in filterable list with price, limits, payment methods |
-| FR-212 | Filter by Crypto | Critical | Filter ads by cryptocurrency (BTC, ETH, USDT, BNB, USDC, etc.) |
-| FR-213 | Filter by Currency | Critical | Filter by fiat currency (BDT, USD, EUR, INR, NGN, etc.) |
-| FR-214 | Filter by Payment | Critical | Filter by accepted payment method |
-| FR-215 | Sort Options | High | Sort by: best price, completion rate, trade volume, newest |
-| FR-216 | Search by Username | Medium | Search for specific trader's ads by username |
-| FR-217 | Trusted Trader Filter | Medium | Filter to show only verified merchants |
+| ID | Requirement | Priority |
+|----|------------|---------|
+| FR-211 | All active ads shown in a paginated list with price, limits, payment badges | Critical |
+| FR-212 | Filter by fiat currency (BDT, PKR, USD, etc.) | Critical |
+| FR-214 | Filter by payment method (Bkash / Nagad / Bank) | Critical |
+| FR-215 | Sort by: best price, completion rate, newest | High |
+
+**Excluded from MVP:** Filter by crypto (only USDT in MVP), Search by username (FR-216), Trusted trader filter (FR-217)
 
 ### 3.2.3 Execute Trade
 
-| Req. ID | Requirement | Priority | Description |
-|---------|------------|---------|-------------|
-| FR-221 | Initiate Trade | Critical | Taker enters fiat amount and clicks trade — system calculates crypto amount at current rate |
-| FR-222 | Escrow Lock | Critical | On trade initiation, crypto is locked in smart contract escrow from seller's wallet |
-| FR-223 | Trade Chat | Critical | Private real-time chat opened between buyer and seller for the duration of the trade |
-| FR-224 | File Upload in Chat | High | Users can upload payment receipts/screenshots (max 5MB, jpg/png/pdf) |
-| FR-225 | Payment Timer | Critical | Countdown timer shown — if buyer doesn't mark paid before expiry, trade auto-cancels and escrow released |
-| FR-226 | Mark as Paid | Critical | Buyer clicks 'Paid' button after sending fiat payment |
-| FR-227 | Release Escrow | Critical | Seller clicks 'Release' after confirming payment received — crypto sent to buyer |
-| FR-228 | Cancel Trade | Critical | Either party can cancel before buyer marks paid; after marking paid only seller can cancel or dispute must be raised |
-| FR-229 | Trade ID | Critical | Every trade gets a unique alphanumeric trade ID for reference |
-| FR-230 | Trade Confirmation | Critical | Email + in-app notification on trade completion with summary |
+| ID | Requirement | Priority |
+|----|------------|---------|
+| FR-221 | Taker enters fiat amount → system calculates USDT amount at current ad rate | Critical |
+| FR-222 | On trade start, USDT is locked in Ethereum escrow smart contract | Critical |
+| FR-223 | Private real-time WebSocket chat opens between buyer and seller | Critical |
+| FR-224 | Both users can upload files in chat (max 5MB, jpg/png/pdf) — for payment proof | Critical |
+| FR-225 | Countdown timer shown; trade auto-cancels and escrow releases if buyer doesn't pay in time | Critical |
+| FR-226 | Buyer clicks "Mark as Paid" after sending fiat | Critical |
+| FR-227 | Seller clicks "Release" after confirming fiat received — USDT sent to buyer | Critical |
+| FR-228 | Either party can cancel before buyer marks paid; after that only dispute can unlock escrow | Critical |
+| FR-229 | Every trade gets a unique alphanumeric Trade ID | Critical |
+| FR-230 | Email + in-app notification sent on trade completion | Critical |
 
-### 3.2.4 Trade History
+### 3.2.4 Trade History & Feedback
 
-| Req. ID | Requirement | Priority | Description |
-|---------|------------|---------|-------------|
-| FR-241 | Trade History | Critical | User views full list of completed, cancelled, and disputed trades |
-| FR-242 | Trade Details | Critical | Each trade record shows: ID, date, crypto, amount, fiat, counterparty, status |
-| FR-243 | Export History | Medium | User can export trade history as CSV for tax/accounting purposes |
-| FR-244 | Feedback System | Critical | After trade, both parties can leave rating (positive/neutral/negative) and optional comment |
+| ID | Requirement | Priority |
+|----|------------|---------|
+| FR-241 | User views full list of own trades: completed, cancelled, disputed | Critical |
+| FR-242 | Each trade record shows: ID, date, USDT amount, fiat amount, counterparty, status | Critical |
+| FR-244 | After trade, both parties can leave rating (positive / neutral / negative) + optional comment | Critical |
 
----
-
-## 3.3 Wallet & Asset Management
-
-| Req. ID | Requirement | Priority | Description |
-|---------|------------|---------|-------------|
-| FR-301 | Multi-Asset Wallet | Critical | Each user has a system-generated wallet for **BTC, ETH, USDT, USDC** |
-| FR-302 | Deposit Address | Critical | Unique deposit address per user per asset per chain; QR code displayed |
-| FR-303 | Deposit Detection | Critical | System detects on-chain deposits and credits user wallet after required confirmations |
-| FR-304 | Withdrawal | Critical | User withdraws to external address; requires 2FA and email confirmation |
-| FR-305 | Withdrawal Limits | Critical | Daily withdrawal limit: $500 USD equivalent for all users |
-| FR-306 | Withdrawal Fee | Critical | Network fee displayed to user before confirmation; platform can add margin |
-| FR-307 | Balance Display | Critical | Available balance, in-escrow balance, and pending deposits shown separately |
-| FR-308 | Transaction History | Critical | Full on-chain deposit and withdrawal history with txn hash and block explorer link |
-| FR-309 | Address Whitelisting | Medium | User can whitelist trusted withdrawal addresses; new addresses require 24h delay |
-| FR-310 | Auto-Convert (future) | Future | Auto-convert incoming crypto to USDT stablecoin option |
+**Excluded from MVP:** CSV export (FR-243)
 
 ---
 
-## 3.4 Dispute Resolution System
+## 3.3 Wallet — USDT ERC20 Only
 
-| Req. ID | Requirement | Priority | Description |
-|---------|------------|---------|-------------|
-| FR-401 | Raise Dispute | Critical | After buyer marks paid, either party can raise a dispute before seller releases |
-| FR-402 | Dispute Reason | Critical | Disputing party selects reason: payment not received / payment wrong amount / fraud / other |
-| FR-403 | Evidence Upload | Critical | Both parties can upload up to 10 files (images/PDFs) as evidence |
-| FR-404 | Admin Assignment | Critical | Dispute auto-assigned to available admin moderator within 1 business hour |
-| FR-405 | 48-Hour Rule | Critical | Admin must issue ruling within 48 hours of dispute creation |
-| FR-406 | Dispute Chat | High | Separate 3-way chat: admin + buyer + seller for the dispute |
-| FR-407 | Admin Resolution | Critical | Admin can: release escrow to buyer / return escrow to seller / split escrow (partial) |
-| FR-408 | Appeal Process | Medium | Losing party has 24h to appeal to senior moderator; one appeal per trade |
-| FR-409 | Dispute Statistics | High | User dispute history visible on public profile |
-| FR-410 | Auto-Dispute Trigger | High | If seller does not release within 1h after buyer marks paid with no action, auto-dispute is created |
+| ID | Requirement | Priority |
+|----|------------|---------|
+| FR-301 | Each user has a system-generated Ethereum wallet for USDT ERC20 | Critical |
+| FR-302 | Unique deposit address shown with QR code | Critical |
+| FR-303 | System detects on-chain USDT deposits and credits wallet after 12 confirmations | Critical |
+| FR-304 | User can withdraw USDT to external address; requires 2FA + email confirmation | Critical |
+| FR-305 | Daily withdrawal limit: $500 USD equivalent (no KYC in MVP) | Critical |
+| FR-306 | Ethereum gas fee + platform withdrawal margin shown to user before confirming | Critical |
+| FR-307 | Wallet shows: Available USDT, In-Escrow USDT, Pending deposits | Critical |
+| FR-308 | Full transaction history: deposits and withdrawals with txn hash + Etherscan link | Critical |
 
----
-
-## 3.5 Notification System
-
-| Req. ID | Requirement | Priority | Description |
-|---------|------------|---------|-------------|
-| FR-501 | Email Notifications | Critical | Transactional emails for: registration, trade start, trade complete, dispute, withdrawal |
-| FR-502 | In-App Notifications | Critical | Real-time bell icon notifications for all trade events |
-| FR-503 | SMS Notifications | High | Optional SMS for trade start and dispute raised (user opt-in) |
-| FR-504 | Push Notifications | Medium | Mobile push notifications (Phase 2 mobile app) |
-| FR-505 | Notification Preferences | High | User controls which notification types are enabled per channel |
-| FR-506 | Trade Chat Notifications | Critical | Real-time notification when counterparty sends a message in trade chat |
+**Excluded from MVP:** BTC, ETH, USDC, BNB wallets; address whitelisting (FR-309); auto-convert (FR-310)
 
 ---
 
-## 3.6 Merchant System
+## 3.4 Dispute Resolution
 
-| Req. ID | Requirement | Priority | Description |
-|---------|------------|---------|-------------|
-| FR-601 | Merchant Application | High | Users with 50+ completed trades can apply for merchant status |
-| FR-602 | Merchant Badge | High | Verified merchant badge displayed on profile and all trade ads |
-| FR-603 | Merchant Subscription | High | Monthly fee ($30–$100) for merchant benefits; auto-renewal |
-| FR-604 | Merchant Dashboard | High | Advanced analytics: daily volume, completion rate, revenue, top currencies |
-| FR-605 | Priority Support | Medium | Merchant disputes escalated to senior moderators with 6-hour SLA |
-| FR-606 | Bulk Ad Management | Medium | Merchants can create/edit multiple ads simultaneously |
-| FR-607 | Merchant API Access | Medium | API keys for merchants to integrate Cryplio into their own tools |
+| ID | Requirement | Priority |
+|----|------------|---------|
+| FR-401 | After buyer marks paid, either party can raise a dispute before seller releases | Critical |
+| FR-402 | Disputing party selects reason: payment not received / wrong amount / fraud / other | Critical |
+| FR-403 | Both parties can upload up to 10 evidence files (jpg/png/pdf) | Critical |
+| FR-404 | Dispute auto-assigned to an admin moderator within 1 business hour | Critical |
+| FR-405 | Admin must issue ruling within 48 hours of dispute creation | Critical |
+| FR-406 | 3-way dispute chat: admin + buyer + seller | High |
+| FR-407 | Admin can: release escrow to buyer / return to seller | Critical |
+| FR-410 | If seller does not release within 1h after buyer marks paid with no action → auto-dispute triggered | High |
 
----
-
-## 3.7 Referral & Rewards System
-
-| Req. ID | Requirement | Priority | Description |
-|---------|------------|---------|-------------|
-| FR-701 | Referral Link | High | Every user has a unique referral link to share |
-| FR-702 | Referral Tracking | High | System tracks successful referrals (referee must complete first trade) |
-| FR-703 | Commission Payout | High | Referrer earns **5% of platform fee** on referee's trades for first **90 days** |
-| FR-704 | Referral Dashboard | High | User views: total referrals, active referrals, total earned |
-| FR-705 | Commission Withdrawal | High | Referral commission credited to wallet; can be withdrawn or used for trading |
+**Excluded from MVP:** Appeal process (FR-408), dispute stats on public profile (FR-409)
 
 ---
 
-## 3.8 Admin Panel
+## 3.5 Notifications
 
-| Req. ID | Requirement | Priority | Description |
-|---------|------------|---------|-------------|
-| FR-801 | User Management | Critical | Admin views, searches, filters, suspends, or bans any user account |
-| FR-802 | Trade Monitoring | Critical | Admin views all active trades and intervenes if needed |
-| FR-803 | Dispute Management | Critical | Admin processes and resolves open disputes with evidence viewer |
-| FR-804 | Fee Configuration | Critical | Admin configures platform fee percentages per crypto and trade type |
+| ID | Requirement | Priority |
+|----|------------|---------|
+| FR-501 | Transactional emails for: registration verify, trade started, trade complete, dispute raised, withdrawal confirmed | Critical |
+| FR-502 | In-app bell icon with real-time notifications for all trade events | Critical |
+| FR-506 | Real-time notification when counterparty sends a trade chat message | Critical |
 
-| FR-806 | Announcement System | High | Admin posts platform-wide announcements (banner, email blast) |
-| FR-807 | Analytics Dashboard | High | Real-time charts: daily volume, active users, trade count, revenue, disputes |
-| FR-808 | Withdrawal Approval | High | Large withdrawals above threshold require admin approval |
-| FR-809 | Audit Logs | Critical | All admin actions logged with timestamp, admin ID, and action details |
-| FR-810 | IP Ban / Geo-Block | Medium | Admin can block IPs or restrict access from specific countries |
-| FR-811 | Merchant Approval | High | Admin reviews and approves merchant applications |
+**Excluded from MVP:** SMS notifications (FR-503), Push notifications (FR-504), Notification preferences UI (FR-505)
+
+---
+
+## 3.6 Admin Panel
+
+| ID | Requirement | Priority |
+|----|------------|---------|
+| FR-801 | Admin can view, search, filter, suspend, or ban any user | Critical |
+| FR-802 | Admin can view all active trades | Critical |
+| FR-803 | Admin can view open disputes, read evidence, and issue resolution | Critical |
+| FR-804 | Admin can configure platform fee % | Critical |
+| FR-809 | All admin actions are logged with timestamp and admin ID | Critical |
+| FR-807 | Basic dashboard: daily volume, active users, trade count, open disputes | High |
+| FR-808 | Withdrawals above $1,000 require admin approval | High |
+
+**Excluded from MVP:** IP ban / geo-block (FR-810), Announcement system (FR-806)
+
+---
+
+## Excluded MVP Modules (Phase 2)
+
+| Module | Reason |
+|--------|--------|
+| KYC / AML verification | Adds friction, not needed for MVP trust model |
+| Merchant system | Complex — requires enough user base first |
+| Referral program | Nice-to-have — post-launch growth tool |
+| Premium membership | Revenue model expansion — Phase 2 |
+| Native token | Phase 3 — needs platform maturity |
+| Mobile app | Web-first; responsive design covers mobile MVP |
+| Multi-chain (TRON, BNB) | Complexity — Ethereum USDT ERC20 is sufficient for MVP |
 
 ---
 
 # 4. Non-Functional Requirements
 
-## 4.1 Performance Requirements
+## 4.1 Performance
 
-| Metric | Requirement |
-|--------|------------|
-| Page Load Time | Initial page load < 2 seconds on 4G connection |
-| API Response Time | 95% of API requests respond within 300ms |
-| Trade Initiation | Escrow lock confirmation within 5 seconds of trade initiation |
-| Chat Latency | Trade chat messages delivered within 500ms |
-| Concurrent Users | System supports 10,000 concurrent users at launch; scalable to 100,000 |
-| Uptime SLA | 99.9% uptime — maximum 8.7 hours downtime per year |
-| Database Query | Core queries execute within 100ms under normal load |
-| Notification Delivery | Email delivered within 60 seconds; SMS within 30 seconds |
+| Metric | Target |
+|--------|--------|
+| Page load | < 2s on 4G |
+| API response | 95% under 300ms |
+| Escrow lock | < 5s after trade initiation |
+| Chat message latency | < 500ms |
+| Concurrent users (MVP launch) | 1,000 — scalable to 10,000 |
+| Uptime | 99.9% |
+| DB query | < 100ms under normal load |
+| Email delivery | < 60 seconds |
 
-## 4.2 Security Requirements
+## 4.2 Security
 
-| Requirement | Description |
-|------------|-------------|
-| Data Encryption | All data encrypted in transit (TLS 1.3) and at rest (AES-256) |
-| Password Hashing | Passwords hashed with bcrypt (cost factor 12) |
-| SQL Injection | All database queries use parameterized statements / ORM |
-| XSS Prevention | All user inputs sanitized; Content Security Policy headers enforced |
-| CSRF Protection | CSRF tokens required on all state-changing requests |
-| Rate Limiting | Login: 5 attempts/15min; API: 100 req/min per IP; Trade: 30 per hour per user |
-| 2FA Enforcement | 2FA mandatory for all withdrawals |
-| Smart Contract Audit | Escrow smart contracts must pass third-party audit before deployment |
-| DDoS Protection | Cloudflare WAF and DDoS mitigation at DNS level |
-| Private Key Security | Platform private keys stored in HashiCorp Vault or DigitalOcean Secrets |
-| Penetration Testing | Annual third-party pen test; critical vulnerabilities patched within 24h |
-| Admin Access | Admin panel on separate subdomain with IP whitelist and hardware 2FA |
-| Audit Trail | Immutable audit logs for all financial transactions and admin actions |
+| Requirement | Detail |
+|------------|--------|
+| TLS 1.3 | All traffic encrypted in transit |
+| AES-256 | Data encrypted at rest |
+| bcrypt | Passwords hashed — cost factor 12 |
+| Parameterized queries | No raw SQL — prevents injection |
+| CSP headers | XSS prevention |
+| CSRF tokens | All state-changing requests |
+| Rate limiting | Login: 5/15min; API: 100 req/min/IP |
+| 2FA mandatory | Required for all withdrawals |
+| Smart contract audit | Ethereum escrow audited before mainnet |
+| Cloudflare WAF | DDoS and bot protection |
+| Private key storage | HashiCorp Vault / AWS/DigitalOcean Secrets |
+| Admin access | Separate subdomain + IP whitelist + hardware 2FA |
+| Audit logs | Immutable logs for all financial and admin actions |
 
-## 4.3 Scalability Requirements
-- Horizontal scaling: application tier must scale via load balancer to additional nodes
-- Database: read replicas for analytics and reporting queries
-- Caching: Redis 7+ cache layer for market data, user sessions, and rate limits
-- CDN: static assets served via Cloudflare CDN
-- Queue system: **Asynq (Golang)** for async tasks (notifications, blockchain monitoring)
-- Microservices-ready: modular architecture allows individual services to be extracted
+## 4.3 Scalability (MVP)
+- AWS/DigitalOcean managed Kubernetes for horizontal scaling
+- Redis for session and rate limit caching
+- Asynq (Golang) for async job queue
+- Cloudflare CDN for static assets
+- PostgreSQL read replica for reporting
 
-## 4.4 Usability Requirements
-- Platform must be fully responsive — usable on screens from 360px to 4K
-- Trade flow must be completable in 5 steps or fewer for a first-time user
-- Error messages must be clear, human-readable, and suggest corrective action
-- Multi-language support: English at launch; Bengali, Arabic, French in Phase 2
-- WCAG 2.1 Level AA accessibility compliance
-- Onboarding tooltip/guide for first-time traders
+## 4.4 Usability
+- Fully responsive — 360px mobile to 1440px desktop
+- Trade flow: max 5 steps for a first-time user
+- English only at MVP launch
+- Human-readable error messages with corrective action hints
+- Onboarding tooltip on first trade
 
-## 4.5 Reliability & Availability
-- Automated database backups every 6 hours with 30-day retention
-- Disaster recovery plan with RTO < 4 hours and RPO < 1 hour
-- Health monitoring with automated alerts (PagerDuty / OpsGenie)
-- Graceful degradation: if blockchain node is down, system shows maintenance notice rather than crashing
-- Zero-downtime deployments using blue-green or rolling deployment strategy
+## 4.5 Reliability
+- DB backups every 6 hours, 30-day retention
+- Zero-downtime deployments (rolling or blue-green)
+- Health monitoring + auto-alerts (PagerDuty or OpsGenie)
+- Graceful error if Ethereum node is unavailable
 
-## 4.6 Compliance Requirements
-- GDPR: user data deletion on request within 30 days; privacy policy required
-- FATF guidelines: transaction monitoring and suspicious activity reporting
-
-- Cookie consent: GDPR-compliant cookie banner for EU users
-- Terms of Service and Privacy Policy legally reviewed before launch
+## 4.6 Compliance
+- GDPR: user data deletion within 30 days on request
+- Privacy Policy and Terms of Service before launch
+- No OFAC-sanctioned country users
+- All logs retained per data retention policy
 
 ---
 
-# 5. System Architecture Overview
+# 5. System Architecture
 
-## 5.1 Architecture Layers
+## 5.1 Tech Stack
 
-| Layer | Technology | Responsibility |
-|-------|-----------|---------------|
-| Presentation | React.js / Next.js | Web UI — SSR for SEO, CSR for dynamic trading views |
-| Mobile (Phase 2) | React Native | Cross-platform iOS & Android app |
-| API Gateway | Nginx + Golang | Request routing, rate limiting, auth middleware |
-| Business Logic | **Golang + Gin** | Trade engine, escrow management, user logic |
-| Real-Time | **WebSocket (Gorilla)** | Live trade chat, price feeds, notifications |
-| Blockchain Layer | **Web3.go + Solidity** | Smart contract interaction for escrow on ETH |
-| Database | PostgreSQL 14+ | Primary relational data store |
-| Cache | **Redis 7+** | Sessions, rate limits, market data caching |
-| Queue | **Asynq (Golang)** | Async jobs: notifications, blockchain monitoring |
-| Object Storage | **MinIO (self-hosted)** | Chat file uploads |
-| CDN | Cloudflare | Static assets, DDoS, WAF |
-| Monitoring | **Grafana + Prometheus** | System metrics, error tracking, alerts |
-| Hosting | **DigitalOcean** | Managed Kubernetes, managed PostgreSQL |
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React.js / Next.js |
+| Backend | Golang 1.21+ + Gin |
+| Real-Time | WebSocket (Gorilla) |
+| Database | PostgreSQL 14+ |
+| Cache | Redis 7+ |
+| Queue | Asynq (Golang) |
+| Blockchain | Web3.go + Solidity (Ethereum) |
+| File Storage | MinIO (self-hosted) |
+| Auth | JWT + TOTP (2FA) |
+| Email | (SMTP) |
+| Hosting | AWS/DigitalOcean (managed K8s + managed PG) |
+| CDN + Security | Cloudflare + WAF |
+| Monitoring | Grafana + Prometheus |
 
-## 5.2 Supported Cryptocurrencies at Launch
+## 5.2 MVP Blockchain
 
-| Cryptocurrency | Network | Standard | Priority |
-|----------------|---------|---------|---------|
-| **USDT (Tether)** | TRON | TRC20 | Critical — #1 P2P stablecoin in Asia/Africa |
-| **USDT (Tether)** | Ethereum | ERC20 | Critical — global standard |
-| **USDC** | Ethereum | ERC20 | High |
-| **Bitcoin** | Bitcoin Mainnet | Native BTC | High |
-| **Ethereum** | Ethereum Mainnet | Native ETH | High |
-| **BNB** | BNB Chain | BEP20 | Medium |
+| Network | Asset | Standard | Notes |
+|---------|-------|---------|-------|
+| Ethereum | USDT | ERC20 | Only supported asset in MVP |
 
-## 5.3 Supported Blockchain Networks
+> TRON (TRC20), BNB Chain, BTC, ETH, USDC — all Phase 2.
 
-| Network | Purpose | Integration |
-|---------|---------|------------|
-| **Ethereum** | USDT ERC20, USDC, ETH native | Web3.go + go-ethereum |
+## 5.3 MVP Payment Methods
 
-## 5.4 Supported Payment Methods at Launch
+| Method | Region | Confirmation |
+|--------|--------|-------------|
+| Bkash | Bangladesh | Manual (user uploads receipt) |
+| Nagad | Bangladesh | Manual (user uploads receipt) |
+| Bank Transfer | Global | Manual (user uploads receipt) |
 
-| Payment Method | Region | Type |
-|----------------|--------|------|
-| Bkash | Bangladesh | Mobile Money |
-| Nagad | Bangladesh | Mobile Money |
-| Bank Transfer | Global | Fiat Banking |
-| Wise (TransferWise) | Global | International Transfer |
-| PayPal | Global | Online Wallet |
-| SEPA Transfer | Europe | Bank Transfer |
-| UPI | India | Mobile Payment |
-| GCash | Philippines | Mobile Money |
-| M-Pesa | Kenya / Africa | Mobile Money |
+> Wise, PayPal, SEPA, UPI, M-Pesa — all Phase 2.
 
 ---
 
-# 6. Key Use Cases
+# 6. Core Data Entities
 
-## UC-01: User Registers & Completes Verification
-
-| Field | Detail |
-|-------|--------|
-| Actor | New User |
-| Precondition | User has a valid email address |
-| Main Flow | 1. User visits cryplio.io and clicks Register 2. Enters email, username, password 3. Receives verification email and clicks link 4. Email verification completed |
-| Postcondition | User can now trade with basic limits |
-
-## UC-02: Seller Creates & Completes a Sell Trade
-
-| Field | Detail |
-|-------|--------|
-| Actor | Seller (Maker) + Buyer (Taker) |
-| Precondition | Seller has USDT TRC20 in Cryplio wallet; Buyer has Bkash account |
-| Main Flow | 1. Seller creates sell ad: 100 USDT at market +1%, min 500 BDT, max 10,000 BDT, Bkash only 2. System locks 100 USDT in TRON escrow when ad goes live 3. Buyer finds ad, enters 5,000 BDT, clicks Trade 4. Trade created — 30-minute payment timer starts 5. Buyer sends 5,000 BDT to seller's Bkash, uploads receipt 6. Buyer clicks Mark as Paid 7. Seller confirms receipt, clicks Release 8. Smart contract releases USDT to buyer's TRON wallet 9. Both parties leave feedback |
-| Alternative Flow | Seller does not release within 1h after Mark Paid: auto-dispute triggered |
-| Postcondition | Buyer receives USDT TRC20; seller receives BDT; platform fee collected |
-
-## UC-03: Dispute Resolution
-
-| Field | Detail |
-|-------|--------|
-| Actor | Buyer, Seller, Admin Moderator |
-| Precondition | Active trade where Buyer has marked as Paid |
-| Main Flow | 1. Buyer raises dispute: 'Seller not releasing despite payment' 2. Buyer uploads Bkash transaction screenshot as evidence 3. Admin assigned within 1 hour 4. Admin reviews evidence in dispute chat with both parties 5. Admin confirms payment is valid 6. Admin releases escrow to buyer 7. Dispute resolved — seller's completion rate updated |
-| Alternative Flow | Seller provides evidence of non-payment: escrow returned to seller |
-| Postcondition | Trade resolved; appropriate party receives funds; dispute logged |
-
----
-
-# 7. Data Requirements
-
-## 7.1 Core Data Entities
-
-| Entity | Key Attributes |
-|--------|---------------|
-| User | user_id, email, username, password_hash, status, created_at, 2fa_secret |
-| Trade Ad | ad_id, user_id, type (buy/sell), crypto, chain, fiat, price_type, price, min, max, payment_methods, status |
-| Trade | trade_id, ad_id, buyer_id, seller_id, crypto_amount, fiat_amount, chain, payment_method, status, created_at, completed_at |
-| Wallet | wallet_id, user_id, crypto, chain, balance, locked_balance, deposit_address |
-| Transaction | txn_id, wallet_id, type, amount, txn_hash, chain, status, created_at |
-| Dispute | dispute_id, trade_id, raised_by, reason, status, assigned_admin, resolution, created_at |
-| Message | msg_id, trade_id (or dispute_id), sender_id, content, file_url, created_at |
+| Entity | Key Fields |
+|--------|-----------|
+| User | user_id, email, username, password_hash, email_verified, status, 2fa_secret, created_at |
+| Trade Ad | ad_id, user_id, type, fiat_currency, price_type, price, min_amount, max_amount, payment_methods, payment_window, instructions, status |
+| Trade | trade_id, ad_id, buyer_id, seller_id, usdt_amount, fiat_amount, payment_method, status, timer_expires_at, created_at, completed_at |
+| Wallet | wallet_id, user_id, usdt_balance, locked_balance, eth_address |
+| Transaction | txn_id, wallet_id, type, amount, txn_hash, status, created_at |
+| Dispute | dispute_id, trade_id, raised_by, reason, status, assigned_admin_id, resolution, created_at |
+| Message | msg_id, context_type (trade/dispute), context_id, sender_id, content, file_url, created_at |
 | Feedback | feedback_id, trade_id, from_user_id, to_user_id, rating, comment, created_at |
-| Referral | referral_id, referrer_id, referee_id, status, commission_earned, expires_at, created_at |
+| Notification | notif_id, user_id, type, content, read, created_at |
+| Admin Log | log_id, admin_id, action, target_type, target_id, created_at |
 
-## 7.2 Data Retention Policy
+## Data Retention
 
-| Data Type | Retention Period | Reason |
-|-----------|-----------------|--------|
-| User Account Data | 5 years after account closure | Security and audit trail |
-| Trade Records | 7 years | Financial audit trail |
-| Chat Messages | 2 years | Dispute resolution reference |
-| Audit Logs | Permanent | Security and compliance |
-| Deleted User Data | 30 days grace, then purge | GDPR right to erasure |
-| Session Tokens | 24 hours inactivity | Security |
+| Data | Retention |
+|------|----------|
+| User accounts | 5 years post-closure |
+| Trade records | 7 years |
+| Chat messages | 2 years |
+| Audit logs | Permanent |
+| Deleted users | 30-day grace then purge |
+| JWT sessions | 24h inactivity |
 
 ---
 
-# 8. API Requirements
+# 7. MVP API Endpoints
 
-## 8.1 REST API Standards
-- All APIs follow RESTful conventions (GET, POST, PUT, DELETE, PATCH)
-- JSON request and response format for all endpoints
-- API versioning via URL prefix: `/api/v1/`
-- Authentication: Bearer JWT token in Authorization header
-- Rate limiting headers included in all responses (X-RateLimit-*)
-- Standardized error response format: `{ code, message, details }`
-- **Built with Golang + Gin framework**
-
-## 8.2 Key API Endpoints
+All APIs: RESTful, JSON, versioned at `/api/v1/`, JWT auth, standard error format `{ code, message, details }`.
 
 | Method | Endpoint | Description | Auth |
 |--------|---------|------------|------|
-| POST | /api/v1/auth/register | Register new user account | Public |
-| POST | /api/v1/auth/login | Login and receive JWT token | Public |
-| GET | /api/v1/users/me | Get current user profile | Required |
-| GET | /api/v1/ads | List trade advertisements with filters | Public |
-| POST | /api/v1/ads | Create a new trade advertisement | Required |
-| PUT | /api/v1/ads/:id | Update own trade advertisement | Required |
-| POST | /api/v1/trades | Initiate a trade from an ad | Required |
-| POST | /api/v1/trades/:id/paid | Mark trade as paid (buyer) | Required |
-| POST | /api/v1/trades/:id/release | Release escrow (seller) | Required |
-| POST | /api/v1/trades/:id/cancel | Cancel an active trade | Required |
-| POST | /api/v1/trades/:id/dispute | Raise a dispute on a trade | Required |
-| GET | /api/v1/wallet/balance | Get user wallet balances (all chains) | Required |
-| POST | /api/v1/wallet/withdraw | Request a withdrawal | Required + 2FA |
-| GET | /api/v1/notifications | Get user notifications | Required |
-| GET | /api/v1/market/rates | Get live crypto-fiat exchange rates | Public |
+| POST | /api/v1/auth/register | Register new user | Public |
+| POST | /api/v1/auth/verify-email | Verify email with token | Public |
+| POST | /api/v1/auth/login | Login → receive JWT | Public |
+| POST | /api/v1/auth/forgot-password | Send reset email | Public |
+| POST | /api/v1/auth/reset-password | Reset password with token | Public |
+| GET | /api/v1/users/me | Get own profile | Required |
+| GET | /api/v1/users/:username | Get public profile | Public |
+| GET | /api/v1/ads | List/filter trade ads | Public |
+| POST | /api/v1/ads | Create trade ad | Required |
+| PUT | /api/v1/ads/:id | Edit own ad | Required |
+| DELETE | /api/v1/ads/:id | Delete own ad | Required |
+| POST | /api/v1/trades | Initiate trade from ad | Required |
+| GET | /api/v1/trades/:id | Get trade details | Required |
+| POST | /api/v1/trades/:id/paid | Mark trade as paid | Required |
+| POST | /api/v1/trades/:id/release | Release escrow | Required |
+| POST | /api/v1/trades/:id/cancel | Cancel trade | Required |
+| POST | /api/v1/trades/:id/dispute | Raise dispute | Required |
+| POST | /api/v1/trades/:id/feedback | Leave feedback | Required |
+| GET | /api/v1/trades | Get own trade history | Required |
+| GET | /api/v1/wallet | Get USDT wallet info + balance | Required |
+| POST | /api/v1/wallet/withdraw | Request USDT withdrawal | Required + 2FA |
+| GET | /api/v1/wallet/transactions | Get deposit/withdrawal history | Required |
+| GET | /api/v1/messages/:tradeId | Get trade chat messages | Required |
+| POST | /api/v1/messages/:tradeId | Send trade chat message | Required |
+| GET | /api/v1/notifications | Get notifications | Required |
+| POST | /api/v1/notifications/read | Mark notifications read | Required |
+| GET | /api/v1/market/rates | Get live USDT/fiat rates | Public |
 
 ---
 
-# 9. Testing Requirements
+# 8. Key Use Cases
 
-| Test Type | Description | Coverage Target |
-|-----------|------------|----------------|
-| Unit Testing | Test individual Golang functions and handlers in isolation | 80% code coverage |
-| Integration Testing | Test API endpoints and database interactions end-to-end | All critical paths |
-| Smart Contract Testing | Test escrow contracts on testnet (Ethereum Goerli, TRON Shasta, BSC Testnet) | 100% function coverage |
-| Security Testing | OWASP Top 10 vulnerability scan; penetration test | Pre-launch mandatory |
-| Load Testing | Simulate 10,000 concurrent users using k6 | Before each major release |
-| UAT | User Acceptance Testing with 50-user beta group | Before public launch |
-| Regression Testing | Automated regression suite run on every deployment | All core flows |
-| Mobile Testing | Cross-device testing on iOS and Android (Phase 2) | 10+ device variants |
+## UC-01: User Registers and Starts Trading
+
+| | |
+|-|-|
+| **Actor** | New User |
+| **Flow** | 1. Opens cryplio.io → clicks Register 2. Enters email, username, password 3. Clicks verify link in email 4. Deposits USDT ERC20 to wallet address 5. Creates sell ad or finds buy ad 6. Initiates trade |
+| **Postcondition** | User is trading within 5 minutes of registration |
+
+## UC-02: Complete a Sell Trade (Bkash)
+
+| | |
+|-|-|
+| **Actor** | Seller + Buyer |
+| **Precondition** | Seller has USDT in wallet |
+| **Flow** | 1. Seller posts sell ad: 100 USDT, BDT, Bkash, 30-min timer 2. USDT locked in Ethereum escrow 3. Buyer finds ad, enters BDT amount, starts trade 4. Buyer sends Bkash payment, uploads screenshot in chat 5. Buyer clicks "Mark as Paid" 6. Seller verifies screenshot and Bkash SMS, clicks "Release" 7. USDT released to buyer's wallet 8. Both rate each other |
+| **Postcondition** | Trade complete; fee collected; ratings updated |
+
+## UC-03: Dispute — Seller Not Releasing
+
+| | |
+|-|-|
+| **Actor** | Buyer, Seller, Admin |
+| **Flow** | 1. Buyer marks paid, seller goes quiet 2. After 1h — auto-dispute triggered 3. Buyer uploads Bkash transaction as evidence 4. Admin assigned within 1 hour 5. Admin reviews evidence in 3-way chat 6. Admin confirms payment is valid → releases escrow to buyer |
+| **Postcondition** | Buyer receives USDT; seller completion rate drops |
 
 ---
 
-# 10. Constraints & Limitations
+# 9. Testing
 
-## 10.1 Technical Constraints
-- MVP will support web only — mobile app deferred to Phase 2
-- Smart contracts will be deployed on **Ethereum Goerli** before mainnet
-- Real-time features require WebSocket support — users on restrictive networks may have degraded experience
-- Bkash and Nagad payment confirmation is manual (user uploads receipt) — automated API integration in Phase 2
-- MinIO object storage requires dedicated server maintenance — operational overhead vs managed S3
+| Type | Scope | Target |
+|------|-------|--------|
+| Unit | Golang handlers and business logic | 80% coverage |
+| Integration | API + DB end-to-end | All critical paths |
+| Smart Contract | Escrow on Ethereum Goerli testnet | 100% functions |
+| Security | OWASP Top 10 scan | Pre-launch mandatory |
+| Load | k6 — 1,000 concurrent users | Before launch |
+| UAT | 50-user closed beta | Month 5 |
+| Regression | Automated on every deploy | All core flows |
 
-## 10.2 Business Constraints
-- Bangladesh Bank does not officially recognize crypto — platform must operate via offshore entity (Dubai)
-- Platform cannot offer fiat custody — all fiat payments are user-to-user (outside the platform)
-- MVP budget ceiling: $51,400 USD
-- MVP launch timeline: 6 months from project kickoff
+---
 
-## 10.3 Regulatory Constraints
-- Platform must not accept users from OFAC-sanctioned countries
-- GDPR compliance mandatory for EU user data
-- Financial promotions must comply with local advertising laws per target market
+# 10. Constraints
+
+## Technical
+- Web only — no mobile app in MVP
+- USDT ERC20 only — no other assets
+- Manual payment confirmation (no bank API)
+- MinIO requires self-hosted maintenance
+
+## Business
+- No KYC — $500/day withdrawal limit per user
+- No fiat custody — all payments are user-to-user
+- MVP budget: ~$30,000–$50,000 USD
+- Launch in 6 months
+
+## Regulatory
+- GDPR compliant for EU users
+- Offshore entity required (Dubai)
+- Terms of Service and Privacy Policy before launch
 
 ---
 
 # 11. Appendix
 
-## 11.1 Revision History
+## Revision History
 
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 0.1 | 2025-01 | Parvej Hossain | Initial draft |
-| 1.0 | 2025-03 | Parvej Hossain | Full document — ready for dev |
+| Version | Date | Author | Notes |
+|---------|------|--------|-------|
+| 1.0 | Dec 2025 | Parvej Hossain | Full SRS |
+
+## Open Issues
 
 ---
 
-*cryplio.io | Trade Crypto. Trust the Process.*
+*cryplio.io | Trade Crypto. Trust the Process |*
+*SRS v1.0 — MVP Edition | Dec 2025*

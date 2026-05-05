@@ -7,7 +7,6 @@ BEGIN;
 -- Drop triggers on all tables
 DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 DROP TRIGGER IF EXISTS update_user_stats_updated_at ON user_stats;
-DROP TRIGGER IF EXISTS update_kyc_records_updated_at ON kyc_records;
 DROP TRIGGER IF EXISTS update_trade_ads_updated_at ON trade_ads;
 DROP TRIGGER IF EXISTS update_trades_updated_at ON trades;
 DROP TRIGGER IF EXISTS update_wallets_updated_at ON wallets;
