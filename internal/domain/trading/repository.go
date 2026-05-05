@@ -2,6 +2,7 @@ package trading
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -19,6 +20,8 @@ type TradeRepository interface {
 	CreateTrade(ctx context.Context, trade *Trade) error
 	GetTradeByID(ctx context.Context, id uuid.UUID) (*Trade, error)
 	ListTrades(ctx context.Context, userID uuid.UUID, role string) ([]Trade, error)
+	ListExpiredPendingTrades(ctx context.Context, now time.Time) ([]Trade, error)
+	ListPaidTradesPastGrace(ctx context.Context, threshold time.Time) ([]Trade, error)
 	UpdateTrade(ctx context.Context, trade *Trade) error
 
 	// Messages

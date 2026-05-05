@@ -5,6 +5,7 @@ import (
 	"cryplio/internal/domain/identity"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -22,6 +23,8 @@ type TradeService interface {
 	MarkAsPaid(ctx context.Context, tradeID, userID uuid.UUID) error
 	ReleaseEscrow(ctx context.Context, tradeID, userID uuid.UUID) error
 	CancelTrade(ctx context.Context, tradeID, userID uuid.UUID, reason string) error
+	ReconcileExpiredTrades(ctx context.Context) (int, error)
+	FlagAutoDisputesForOverduePaidTrades(ctx context.Context, gracePeriod time.Duration) (int, error)
 
 	// Messages
 	SendMessage(ctx context.Context, tradeID, senderID uuid.UUID, content string) (*TradeMessage, error)
@@ -62,6 +65,17 @@ func (s *tradeService) CreateAd(ctx context.Context, ad *TradeAd) error {
 }
 
 func (s *tradeService) InitiateTrade(ctx context.Context, adID, buyerID uuid.UUID, amount float64) (*Trade, error) {
+	buyer, err := s.identityRepo.GetByID(ctx, buyerID)
+	if err != nil {
+		return nil, fmt.Errorf("get buyer: %w", err)
+	}
+	if buyer == nil {
+		return nil, errors.New("buyer not found")
+	}
+	if !buyer.EmailVerified {
+		return nil, errors.New("email verification is required before initiating trades")
+	}
+
 	// 1. Fetch Ad
 	ad, err := s.tradeRepo.GetAdByID(ctx, adID)
 	if err != nil {
@@ -251,4 +265,60 @@ func (s *tradeService) GetChatHistory(ctx context.Context, tradeID, userID uuid.
 	}
 
 	return s.tradeRepo.ListTradeMessages(ctx, tradeID)
+}
+
+func (s *tradeService) ReconcileExpiredTrades(ctx context.Context) (int, error) {
+	now := time.Now()
+	trades, err := s.tradeRepo.ListExpiredPendingTrades(ctx, now)
+	if err != nil {
+		return 0, err
+	}
+
+	updated := 0
+	for i := range trades {
+		trade := trades[i]
+		if trade.Status != TradeStatusPending && trade.Status != TradeStatusActive {
+			continue
+		}
+
+		trade.Status = TradeStatusExpired
+		trade.ExpiredAt = &now
+		reason := "auto-cancelled: payment window expired"
+		trade.CancelReason = &reason
+
+		if err := s.tradeRepo.UpdateTrade(ctx, &trade); err != nil {
+			return updated, err
+		}
+		updated++
+	}
+
+	return updated, nil
+}
+
+func (s *tradeService) FlagAutoDisputesForOverduePaidTrades(ctx context.Context, gracePeriod time.Duration) (int, error) {
+	if gracePeriod <= 0 {
+		gracePeriod = time.Hour
+	}
+
+	threshold := time.Now().Add(-gracePeriod)
+	trades, err := s.tradeRepo.ListPaidTradesPastGrace(ctx, threshold)
+	if err != nil {
+		return 0, err
+	}
+
+	updated := 0
+	for i := range trades {
+		trade := trades[i]
+		if trade.IsAutoDisputeTriggered {
+			continue
+		}
+
+		trade.IsAutoDisputeTriggered = true
+		if err := s.tradeRepo.UpdateTrade(ctx, &trade); err != nil {
+			return updated, err
+		}
+		updated++
+	}
+
+	return updated, nil
 }

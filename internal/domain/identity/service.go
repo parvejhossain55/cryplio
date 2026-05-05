@@ -12,11 +12,13 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"unicode"
 
 	"cryplio/internal/domain/events"
 	"cryplio/pkg/apperrors"
 	sharedcrypto "cryplio/pkg/crypto"
 	sharedjwt "cryplio/pkg/jwt"
+
 	"github.com/google/uuid"
 	"github.com/pquerna/otp/totp"
 )
@@ -178,6 +180,10 @@ func (s *authService) WithPasswordResetMailer(mailer EmailMailer) *authService {
 
 // Register registers a new user
 func (s *authService) Register(ctx context.Context, email, username, password string) (*User, error) {
+	if err := validatePasswordComplexity(password); err != nil {
+		return nil, err
+	}
+
 	// Check if user already exists by email
 	existing, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil && err != sql.ErrNoRows {
@@ -738,6 +744,10 @@ func (s *authService) RequestPasswordReset(ctx context.Context, email string) er
 
 // ResetPassword resets user password using token
 func (s *authService) ResetPassword(ctx context.Context, tokenString, newPassword string) (*User, error) {
+	if err := validatePasswordComplexity(newPassword); err != nil {
+		return nil, err
+	}
+
 	tokenHash := hashToken(tokenString)
 	token, err := s.userRepo.GetPasswordResetToken(ctx, tokenHash)
 	if err != nil {
@@ -1037,4 +1047,29 @@ func (s *authService) Complete2FALogin(ctx context.Context, tempToken, code stri
 		return "", "", nil, err
 	}
 	return access, refresh, user, nil
+}
+
+func validatePasswordComplexity(password string) error {
+	if len(password) < 8 {
+		return apperrors.Validation("password must be at least 8 characters", nil)
+	}
+
+	var hasUpper, hasDigit, hasSpecial bool
+	for _, r := range password {
+		if unicode.IsUpper(r) {
+			hasUpper = true
+		}
+		if unicode.IsDigit(r) {
+			hasDigit = true
+		}
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && !unicode.IsSpace(r) {
+			hasSpecial = true
+		}
+	}
+
+	if !hasUpper || !hasDigit || !hasSpecial {
+		return apperrors.Validation("password must include at least one uppercase letter, one number, and one special character", nil)
+	}
+
+	return nil
 }

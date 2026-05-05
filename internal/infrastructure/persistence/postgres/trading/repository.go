@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
@@ -244,6 +245,7 @@ func (r *tradeRepository) GetTradeByID(ctx context.Context, id uuid.UUID) (*trad
 		SELECT trade_id, ad_id, buyer_id, seller_id, crypto_id, fiat_id,
 		       crypto_amount, fiat_amount, exchange_rate, payment_method,
 		       price_type, agreed_price, status, payment_window_minutes,
+		       payment_marked_at, is_auto_dispute_triggered,
 		       created_at, updated_at
 		FROM trades
 		WHERE trade_id = $1 AND deleted_at IS NULL
@@ -253,6 +255,7 @@ func (r *tradeRepository) GetTradeByID(ctx context.Context, id uuid.UUID) (*trad
 		&t.TradeID, &t.AdID, &t.BuyerID, &t.SellerID, &t.CryptoID, &t.FiatID,
 		&t.CryptoAmount, &t.FiatAmount, &t.ExchangeRate, &t.PaymentMethod,
 		&t.PriceType, &t.AgreedPrice, &t.Status, &t.PaymentWindowMinutes,
+		&t.PaymentMarkedAt, &t.IsAutoDisputeTriggered,
 		&t.CreatedAt, &t.UpdatedAt,
 	)
 	if err != nil {
@@ -302,18 +305,103 @@ func (r *tradeRepository) ListTrades(ctx context.Context, userID uuid.UUID, role
 	return trades, nil
 }
 
+func (r *tradeRepository) ListExpiredPendingTrades(ctx context.Context, now time.Time) ([]trading.Trade, error) {
+	query := `
+		SELECT trade_id, ad_id, buyer_id, seller_id, crypto_id, fiat_id,
+		       crypto_amount, fiat_amount, exchange_rate, payment_method,
+		       price_type, agreed_price, status, dispute_id, chat_room_id,
+		       started_at, payment_marked_at, released_at, cancelled_at,
+		       completed_at, expired_at, payment_window_minutes,
+		       is_auto_dispute_triggered, cancel_reason, escrow_txn_hash,
+		       escrow_contract_address, created_at, updated_at, deleted_at
+		FROM trades
+		WHERE deleted_at IS NULL
+		  AND status IN ('pending', 'active')
+		  AND payment_marked_at IS NULL
+		  AND (created_at + make_interval(mins => payment_window_minutes)) <= $1
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, now)
+	if err != nil {
+		return nil, fmt.Errorf("query expired pending trades: %w", err)
+	}
+	defer rows.Close()
+
+	var trades []trading.Trade
+	for rows.Next() {
+		var t trading.Trade
+		if err := rows.Scan(
+			&t.TradeID, &t.AdID, &t.BuyerID, &t.SellerID, &t.CryptoID, &t.FiatID,
+			&t.CryptoAmount, &t.FiatAmount, &t.ExchangeRate, &t.PaymentMethod,
+			&t.PriceType, &t.AgreedPrice, &t.Status, &t.DisputeID, &t.ChatRoomID,
+			&t.StartedAt, &t.PaymentMarkedAt, &t.ReleasedAt, &t.CancelledAt,
+			&t.CompletedAt, &t.ExpiredAt, &t.PaymentWindowMinutes,
+			&t.IsAutoDisputeTriggered, &t.CancelReason, &t.EscrowTxnHash,
+			&t.EscrowContractAddress, &t.CreatedAt, &t.UpdatedAt, &t.DeletedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan expired pending trade: %w", err)
+		}
+		trades = append(trades, t)
+	}
+
+	return trades, nil
+}
+
+func (r *tradeRepository) ListPaidTradesPastGrace(ctx context.Context, threshold time.Time) ([]trading.Trade, error) {
+	query := `
+		SELECT trade_id, ad_id, buyer_id, seller_id, crypto_id, fiat_id,
+		       crypto_amount, fiat_amount, exchange_rate, payment_method,
+		       price_type, agreed_price, status, dispute_id, chat_room_id,
+		       started_at, payment_marked_at, released_at, cancelled_at,
+		       completed_at, expired_at, payment_window_minutes,
+		       is_auto_dispute_triggered, cancel_reason, escrow_txn_hash,
+		       escrow_contract_address, created_at, updated_at, deleted_at
+		FROM trades
+		WHERE deleted_at IS NULL
+		  AND status = 'paid'
+		  AND payment_marked_at IS NOT NULL
+		  AND payment_marked_at <= $1
+		  AND is_auto_dispute_triggered = false
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, threshold)
+	if err != nil {
+		return nil, fmt.Errorf("query overdue paid trades: %w", err)
+	}
+	defer rows.Close()
+
+	var trades []trading.Trade
+	for rows.Next() {
+		var t trading.Trade
+		if err := rows.Scan(
+			&t.TradeID, &t.AdID, &t.BuyerID, &t.SellerID, &t.CryptoID, &t.FiatID,
+			&t.CryptoAmount, &t.FiatAmount, &t.ExchangeRate, &t.PaymentMethod,
+			&t.PriceType, &t.AgreedPrice, &t.Status, &t.DisputeID, &t.ChatRoomID,
+			&t.StartedAt, &t.PaymentMarkedAt, &t.ReleasedAt, &t.CancelledAt,
+			&t.CompletedAt, &t.ExpiredAt, &t.PaymentWindowMinutes,
+			&t.IsAutoDisputeTriggered, &t.CancelReason, &t.EscrowTxnHash,
+			&t.EscrowContractAddress, &t.CreatedAt, &t.UpdatedAt, &t.DeletedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan overdue paid trade: %w", err)
+		}
+		trades = append(trades, t)
+	}
+
+	return trades, nil
+}
+
 func (r *tradeRepository) UpdateTrade(ctx context.Context, t *trading.Trade) error {
 	query := `
 		UPDATE trades
 		SET status = $1, payment_marked_at = $2, released_at = $3,
 		    cancelled_at = $4, completed_at = $5, expired_at = $6,
-		    cancel_reason = $7, dispute_id = $8, updated_at = NOW()
-		WHERE trade_id = $9 AND deleted_at IS NULL
+		    cancel_reason = $7, dispute_id = $8, is_auto_dispute_triggered = $9, updated_at = NOW()
+		WHERE trade_id = $10 AND deleted_at IS NULL
 	`
 	_, err := r.db.ExecContext(
 		ctx, query,
 		t.Status, t.PaymentMarkedAt, t.ReleasedAt, t.CancelledAt,
-		t.CompletedAt, t.ExpiredAt, t.CancelReason, t.DisputeID, t.TradeID,
+		t.CompletedAt, t.ExpiredAt, t.CancelReason, t.DisputeID, t.IsAutoDisputeTriggered, t.TradeID,
 	)
 	if err != nil {
 		return fmt.Errorf("update trade: %w", err)
