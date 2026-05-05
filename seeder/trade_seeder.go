@@ -58,8 +58,8 @@ func (s *Seeder) SeedTradeAds(ctx context.Context, users []*domainidentity.User,
 				PriceType: domaintrading.PriceTypeFixed, Price: price,
 				MinAmount: 10.0, MaxAmount: 2000.0,
 				PaymentMethods:       []int{pmMap["bkash"], pmMap["bank_transfer"]},
-				PaymentWindowMinutes: 15, RequiresKYCLevel: domainidentity.KYCLevel1,
-				IsPublic: true, IsPaused: false, Timezone: "UTC", Status: domaintrading.TradeAdStatusActive,
+				PaymentWindowMinutes: 15,
+				IsPublic:             true, IsPaused: false, Timezone: "UTC", Status: domaintrading.TradeAdStatusActive,
 				PublishedAt: time.Now(),
 			}
 			if fiatCode == "USD" {

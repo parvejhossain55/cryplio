@@ -118,7 +118,7 @@ const MerchantSettings = () => {
                                 </div>
                                 <div className="space-y-6">
                                     {[
-                                        { label: "Merchant KYC", status: "Verified", desc: "Allows unlimited trading volume.", color: "text-accent" },
+                                        { label: "Merchant Verification", status: "Verified", desc: "Allows higher trading volume.", color: "text-accent" },
                                         { label: "Security Deposit", status: "Active ($2,500)", desc: "Escrow guarantee for clients.", color: "text-accent" },
                                         { label: "Business Credentials", status: "Pending", desc: "Corporate account status.", color: "text-primary" },
                                     ].map((item, i) => (

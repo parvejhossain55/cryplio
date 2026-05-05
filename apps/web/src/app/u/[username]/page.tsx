@@ -158,7 +158,6 @@ const PublicProfilePage = () => {
 
                                     <h1 className="text-3xl font-black text-white tracking-tight mb-2 flex items-center gap-2">
                                         {user.username}
-                                        {user.kyc_level >= 2 && <CheckCircle2 className="w-6 h-6 text-accent fill-accent/10" />}
                                     </h1>
 
                                     <p className="inline-flex items-center px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-widest text-text-dim mb-6">
@@ -213,13 +212,6 @@ const PublicProfilePage = () => {
                                             <span className={`text-xs font-bold ${user.email_verified ? "text-white" : "text-white/30"}`}>Email Verified</span>
                                         </div>
                                         {user.email_verified && <CheckCircle2 className="w-4 h-4 text-accent" />}
-                                    </div>
-                                    <div className={`flex items-center justify-between p-4 rounded-2xl border ${user.kyc_level >= 2 ? "bg-accent/5 border-accent/20" : "bg-white/5 border-white/5"}`}>
-                                        <div className="flex items-center gap-3">
-                                            <ShieldCheck className={`w-5 h-5 ${user.kyc_level >= 2 ? "text-accent" : "text-white/20"}`} />
-                                            <span className={`text-xs font-bold ${user.kyc_level >= 2 ? "text-white" : "text-white/30"}`}>Identity Verified</span>
-                                        </div>
-                                        {user.kyc_level >= 2 && <CheckCircle2 className="w-4 h-4 text-accent" />}
                                     </div>
                                 </div>
                             </motion.div>

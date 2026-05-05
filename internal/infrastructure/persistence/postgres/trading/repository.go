@@ -2,7 +2,6 @@ package trading
 
 import (
 	"context"
-	domainidentity "cryplio/internal/domain/identity"
 	"cryplio/internal/domain/trading"
 	"database/sql"
 	"fmt"
@@ -23,24 +22,24 @@ func NewTradeRepository(db *sql.DB) trading.TradeRepository {
 
 func (r *tradeRepository) CreateAd(ctx context.Context, ad *trading.TradeAd) error {
 	query := `
-		INSERT INTO trade_ads (
-			ad_id, user_id, type, crypto_id, fiat_id, price_type, price,
-			floating_markup, min_amount, max_amount, payment_methods,
-			trade_terms, payment_window_minutes, requires_kyc_level,
-			is_public, is_paused, timezone, status, published_at,
-			created_at, updated_at
-		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-			$15, $16, $17, $18, NOW(), NOW(), NOW()
-		) RETURNING created_at, updated_at
-	`
+			INSERT INTO trade_ads (
+				ad_id, user_id, type, crypto_id, fiat_id, price_type, price,
+				floating_markup, min_amount, max_amount, payment_methods,
+				trade_terms, payment_window_minutes,
+				is_public, is_paused, timezone, status, published_at,
+				created_at, updated_at
+			) VALUES (
+				$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
+				$14, $15, $16, $17, $18, NOW(), NOW(), NOW()
+			) RETURNING created_at, updated_at
+		`
 
 	err := r.db.QueryRowContext(
 		ctx, query,
 		ad.AdID, ad.UserID, ad.Type, ad.CryptoID, ad.FiatID, ad.PriceType,
 		ad.Price, ad.FloatingMarkup, ad.MinAmount, ad.MaxAmount,
 		pq.Array(ad.PaymentMethods), ad.TradeTerms, ad.PaymentWindowMinutes,
-		ad.RequiresKYCLevel, ad.IsPublic, ad.IsPaused, ad.Timezone, ad.Status,
+		ad.IsPublic, ad.IsPaused, ad.Timezone, ad.Status,
 	).Scan(&ad.CreatedAt, &ad.UpdatedAt)
 
 	if err != nil {
@@ -53,7 +52,7 @@ func (r *tradeRepository) GetAdByID(ctx context.Context, id uuid.UUID) (*trading
 	query := `
 		SELECT ad_id, user_id, type, crypto_id, fiat_id, price_type, price,
 		       floating_markup, min_amount, max_amount, payment_methods,
-		       trade_terms, payment_window_minutes, requires_kyc_level,
+		       trade_terms, payment_window_minutes,
 		       is_public, is_paused, timezone, status, published_at,
 		       created_at, updated_at
 		FROM trade_ads
@@ -64,8 +63,7 @@ func (r *tradeRepository) GetAdByID(ctx context.Context, id uuid.UUID) (*trading
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&ad.AdID, &ad.UserID, &ad.Type, &ad.CryptoID, &ad.FiatID, &ad.PriceType,
 		&ad.Price, &ad.FloatingMarkup, &ad.MinAmount, &ad.MaxAmount,
-		pq.Array(&paymentMethods), &ad.TradeTerms, &ad.PaymentWindowMinutes,
-		&ad.RequiresKYCLevel, &ad.IsPublic, &ad.IsPaused, &ad.Timezone,
+		pq.Array(&paymentMethods), &ad.TradeTerms, &ad.PaymentWindowMinutes, &ad.IsPublic, &ad.IsPaused, &ad.Timezone,
 		&ad.Status, &ad.PublishedAt, &ad.CreatedAt, &ad.UpdatedAt,
 	)
 	if err != nil {
@@ -139,7 +137,7 @@ func (r *tradeRepository) ListAds(ctx context.Context, filter trading.AdFilter) 
 	query := `
 		SELECT a.ad_id, a.user_id, a.type, a.crypto_id, a.fiat_id, a.price_type, a.price,
 		       a.floating_markup, a.min_amount, a.max_amount, a.payment_methods,
-		       a.trade_terms, a.payment_window_minutes, a.requires_kyc_level,
+		       a.trade_terms, a.payment_window_minutes,
 		       a.is_public, a.is_paused, a.timezone, a.status, a.published_at,
 		       a.created_at, a.updated_at,
 		       u.username, u.avatar_url, u.last_seen_at,
@@ -164,17 +162,13 @@ func (r *tradeRepository) ListAds(ctx context.Context, filter trading.AdFilter) 
 	var ads []trading.TradeAd
 	for rows.Next() {
 		var ad trading.TradeAd
-		ad.User = &domainidentity.User{}
-		ad.Stats = &domainidentity.UserStats{}
 		var paymentMethods []int64
 		err := rows.Scan(
 			&ad.AdID, &ad.UserID, &ad.Type, &ad.CryptoID, &ad.FiatID, &ad.PriceType,
 			&ad.Price, &ad.FloatingMarkup, &ad.MinAmount, &ad.MaxAmount,
 			pq.Array(&paymentMethods), &ad.TradeTerms, &ad.PaymentWindowMinutes,
-			&ad.RequiresKYCLevel, &ad.IsPublic, &ad.IsPaused, &ad.Timezone,
+			&ad.IsPublic, &ad.IsPaused, &ad.Timezone,
 			&ad.Status, &ad.PublishedAt, &ad.CreatedAt, &ad.UpdatedAt,
-			&ad.User.Username, &ad.User.AvatarURL, &ad.User.LastSeenAt,
-			&ad.Stats.TotalTrades, &ad.Stats.AvgRating,
 		)
 		if err != nil {
 			return nil, 0, fmt.Errorf("scan ad: %w", err)
@@ -197,8 +191,7 @@ func (r *tradeRepository) UpdateAd(ctx context.Context, ad *trading.TradeAd) err
 		SET type = $1, crypto_id = $2, fiat_id = $3, price_type = $4,
 		    price = $5, floating_markup = $6, min_amount = $7,
 		    max_amount = $8, payment_methods = $9, trade_terms = $10,
-		    payment_window_minutes = $11, requires_kyc_level = $12,
-		    is_public = $13, is_paused = $14, timezone = $15,
+		    payment_window_minutes = $11, is_public = $13, is_paused = $14, timezone = $15,
 		    status = $16, updated_at = NOW()
 		WHERE ad_id = $17 AND deleted_at IS NULL
 	`
@@ -206,8 +199,7 @@ func (r *tradeRepository) UpdateAd(ctx context.Context, ad *trading.TradeAd) err
 		ctx, query,
 		ad.Type, ad.CryptoID, ad.FiatID, ad.PriceType, ad.Price,
 		ad.FloatingMarkup, ad.MinAmount, ad.MaxAmount, pq.Array(ad.PaymentMethods),
-		ad.TradeTerms, ad.PaymentWindowMinutes, ad.RequiresKYCLevel,
-		ad.IsPublic, ad.IsPaused, ad.Timezone, ad.Status, ad.AdID,
+		ad.TradeTerms, ad.PaymentWindowMinutes, ad.IsPublic, ad.IsPaused, ad.Timezone, ad.Status, ad.AdID,
 	)
 	if err != nil {
 		return fmt.Errorf("update ad: %w", err)

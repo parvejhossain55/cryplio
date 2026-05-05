@@ -33,7 +33,6 @@ The system includes:
 |------|-----------|
 | P2P | Peer-to-Peer — direct trade between two users without a central intermediary |
 | Escrow | A smart contract or system that holds crypto until trade conditions are met |
-| KYC | Know Your Customer — identity verification process |
 | AML | Anti-Money Laundering — compliance checks against illegal financial activity |
 | USDT | Tether — a USD-pegged stablecoin widely used in P2P trades |
 | Maker | The user who creates a trade advertisement on the platform |
@@ -71,7 +70,6 @@ The system includes:
 ## 2.1 Product Perspective
 Cryplio is a standalone SaaS platform accessible via web browsers and mobile applications. It interfaces with:
 - Blockchain networks **(Ethereum)** for escrow contracts
-- Third-party KYC providers **(Persona)**
 - Local payment gateways (Bkash, Nagad)
 - Email and SMS notification services (SMTP, Twilio)
 - Cloud infrastructure **(DigitalOcean)**
@@ -80,7 +78,7 @@ Cryplio is a standalone SaaS platform accessible via web browsers and mobile app
 
 | Module | Core Function |
 |--------|--------------|
-| User Management | Registration, login, KYC, profile, 2FA |
+| User Management | Registration, login, profile, 2FA |
 | Trade Engine | Create ads, match trades, escrow management |
 | Wallet System | Crypto deposit, withdrawal, balance tracking |
 | Payment Gateway | Fiat payment confirmation & multi-method support |
@@ -97,7 +95,6 @@ Cryplio is a standalone SaaS platform accessible via web browsers and mobile app
 |-----------|-------------|--------------|
 | Guest | Unregistered visitor — can browse trade ads only | Read-only |
 | Basic User | Registered & email-verified user | Trade, wallet, chat |
-| KYC Verified User | Identity-verified — higher limits & features | Full trading |
 | Merchant | Verified high-volume trader with subscription | Advanced dashboard |
 | Admin | Platform staff managing users, disputes, settings | Full system access |
 | Super Admin | Top-level access for system configuration | All + configuration |
@@ -112,7 +109,6 @@ Cryplio is a standalone SaaS platform accessible via web browsers and mobile app
 
 ## 2.5 Assumptions & Dependencies
 - Users have access to a compatible smartphone or computer
-- Third-party KYC API **(Persona)** remains available and compliant
 - Blockchain networks **(Ethereum)** remain operational
 - Local payment gateways (Bkash/Nagad) provide merchant API access
 - Platform will operate under an offshore legal entity (Dubai, UAE)
@@ -148,19 +144,6 @@ Cryplio is a standalone SaaS platform accessible via web browsers and mobile app
 | FR-117 | Password Reset | Critical | Secure password reset via email with time-limited token (15 min) |
 | FR-118 | Remember Device | Medium | Optional trusted device flag to skip 2FA for 30 days |
 
-### 3.1.3 KYC Verification
-
-| Req. ID | Requirement | Priority | Description |
-|---------|------------|---------|-------------|
-| FR-121 | KYC Level 0 | Critical | No verification — limited to browsing only; no trading |
-| FR-122 | KYC Level 1 | Critical | Email verified — daily trade limit $500 USD equivalent |
-| FR-123 | KYC Level 2 | Critical | Government ID + selfie — daily limit $10,000 USD equivalent |
-| FR-124 | KYC Level 3 | High | Address proof + enhanced due diligence — unlimited trading |
-| FR-125 | KYC Provider | Critical | Integration with **Persona API** for document verification and identity verification flows |
-| FR-126 | KYC Status Display | High | User profile shows current KYC level and pending status |
-| FR-127 | KYC Rejection Handling | High | User notified with reason and allowed to resubmit once within 7 days |
-| FR-128 | AML Screening | Critical | Automated AML check against OFAC and UN sanctions lists on KYC approval |
-
 ### 3.1.4 User Profile
 
 | Req. ID | Requirement | Priority | Description |
@@ -188,7 +171,6 @@ Cryplio is a standalone SaaS platform accessible via web browsers and mobile app
 | FR-206 | Trade Terms | High | Maker can add trade terms/instructions (500 char max) |
 | FR-207 | Ad Visibility | Critical | Ad is active only when maker has sufficient crypto in escrow wallet (sell) or balance (buy) |
 | FR-208 | Ad Management | Critical | Maker can pause, edit, or delete own ads at any time |
-| FR-209 | KYC Requirement | High | Maker can require taker to be KYC Level 2 before initiating trade |
 
 ### 3.2.2 Browse & Filter Ads
 
@@ -200,7 +182,7 @@ Cryplio is a standalone SaaS platform accessible via web browsers and mobile app
 | FR-214 | Filter by Payment | Critical | Filter by accepted payment method |
 | FR-215 | Sort Options | High | Sort by: best price, completion rate, trade volume, newest |
 | FR-216 | Search by Username | Medium | Search for specific trader's ads by username |
-| FR-217 | Trusted Trader Filter | Medium | Filter to show only verified merchants or KYC-verified traders |
+| FR-217 | Trusted Trader Filter | Medium | Filter to show only verified merchants |
 
 ### 3.2.3 Execute Trade
 
@@ -236,7 +218,7 @@ Cryplio is a standalone SaaS platform accessible via web browsers and mobile app
 | FR-302 | Deposit Address | Critical | Unique deposit address per user per asset per chain; QR code displayed |
 | FR-303 | Deposit Detection | Critical | System detects on-chain deposits and credits user wallet after required confirmations |
 | FR-304 | Withdrawal | Critical | User withdraws to external address; requires 2FA and email confirmation |
-| FR-305 | Withdrawal Limits | Critical | Daily withdrawal limits per KYC level; Level 1: $500, Level 2: $10,000, Level 3: unlimited |
+| FR-305 | Withdrawal Limits | Critical | Daily withdrawal limit: $500 USD equivalent for all users |
 | FR-306 | Withdrawal Fee | Critical | Network fee displayed to user before confirmation; platform can add margin |
 | FR-307 | Balance Display | Critical | Available balance, in-escrow balance, and pending deposits shown separately |
 | FR-308 | Transaction History | Critical | Full on-chain deposit and withdrawal history with txn hash and block explorer link |
@@ -279,7 +261,7 @@ Cryplio is a standalone SaaS platform accessible via web browsers and mobile app
 
 | Req. ID | Requirement | Priority | Description |
 |---------|------------|---------|-------------|
-| FR-601 | Merchant Application | High | Verified (KYC L2+) users with 50+ completed trades can apply for merchant status |
+| FR-601 | Merchant Application | High | Users with 50+ completed trades can apply for merchant status |
 | FR-602 | Merchant Badge | High | Verified merchant badge displayed on profile and all trade ads |
 | FR-603 | Merchant Subscription | High | Monthly fee ($30–$100) for merchant benefits; auto-renewal |
 | FR-604 | Merchant Dashboard | High | Advanced analytics: daily volume, completion rate, revenue, top currencies |
@@ -309,7 +291,7 @@ Cryplio is a standalone SaaS platform accessible via web browsers and mobile app
 | FR-802 | Trade Monitoring | Critical | Admin views all active trades and intervenes if needed |
 | FR-803 | Dispute Management | Critical | Admin processes and resolves open disputes with evidence viewer |
 | FR-804 | Fee Configuration | Critical | Admin configures platform fee percentages per crypto and trade type |
-| FR-805 | KYC Review | Critical | Admin manually reviews flagged KYC submissions |
+
 | FR-806 | Announcement System | High | Admin posts platform-wide announcements (banner, email blast) |
 | FR-807 | Analytics Dashboard | High | Real-time charts: daily volume, active users, trade count, revenue, disputes |
 | FR-808 | Withdrawal Approval | High | Large withdrawals above threshold require admin approval |
@@ -344,7 +326,7 @@ Cryplio is a standalone SaaS platform accessible via web browsers and mobile app
 | XSS Prevention | All user inputs sanitized; Content Security Policy headers enforced |
 | CSRF Protection | CSRF tokens required on all state-changing requests |
 | Rate Limiting | Login: 5 attempts/15min; API: 100 req/min per IP; Trade: 30 per hour per user |
-| 2FA Enforcement | 2FA mandatory for all withdrawals and KYC changes |
+| 2FA Enforcement | 2FA mandatory for all withdrawals |
 | Smart Contract Audit | Escrow smart contracts must pass third-party audit before deployment |
 | DDoS Protection | Cloudflare WAF and DDoS mitigation at DNS level |
 | Private Key Security | Platform private keys stored in HashiCorp Vault or DigitalOcean Secrets |
@@ -378,7 +360,7 @@ Cryplio is a standalone SaaS platform accessible via web browsers and mobile app
 ## 4.6 Compliance Requirements
 - GDPR: user data deletion on request within 30 days; privacy policy required
 - FATF guidelines: transaction monitoring and suspicious activity reporting
-- KYC/AML: records kept for minimum 5 years as per financial regulations
+
 - Cookie consent: GDPR-compliant cookie banner for EU users
 - Terms of Service and Privacy Policy legally reviewed before launch
 
@@ -399,7 +381,7 @@ Cryplio is a standalone SaaS platform accessible via web browsers and mobile app
 | Database | PostgreSQL 14+ | Primary relational data store |
 | Cache | **Redis 7+** | Sessions, rate limits, market data caching |
 | Queue | **Asynq (Golang)** | Async jobs: notifications, blockchain monitoring |
-| Object Storage | **MinIO (self-hosted)** | KYC documents, chat file uploads |
+| Object Storage | **MinIO (self-hosted)** | Chat file uploads |
 | CDN | Cloudflare | Static assets, DDoS, WAF |
 | Monitoring | **Grafana + Prometheus** | System metrics, error tracking, alerts |
 | Hosting | **DigitalOcean** | Managed Kubernetes, managed PostgreSQL |
@@ -439,21 +421,20 @@ Cryplio is a standalone SaaS platform accessible via web browsers and mobile app
 
 # 6. Key Use Cases
 
-## UC-01: User Registers & Completes KYC
+## UC-01: User Registers & Completes Verification
 
 | Field | Detail |
 |-------|--------|
 | Actor | New User |
 | Precondition | User has a valid email address |
-| Main Flow | 1. User visits cryplio.io and clicks Register 2. Enters email, username, password 3. Receives verification email and clicks link 4. Navigates to KYC section 5. Uploads government ID and selfie 6. System creates a Persona inquiry and directs user to the Persona verification flow 7. Persona sends a webhook event on completion 8. Verification approved — KYC Level 2 granted |
-| Alternative Flow | KYC rejected: User notified with reason; can resubmit within 7 days |
-| Postcondition | User can now trade up to $10,000/day |
+| Main Flow | 1. User visits cryplio.io and clicks Register 2. Enters email, username, password 3. Receives verification email and clicks link 4. Email verification completed |
+| Postcondition | User can now trade with basic limits |
 
 ## UC-02: Seller Creates & Completes a Sell Trade
 
 | Field | Detail |
 |-------|--------|
-| Actor | KYC-verified Seller (Maker) + KYC-verified Buyer (Taker) |
+| Actor | Seller (Maker) + Buyer (Taker) |
 | Precondition | Seller has USDT TRC20 in Cryplio wallet; Buyer has Bkash account |
 | Main Flow | 1. Seller creates sell ad: 100 USDT at market +1%, min 500 BDT, max 10,000 BDT, Bkash only 2. System locks 100 USDT in TRON escrow when ad goes live 3. Buyer finds ad, enters 5,000 BDT, clicks Trade 4. Trade created — 30-minute payment timer starts 5. Buyer sends 5,000 BDT to seller's Bkash, uploads receipt 6. Buyer clicks Mark as Paid 7. Seller confirms receipt, clicks Release 8. Smart contract releases USDT to buyer's TRON wallet 9. Both parties leave feedback |
 | Alternative Flow | Seller does not release within 1h after Mark Paid: auto-dispute triggered |
@@ -477,14 +458,13 @@ Cryplio is a standalone SaaS platform accessible via web browsers and mobile app
 
 | Entity | Key Attributes |
 |--------|---------------|
-| User | user_id, email, username, password_hash, kyc_level, status, created_at, 2fa_secret |
+| User | user_id, email, username, password_hash, status, created_at, 2fa_secret |
 | Trade Ad | ad_id, user_id, type (buy/sell), crypto, chain, fiat, price_type, price, min, max, payment_methods, status |
 | Trade | trade_id, ad_id, buyer_id, seller_id, crypto_amount, fiat_amount, chain, payment_method, status, created_at, completed_at |
 | Wallet | wallet_id, user_id, crypto, chain, balance, locked_balance, deposit_address |
 | Transaction | txn_id, wallet_id, type, amount, txn_hash, chain, status, created_at |
 | Dispute | dispute_id, trade_id, raised_by, reason, status, assigned_admin, resolution, created_at |
 | Message | msg_id, trade_id (or dispute_id), sender_id, content, file_url, created_at |
-| KYC Record | kyc_id, user_id, level, document_type, provider_reference (Persona inquiry_id), status, created_at |
 | Feedback | feedback_id, trade_id, from_user_id, to_user_id, rating, comment, created_at |
 | Referral | referral_id, referrer_id, referee_id, status, commission_earned, expires_at, created_at |
 
@@ -492,9 +472,8 @@ Cryplio is a standalone SaaS platform accessible via web browsers and mobile app
 
 | Data Type | Retention Period | Reason |
 |-----------|-----------------|--------|
-| User Account Data | 5 years after account closure | AML/KYC regulatory requirement |
+| User Account Data | 5 years after account closure | Security and audit trail |
 | Trade Records | 7 years | Financial audit trail |
-| KYC Documents | 5 years | Regulatory compliance |
 | Chat Messages | 2 years | Dispute resolution reference |
 | Audit Logs | Permanent | Security and compliance |
 | Deleted User Data | 30 days grace, then purge | GDPR right to erasure |
@@ -520,8 +499,6 @@ Cryplio is a standalone SaaS platform accessible via web browsers and mobile app
 | POST | /api/v1/auth/register | Register new user account | Public |
 | POST | /api/v1/auth/login | Login and receive JWT token | Public |
 | GET | /api/v1/users/me | Get current user profile | Required |
-| POST | /api/v1/kyc/submit | Submit KYC documents and create Persona inquiry | Required |
-| POST | /api/v1/webhooks/persona | Receive verification status events from Persona | — (HMAC-secured) |
 | GET | /api/v1/ads | List trade advertisements with filters | Public |
 | POST | /api/v1/ads | Create a new trade advertisement | Required |
 | PUT | /api/v1/ads/:id | Update own trade advertisement | Required |
@@ -569,7 +546,6 @@ Cryplio is a standalone SaaS platform accessible via web browsers and mobile app
 
 ## 10.3 Regulatory Constraints
 - Platform must not accept users from OFAC-sanctioned countries
-- All KYC data processed via Persona must be stored in jurisdiction-compliant data centers
 - GDPR compliance mandatory for EU user data
 - Financial promotions must comply with local advertising laws per target market
 

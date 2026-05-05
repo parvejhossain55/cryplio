@@ -95,15 +95,6 @@ func (s *tradeService) InitiateTrade(ctx context.Context, adID, buyerID uuid.UUI
 		return nil, errors.New("you are blocked by this user and cannot initiate trades")
 	}
 
-	// 6. Fetch Buyer Info for KYC check
-	buyer, err := s.identityRepo.GetByID(ctx, buyerID)
-	if err != nil {
-		return nil, fmt.Errorf("get buyer: %w", err)
-	}
-	if buyer.KYCLevel < ad.RequiresKYCLevel {
-		return nil, fmt.Errorf("this advertisement requires KYC Level %d", ad.RequiresKYCLevel)
-	}
-
 	// 7. Create Trade
 	trade := &Trade{
 		TradeID:              uuid.New(),

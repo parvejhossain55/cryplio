@@ -15,8 +15,6 @@ CREATE TABLE IF NOT EXISTS users (
     phone_number VARCHAR(20),
     phone_verified BOOLEAN NOT NULL DEFAULT false,
     email_verified BOOLEAN NOT NULL DEFAULT false,
-    kyc_level kyc_level NOT NULL DEFAULT 'level_0',
-    kyc_last_updated TIMESTAMP,
     status user_status NOT NULL DEFAULT 'pending',
     avatar_url VARCHAR(500),
     bio VARCHAR(200),
@@ -110,7 +108,6 @@ CREATE TABLE IF NOT EXISTS user_blocks (
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_username ON users(username);
 CREATE INDEX idx_users_status ON users(status);
-CREATE INDEX idx_users_kyc_level ON users(kyc_level);
 CREATE INDEX idx_users_referral_code ON users(referral_code);
 CREATE INDEX idx_users_referred_by ON users(referred_by);
 CREATE INDEX idx_users_deleted_at ON users(deleted_at) WHERE deleted_at IS NOT NULL;

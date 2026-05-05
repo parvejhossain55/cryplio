@@ -39,7 +39,7 @@ func NewUserRepository(db *sql.DB) UserRepository {
 func (r *userRepository) GetAll(ctx context.Context, limit, offset int) ([]User, error) {
 	query := `
 		SELECT user_id, email, username, password_hash, phone_country_code, phone_number,
-		       phone_verified, email_verified, kyc_level, kyc_last_updated, status,
+		       phone_verified, email_verified, status,
 		       avatar_url, bio, timezone, locale, is_merchant, is_suspended,
 		       suspension_reason, suspended_at, suspended_until, last_login_at,
 		       login_count, failed_login_attempts, locked_until, referral_code,
@@ -63,7 +63,7 @@ func (r *userRepository) GetAll(ctx context.Context, limit, offset int) ([]User,
 		err := rows.Scan(
 			&u.UserID, &u.Email, &u.Username, &u.PasswordHash,
 			&u.PhoneCountryCode, &u.PhoneNumber, &u.PhoneVerified, &u.EmailVerified,
-			&u.KYCLevel, &u.KYCLastUpdated, &u.Status, &u.AvatarURL, &u.Bio,
+			&u.Status, &u.AvatarURL, &u.Bio,
 			&u.Timezone, &u.Locale, &u.IsMerchant, &u.IsSuspended,
 			&u.SuspensionReason, &u.SuspendedAt, &u.SuspendedUntil, &u.LastLoginAt,
 			&u.LoginCount, &u.FailedLoginAttempts, &u.LockedUntil,
@@ -88,7 +88,7 @@ func (r *userRepository) GetAll(ctx context.Context, limit, offset int) ([]User,
 func (r *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*User, error) {
 	query := `
 		SELECT user_id, email, username, password_hash, phone_country_code, phone_number,
-		       phone_verified, email_verified, kyc_level, kyc_last_updated, status,
+		       phone_verified, email_verified, status,
 		       avatar_url, bio, timezone, locale, is_merchant, is_suspended,
 		       suspension_reason, suspended_at, suspended_until, last_login_at,
 		       login_count, failed_login_attempts, locked_until, referral_code,
@@ -102,7 +102,7 @@ func (r *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*User, erro
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&u.UserID, &u.Email, &u.Username, &u.PasswordHash,
 		&u.PhoneCountryCode, &u.PhoneNumber, &u.PhoneVerified, &u.EmailVerified,
-		&u.KYCLevel, &u.KYCLastUpdated, &u.Status, &u.AvatarURL, &u.Bio,
+		&u.Status, &u.AvatarURL, &u.Bio,
 		&u.Timezone, &u.Locale, &u.IsMerchant, &u.IsSuspended,
 		&u.SuspensionReason, &u.SuspendedAt, &u.SuspendedUntil, &u.LastLoginAt,
 		&u.LoginCount, &u.FailedLoginAttempts, &u.LockedUntil,
@@ -128,7 +128,7 @@ func (r *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*User, erro
 func (r *userRepository) GetByEmail(ctx context.Context, email string) (*User, error) {
 	query := `
 		SELECT user_id, email, username, password_hash, phone_country_code, phone_number,
-		       phone_verified, email_verified, kyc_level, kyc_last_updated, status,
+		       phone_verified, email_verified, status,
 		       avatar_url, bio, timezone, locale, is_merchant, is_suspended,
 		       suspension_reason, suspended_at, suspended_until, last_login_at,
 		       login_count, failed_login_attempts, locked_until, referral_code,
@@ -142,7 +142,7 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*User, e
 	err := r.db.QueryRowContext(ctx, query, email).Scan(
 		&u.UserID, &u.Email, &u.Username, &u.PasswordHash,
 		&u.PhoneCountryCode, &u.PhoneNumber, &u.PhoneVerified, &u.EmailVerified,
-		&u.KYCLevel, &u.KYCLastUpdated, &u.Status, &u.AvatarURL, &u.Bio,
+		&u.Status, &u.AvatarURL, &u.Bio,
 		&u.Timezone, &u.Locale, &u.IsMerchant, &u.IsSuspended,
 		&u.SuspensionReason, &u.SuspendedAt, &u.SuspendedUntil, &u.LastLoginAt,
 		&u.LoginCount, &u.FailedLoginAttempts, &u.LockedUntil,
@@ -168,7 +168,7 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*User, e
 func (r *userRepository) GetByUsername(ctx context.Context, username string) (*User, error) {
 	query := `
 		SELECT user_id, email, username, password_hash, phone_country_code, phone_number,
-		       phone_verified, email_verified, kyc_level, kyc_last_updated, status,
+		       phone_verified, email_verified, status,
 		       avatar_url, bio, timezone, locale, is_merchant, is_suspended,
 		       suspension_reason, suspended_at, suspended_until, last_login_at,
 		       login_count, failed_login_attempts, locked_until, referral_code,
@@ -182,7 +182,7 @@ func (r *userRepository) GetByUsername(ctx context.Context, username string) (*U
 	err := r.db.QueryRowContext(ctx, query, username).Scan(
 		&u.UserID, &u.Email, &u.Username, &u.PasswordHash,
 		&u.PhoneCountryCode, &u.PhoneNumber, &u.PhoneVerified, &u.EmailVerified,
-		&u.KYCLevel, &u.KYCLastUpdated, &u.Status, &u.AvatarURL, &u.Bio,
+		&u.Status, &u.AvatarURL, &u.Bio,
 		&u.Timezone, &u.Locale, &u.IsMerchant, &u.IsSuspended,
 		&u.SuspensionReason, &u.SuspendedAt, &u.SuspendedUntil, &u.LastLoginAt,
 		&u.LoginCount, &u.FailedLoginAttempts, &u.LockedUntil,
@@ -209,11 +209,11 @@ func (r *userRepository) Create(ctx context.Context, u *User) error {
 	query := `
 		INSERT INTO users (
 			user_id, email, username, password_hash, phone_country_code, phone_number,
-			phone_verified, email_verified, kyc_level, status, timezone, locale,
+			phone_verified, email_verified, status, timezone, locale,
 			is_merchant, login_count, failed_login_attempts, referral_code, remember_2fa,
 			referred_by, created_at, updated_at
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18,
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
 			NOW(), NOW()
 		) RETURNING created_at, updated_at
 	`
@@ -225,7 +225,7 @@ func (r *userRepository) Create(ctx context.Context, u *User) error {
 		ctx, query,
 		u.UserID, u.Email, u.Username, u.PasswordHash,
 		u.PhoneCountryCode, u.PhoneNumber, u.PhoneVerified, u.EmailVerified,
-		u.KYCLevel, u.Status, u.Timezone, u.Locale, u.IsMerchant,
+		u.Status, u.Timezone, u.Locale, u.IsMerchant,
 		u.LoginCount, u.FailedLoginAttempts, u.ReferralCode, u.Remember2FA,
 		referredBy,
 	).Scan(&u.CreatedAt, &u.UpdatedAt)
@@ -240,8 +240,7 @@ func (r *userRepository) Update(ctx context.Context, u *User) error {
 	query := `
 		UPDATE users
 		SET email = $1, username = $2, phone_country_code = $3, phone_number = $4,
-		    phone_verified = $5, email_verified = $6, kyc_level = $7,
-		    kyc_last_updated = $8, avatar_url = $9, bio = $10, timezone = $11, 
+		    phone_verified = $5, email_verified = $6, avatar_url = $9, bio = $10, timezone = $11, 
 		    locale = $12, is_merchant = $13, is_suspended = $14, 
 		    suspension_reason = $15, suspended_at = $16, suspended_until = $17, 
 		    last_login_at = $18, login_count = $19, failed_login_attempts = $20, 
@@ -258,7 +257,7 @@ func (r *userRepository) Update(ctx context.Context, u *User) error {
 	err := r.db.QueryRowContext(
 		ctx, query,
 		u.Email, u.Username, u.PhoneCountryCode, u.PhoneNumber,
-		u.PhoneVerified, u.EmailVerified, u.KYCLevel, u.KYCLastUpdated,
+		u.PhoneVerified, u.EmailVerified,
 		u.AvatarURL, u.Bio, u.Timezone, u.Locale, u.IsMerchant,
 		u.IsSuspended, u.SuspensionReason, u.SuspendedAt, u.SuspendedUntil,
 		u.LastLoginAt, u.LoginCount, u.FailedLoginAttempts, u.LockedUntil,
@@ -837,7 +836,7 @@ func (r *userRepository) DeleteTwoFactorPending(ctx context.Context, userID uuid
 func (r *userRepository) GetByUsernameWithStats(ctx context.Context, username string) (*User, *UserStats, error) {
 	query := `
 		SELECT u.user_id, u.email, u.username, u.password_hash, u.phone_country_code, u.phone_number,
-		       u.phone_verified, u.email_verified, u.kyc_level, u.kyc_last_updated, u.status,
+		       u.phone_verified, u.email_verified, u.status,
 		       u.avatar_url, u.bio, u.timezone, u.locale, u.is_merchant, u.is_suspended,
 		       u.suspension_reason, u.suspended_at, u.suspended_until, u.last_login_at, u.last_seen_at,
 		       u.login_count, u.failed_login_attempts, u.locked_until, u.referral_code,
@@ -866,7 +865,7 @@ func (r *userRepository) GetByUsernameWithStats(ctx context.Context, username st
 	err := r.db.QueryRowContext(ctx, query, username).Scan(
 		&u.UserID, &u.Email, &u.Username, &u.PasswordHash,
 		&u.PhoneCountryCode, &u.PhoneNumber, &u.PhoneVerified, &u.EmailVerified,
-		&u.KYCLevel, &u.KYCLastUpdated, &u.Status, &u.AvatarURL, &u.Bio,
+		&u.Status, &u.AvatarURL, &u.Bio,
 		&u.Timezone, &u.Locale, &u.IsMerchant, &u.IsSuspended,
 		&u.SuspensionReason, &u.SuspendedAt, &u.SuspendedUntil, &u.LastLoginAt, &u.LastSeenAt,
 		&u.LoginCount, &u.FailedLoginAttempts, &u.LockedUntil,

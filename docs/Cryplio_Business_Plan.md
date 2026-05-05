@@ -24,6 +24,7 @@ To become the #1 global P2P crypto platform with 1 million active users by 2027.
 - Revenue from trading fees, merchant subscriptions & premium plans
 - Target: $500K monthly trading volume by end of Year 1
 - Scalable architecture built for global expansion
+- Simplified onboarding with fast account setup
 
 ---
 
@@ -47,14 +48,13 @@ To become the #1 global P2P crypto platform with 1 million active users by 2027.
 - Centralized exchanges charge high fees (0.5%–2% per trade)
 - Many countries have limited access to global banking systems
 - Users lack trust in custodial platforms after high-profile exchange collapses
-- Complex KYC processes exclude millions of potential users
 - Slow fiat withdrawal & settlement times frustrate traders
 
 ## The Solution — Cryplio
 - Escrow-backed P2P trades — no custody of user funds
 - Support for local payment methods (Bkash, Nagad, UPI, etc.)
 - Transparent dispute resolution system
-- Tiered KYC for low-friction onboarding
+- Simplified onboarding with fast account setup
 - Near-instant trade settlement via escrow release
 
 ---
@@ -66,7 +66,6 @@ To become the #1 global P2P crypto platform with 1 million active users by 2027.
 | Feature | Description | Priority |
 |---------|-------------|----------|
 | Escrow System | Smart contract-based trade escrow for all P2P trades | Critical |
-| KYC / AML | Tiered identity verification for compliance | Critical |
 | Order Book | Buy/sell ad listings with filters by currency & payment | High |
 | Live Chat | In-trade secure messaging between buyer & seller | High |
 | Dispute Resolution | Admin-mediated dispute process with evidence upload | High |
@@ -158,8 +157,7 @@ To become the #1 global P2P crypto platform with 1 million active users by 2027.
 | Cache | **Redis 7+** | Sessions, rate limits, market data caching |
 | Queue | **Asynq (Golang)** | Async jobs: notifications, blockchain monitoring |
 | Blockchain | Web3.go + Solidity | Smart contract escrow on EVM chains |
-| Object Storage | **MinIO (self-hosted)** | KYC documents, chat file uploads |
-| KYC | **Persona API** | Identity verification — ID + selfie + AML screening |
+| Object Storage | **MinIO (self-hosted)** | Chat file uploads |
 | Hosting | **DigitalOcean** | Scalable cloud (managed Kubernetes) |
 | CDN / Security | Cloudflare + WAF | DDoS protection, static assets, bot filtering |
 | Monitoring | **Grafana + Prometheus** | System metrics, error tracking, alerts |
@@ -191,12 +189,11 @@ To become the #1 global P2P crypto platform with 1 million active users by 2027.
 | Platform Development (MVP) | $15,000 – $25,000 |
 | Smart Contract Audit | $3,000 – $5,000 |
 | Company Registration (Dubai) | $2,000 – $3,000 |
-| KYC API Integration (Persona) | $1,000 – $2,000 |
 | Server & Infrastructure — DigitalOcean (Year 1) | $2,400 |
 | MinIO Setup & Storage Infrastructure | $500 – $1,000 |
 | Marketing & Launch Budget | $5,000 – $10,000 |
 | Legal & Compliance | $2,000 – $3,000 |
-| **Total Estimated Budget** | **$30,900 – $51,400** |
+| **Total Estimated Budget** | **$29,900 – $49,400** |
 
 ## Break-Even Analysis
 - Fixed monthly costs: ~$3,000 (server, team, marketing)
@@ -209,7 +206,7 @@ To become the #1 global P2P crypto platform with 1 million active users by 2027.
 
 | Phase | Timeline | Milestones |
 |-------|----------|------------|
-| Phase 1 — Build | Month 1–3 | MVP development (Golang), escrow contract, KYC (Persona) integration |
+| Phase 1 — Build | Month 1–3 | MVP development (Golang), escrow contract |
 | Phase 2 — Beta | Month 4–5 | Closed beta with 100 users, bug fixes, UI polish |
 | Phase 3 — Launch | Month 6 | Public launch in BD, PK markets, referral campaign (20% commission) |
 | Phase 4 — Grow | Month 7–12 | 5,000 users, merchant program, mobile app beta |
@@ -220,12 +217,10 @@ To become the #1 global P2P crypto platform with 1 million active users by 2027.
 
 # 11. Legal & Compliance
 - Company will be registered offshore (Dubai, UAE) for crypto-friendly regulation
-- Full KYC/AML compliance with FATF guidelines via Persona API
-- Terms of Service, Privacy Policy, and AML Policy drafted by crypto-specialized legal team
+- Terms of Service and Privacy Policy drafted by crypto-specialized legal team
 - Bangladesh users will be served via offshore entity — local legal counsel required
 - Smart contract code will be professionally audited before deployment on Ethereum
 - GDPR-compliant data handling for EU users
-- KYC/AML records kept for minimum 5 years per regulatory requirement
 
 ---
 

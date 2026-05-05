@@ -13,7 +13,6 @@ Migrations are intentionally **small and focused** — each file represents a si
 | `000_types.sql` | ENUM Type Definitions | All custom PostgreSQL ENUM types used across tables |
 | `001_core_tables.sql` | Core User & Auth Tables | `users`, `user_stats`, `user_sessions`, `password_reset_tokens`, `email_verification_tokens`, `user_blocks` |
 | `002_lookup_tables.sql` | Lookup Tables | `crypto_assets`, `fiat_currencies`, `payment_methods`, `dispute_reasons`, `fee_tiers` + seed data |
-| `003_kyc.sql` | KYC Tables | `kyc_records` |
 | `004_trade_ads.sql` | Trade Ads | `trade_ads` (P2P advertisements) |
 | `005_trades.sql` | Trades | `trades`, `trade_messages`, `trade_attachments` |
 | `006_feedback.sql` | Feedback | `trade_feedback` (post-trade ratings) |
@@ -119,7 +118,6 @@ The application will embed migrations using `github.com/golang-migrate/migrate/v
 users
   ├─ user_stats (1:1)
   ├─ user_sessions (1:N)
-  ├─ kyc_records (1:N)
   ├─ trade_ads (1:N)
   ├─ wallets (1:N per crypto)
   │   └─ wallet_transactions (1:N)
@@ -147,7 +145,6 @@ trade_ads
 |------|-----------|---------|
 | User Account Data | 5 years post-closure | Soft delete → purge job |
 | Trade Records | 7 years | Never delete (archive to cold storage after 2 years) |
-| KYC Documents | 5 years | Encrypted object storage, then delete |
 | Chat Messages | 2 years | Auto-purge job |
 | Audit Logs | Permanent | Append-only |
 | Session Tokens | 24h inactive | Auto-expire |

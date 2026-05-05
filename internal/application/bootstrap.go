@@ -4,14 +4,11 @@ import (
 	"database/sql"
 	"fmt"
 
-	"cryplio/internal/application/user"
 	domainidentity "cryplio/internal/domain/identity"
 	"cryplio/internal/domain/platform"
 	domaintraing "cryplio/internal/domain/trading"
-	kycinfra "cryplio/internal/infrastructure/kyc"
 	"cryplio/internal/infrastructure/notification"
 	identitypostgres "cryplio/internal/infrastructure/persistence/postgres/identity"
-	kycpostgres "cryplio/internal/infrastructure/persistence/postgres/kyc"
 	platformpostgres "cryplio/internal/infrastructure/persistence/postgres/platform"
 	tradingpostgres "cryplio/internal/infrastructure/persistence/postgres/trading"
 	"cryplio/internal/infrastructure/storage"
@@ -74,19 +71,7 @@ func New() (*App, error) {
 		return nil, fmt.Errorf("initialize storage: %w", err)
 	}
 
-	kycRepo := kycpostgres.NewKYCRepository(db)
-
-	var personaClient kycinfra.PersonaClient
-	if cfg.PersonaAPIKey != "" {
-		personaClient = kycinfra.NewPersonaClient(cfg.PersonaAPIKey, cfg.PersonaWebhookSecret)
-	} else {
-		personaClient = kycinfra.NewNoopPersonaClient()
-	}
-
-	submitKYCUC := user.NewSubmitKYCUseCase(kycRepo, userRepo, personaClient, cfg.PersonaTemplateID)
-	verifyKYCUC := user.NewVerifyKYCUseCase(kycRepo, userRepo)
-
-	router := httpapi.SetupRouter(cfg, authService, tradeService, platformService, storage, submitKYCUC, verifyKYCUC, personaClient)
+	router := httpapi.SetupRouter(cfg, authService, tradeService, platformService, storage)
 
 	return &App{
 		Config: cfg,

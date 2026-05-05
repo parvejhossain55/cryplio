@@ -13,7 +13,6 @@ export interface User {
     avatarUrl?: string;
     role: "user" | "merchant" | "admin" | null;
     emailVerified: boolean;
-    kycLevel: number;
     isMerchant: boolean;
     twoFAEnabled: boolean;
     lastSeenAt?: string;
@@ -78,7 +77,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         username: backendUser.username || backendUser.email.split("@")[0],
         role: backendUser.username === "admin" ? "admin" : (backendUser.is_merchant ? "merchant" : "user"),
         emailVerified: backendUser.email_verified ?? false,
-        kycLevel: backendUser.kyc_level ?? 0,
         twoFAEnabled: backendUser.two_fa_enabled ?? false,
         bio: backendUser.bio ?? "",
         avatarUrl: backendUser.avatar_url ?? undefined,

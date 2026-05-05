@@ -1,11 +1,9 @@
 package httpapi
 
 import (
-	"cryplio/internal/application/user"
 	"cryplio/internal/domain/identity"
 	"cryplio/internal/domain/platform"
 	"cryplio/internal/domain/trading"
-	kycinfra "cryplio/internal/infrastructure/kyc"
 	"cryplio/internal/infrastructure/storage"
 	"cryplio/internal/interfaces/http/handler"
 	"cryplio/internal/interfaces/http/middleware"
@@ -21,9 +19,6 @@ func SetupRouter(
 	tradeService trading.TradeService,
 	platformService platform.PlatformService,
 	storage storage.ObjectStorage,
-	submitKYCUC *user.SubmitKYCUseCase,
-	verifyKYCUC *user.VerifyKYCUseCase,
-	personaClient kycinfra.PersonaClient,
 ) *gin.Engine {
 	// Set Gin mode
 	if cfg.AppEnv == "development" {
@@ -59,7 +54,6 @@ func SetupRouter(
 		}, storage)
 
 		tradeHandler := handler.NewTradeHandler(tradeService)
-		kycHandler := handler.NewKYCHandler(submitKYCUC, verifyKYCUC, personaClient, cfg.PersonaWebhookSecret)
 		platformHandler := handler.NewPlatformHandler(platformService)
 
 		// Public routes
@@ -79,9 +73,6 @@ func SetupRouter(
 		// Marketplace (Public)
 		v1.GET("/marketplace/ads", tradeHandler.ListAdsHandler)
 
-		// Persona Webhook (public, secured by HMAC signature)
-		v1.POST("/webhooks/persona", kycHandler.PersonaWebhookHandler)
-
 		// Authenticated Routes
 		auth := v1.Group("/")
 		auth.Use(middleware.AuthMiddleware(cfg.JWTSecret))
@@ -89,9 +80,6 @@ func SetupRouter(
 			auth.GET("/users/me", authHandler.GetUserHandler)
 			auth.PUT("/users/me", authHandler.UpdateUserHandler)
 			auth.POST("/users/me/avatar", authHandler.UploadAvatarHandler)
-
-			// KYC
-			auth.POST("/kyc/submit", kycHandler.SubmitKYCHandler)
 
 			// User block management
 			auth.POST("/users/me/block", authHandler.BlockUserHandler)
@@ -122,9 +110,6 @@ func SetupRouter(
 			admin := auth.Group("/admin")
 			admin.Use(middleware.AdminRoleMiddleware())
 			{
-				// KYC
-				admin.POST("/kyc/:id/verify", kycHandler.VerifyKYCHandler)
-
 				// Crypto Assets
 				admin.POST("/crypto-assets", platformHandler.CreateCryptoAssetHandler)
 				admin.GET("/crypto-assets", platformHandler.GetCryptoAssetsHandler)

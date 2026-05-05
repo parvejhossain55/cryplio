@@ -21,7 +21,7 @@ func (s *Seeder) SeedWallets(ctx context.Context, users []*domainidentity.User, 
 			balance := 0.0
 			if user.IsMerchant {
 				balance = 5000.0 + rand.Float64()*10000.0
-			} else if user.KYCLevel != domainidentity.KYCLevel0 {
+			} else {
 				balance = 500.0 + rand.Float64()*1000.0
 			}
 

@@ -19,22 +19,13 @@ const (
 	UserStatusDeleted   UserStatus = "deleted"
 )
 
-// KYCLevel represents the KYC verification level
-type KYCLevel string
+// UserRole represents the user role
+type UserRole string
 
 const (
-	KYCLevel0 KYCLevel = "level_0"
-	KYCLevel1 KYCLevel = "level_1"
-	KYCLevel2 KYCLevel = "level_2"
-	KYCLevel3 KYCLevel = "level_3"
-)
-
-// KYC Limits in USD
-const (
-	KYCLimitLevel0 = 0.0
-	KYCLimitLevel1 = 500.0
-	KYCLimitLevel2 = 10000.0
-	KYCLimitLevel3 = -1.0 // Unlimited
+	UserRoleUser     UserRole = "user"
+	UserRoleMerchant UserRole = "merchant"
+	UserRoleAdmin    UserRole = "admin"
 )
 
 // NullUUID wraps uuid.UUID to handle NULL values
@@ -118,9 +109,8 @@ type User struct {
 	PhoneNumber         *string    `db:"phone_number" json:"phone_number,omitempty"`
 	PhoneVerified       bool       `db:"phone_verified" json:"phone_verified"`
 	EmailVerified       bool       `db:"email_verified" json:"email_verified"`
-	KYCLevel            KYCLevel   `db:"kyc_level" json:"kyc_level"`
-	KYCLastUpdated      *time.Time `db:"kyc_last_updated" json:"kyc_last_updated,omitempty"`
 	Status              UserStatus `db:"status" json:"status"`
+	Role                UserRole   `db:"role" json:"role"`
 	AvatarURL           *string    `db:"avatar_url" json:"avatar_url,omitempty"`
 	Bio                 *string    `db:"bio" json:"bio,omitempty"`
 	Timezone            string     `db:"timezone" json:"timezone"`
@@ -199,13 +189,6 @@ func (u *User) IsLocked() bool {
 	return time.Now().Before(*u.LockedUntil)
 }
 
-// UpgradeKYC upgrades the user's KYC level
-func (u *User) UpgradeKYC(level KYCLevel) {
-	u.KYCLevel = level
-	now := time.Now()
-	u.KYCLastUpdated = &now
-}
-
 // Suspend suspends the user account
 func (u *User) Suspend(reason string, until *time.Time) {
 	u.IsSuspended = true
@@ -233,8 +216,8 @@ func NewUser(email, username, passwordHash string) *User {
 		Email:               email,
 		Username:            username,
 		PasswordHash:        passwordHash,
-		KYCLevel:            KYCLevel0,
 		Status:              UserStatusActive,
+		Role:                UserRoleUser,
 		Timezone:            "UTC",
 		Locale:              "en",
 		PhoneVerified:       false,

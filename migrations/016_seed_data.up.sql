@@ -79,7 +79,6 @@ INSERT INTO platform_config (key, value, value_type, description, is_public) VAL
 ('platform_fee_percentage', '0.01', 'float', 'Default platform fee percentage (1%)', true),
 ('min_trade_amount', '10', 'float', 'Minimum trade amount in USD equivalent', true),
 ('max_trade_amount', '50000', 'float', 'Maximum trade amount per trade in USD', true),
-('require_kyc_level_for_trade', 'level_1', 'string', 'Minimum KYC level required to trade', true),
 ('email_verification_required', 'true', 'bool', 'Require email verification before trading', true),
 ('max_failed_login_attempts', '5', 'int', 'Maximum failed login attempts before lockout', false),
 ('auto_dispute_time_minutes', '60', 'int', 'Auto-dispute if seller does not release after payment (minutes)', false),

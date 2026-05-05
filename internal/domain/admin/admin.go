@@ -98,7 +98,6 @@ const (
 	AdminActionDisputeResolve    AdminActionType = "dispute_resolve"
 	AdminActionWithdrawalApprove AdminActionType = "withdrawal_approve"
 	AdminActionWithdrawalReject  AdminActionType = "withdrawal_reject"
-	AdminActionKYCTReview        AdminActionType = "kyc_review"
 	AdminActionAnnouncementPost  AdminActionType = "announcement_post"
 	AdminActionFeeUpdate         AdminActionType = "fee_update"
 	AdminActionMerchantApprove   AdminActionType = "merchant_approve"

@@ -86,7 +86,6 @@ const CreateAdPage = () => {
                 payment_methods: selectedMethods,
                 trade_terms: tradeTerms,
                 payment_window_minutes: paymentWindow,
-                requires_kyc_level: 1
             };
 
             await authService.createAd(adData);
@@ -330,7 +329,7 @@ const CreateAdPage = () => {
                                         <label className="block text-[10px] font-black text-text-dim uppercase tracking-[0.2em] ml-1">Security</label>
                                         <div className="bg-surface/50 border border-border p-4 rounded-2xl flex items-center gap-3">
                                             <LockIcon className="w-4 h-4 text-accent" />
-                                            <span className="text-xs font-bold text-text-dim">Verified KYC Lvl 1 Required</span>
+                                            <span className="text-xs font-bold text-text-dim">Escrow protected</span>
                                         </div>
                                     </div>
                                 </div>

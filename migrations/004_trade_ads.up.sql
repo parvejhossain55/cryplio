@@ -19,7 +19,6 @@ CREATE TABLE IF NOT EXISTS trade_ads (
     payment_methods INT[] NOT NULL DEFAULT '{}',
     trade_terms TEXT,
     payment_window_minutes INT NOT NULL DEFAULT 30,
-    requires_kyc_level kyc_level DEFAULT 'level_1',
     is_public BOOLEAN NOT NULL DEFAULT true,
     is_paused BOOLEAN NOT NULL DEFAULT false,
     visibility_start_at TIMESTAMP,

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -502,12 +501,6 @@ func (h *AuthHandler) setRefreshCookie(c *gin.Context, token string) {
 func (h *AuthHandler) clearRefreshCookie(c *gin.Context, cfg *Config) {
 	refreshCookieName := cfg.CookieName + "_refresh"
 	c.SetCookie(refreshCookieName, "", -1, "/", "", cfg.CookieSecure, true)
-}
-
-// loginAfterRegister returns access token after registration (login)
-func (h *AuthHandler) loginAfterRegister(ctx context.Context, email, password string) (string, string, error) {
-	access, refresh, _, err := h.authService.Login(ctx, email, password)
-	return access, refresh, err
 }
 
 // GetUserByUsernameHandler returns a public user profile by username

@@ -19,7 +19,6 @@ type UserResponse struct {
 	Email         string       `json:"email"`
 	Username      string       `json:"username"`
 	EmailVerified bool         `json:"email_verified"`
-	KYCLevel      int          `json:"kyc_level"`
 	IsMerchant    bool         `json:"is_merchant"`
 	TwoFAEnabled  bool         `json:"two_fa_enabled"`
 	AvatarURL     *string      `json:"avatar_url,omitempty"`

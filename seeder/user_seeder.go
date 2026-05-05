@@ -15,16 +15,15 @@ func (s *Seeder) SeedUsers(ctx context.Context) ([]*domainidentity.User, error) 
 		email      string
 		username   string
 		isMerchant bool
-		kycLevel   domainidentity.KYCLevel
 	}{
-		{"admin@cryplio.com", "admin", false, domainidentity.KYCLevel3},
-		{"merchant.one@example.com", "CryptoKing", true, domainidentity.KYCLevel3},
-		{"merchant.two@example.com", "SwiftExchange", true, domainidentity.KYCLevel2},
-		{"trader.alice@example.com", "AliceTrader", false, domainidentity.KYCLevel1},
-		{"trader.bob@example.com", "BobCrypto", false, domainidentity.KYCLevel1},
-		{"trader.charlie@example.com", "CharlieP2P", false, domainidentity.KYCLevel0},
-		{"trader.diana@example.com", "DianaCoin", false, domainidentity.KYCLevel2},
-		{"trader.ethan@example.com", "EthanX", false, domainidentity.KYCLevel1},
+		{"admin@cryplio.com", "admin", false},
+		{"merchant.one@example.com", "CryptoKing", true},
+		{"merchant.two@example.com", "SwiftExchange", true},
+		{"trader.alice@example.com", "AliceTrader", false},
+		{"trader.bob@example.com", "BobCrypto", false},
+		{"trader.charlie@example.com", "CharlieP2P", false},
+		{"trader.diana@example.com", "DianaCoin", false},
+		{"trader.ethan@example.com", "EthanX", false},
 	}
 
 	var users []*domainidentity.User
@@ -37,7 +36,6 @@ func (s *Seeder) SeedUsers(ctx context.Context) ([]*domainidentity.User, error) 
 
 		user := domainidentity.NewUser(ud.email, ud.username, passwordHash)
 		user.IsMerchant = ud.isMerchant
-		user.KYCLevel = ud.kycLevel
 		user.EmailVerified = true
 		user.PhoneVerified = true
 		user.Status = domainidentity.UserStatusActive

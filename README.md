@@ -32,7 +32,6 @@ Cryplio is a global P2P crypto exchange where buyers and sellers trade directly 
 Key capabilities:
 - Escrow-backed P2P trades (USDT,USDC)
 - Multi-payment method support — Bkash, Nagad, Bank Transfer, Wise, PayPal, UPI
-- Tiered KYC/AML via Sumsub
 - Real-time trade chat via WebSocket
 - Admin dispute resolution system
 - Referral program with commission tracking
@@ -83,7 +82,6 @@ The codebase follows **Clean Architecture** with **Domain-Driven Design**. Depen
 | WebSocket | gorilla/websocket |
 | Blockchain | go-ethereum (geth) |
 | Smart Contracts | Solidity + Foundry |
-| KYC | Sumsub REST API |
 | Email | SendGrid |
 | SMS | Twilio |
 | Push Notifications | Firebase Cloud Messaging |
@@ -116,7 +114,7 @@ cryplio-backend/
 │   │   └── market/     # Rate feed aggregation
 │   │
 │   ├── application/    # Layer 2 — use cases
-│   │   ├── user/       # register, login, kyc, session
+│   │   ├── user/       # register, login, session
 │   │   ├── trade/      # create_ad, initiate, mark_paid, release, cancel
 │   │   ├── dispute/    # raise, assign, resolve
 │   │   ├── wallet/     # deposit, withdraw, balance
@@ -126,7 +124,7 @@ cryplio-backend/
 │   ├── interfaces/         # Layer 3 — delivery
 │   │   ├── http/
 │   │   │   ├── handler/    # one file per domain
-│   │   │   ├── middleware/ # jwt_auth, rate_limit, kyc_guard, cors
+│   │   │   ├── middleware/ # jwt_auth, rate_limit, cors
 │   │   │   ├── dto/        # request + response structs
 │   │   │   ├── validator/
 │   │   │   └── router.go
@@ -137,11 +135,10 @@ cryplio-backend/
 │       │   ├── postgres/   # repository implementations
 │       │   └── redis/      # session store, rate limiter, cache
 │       ├── blockchain/     # go-ethereum escrow contract client
-│       ├── kyc/            # Sumsub client + webhook handler
 │       ├── payment/        # bkash, nagad, wise, paypal adapters
 │       ├── notification/   # sendgrid, twilio, firebase
 │       ├── market/         # coingecko / binance rate feed
-│       └── storage/        # AWS S3 — KYC docs, dispute evidence
+│       └── storage/        # AWS S3 — dispute evidence, user uploads
 │
 ├── pkg/                # Shared utilities — no domain imports
 │   ├── jwt/
@@ -254,11 +251,6 @@ JWT_EXPIRY_HOURS=24
 ETH_RPC_URL=https://mainnet.infura.io/v3/YOUR_KEY
 ESCROW_CONTRACT_ADDRESS=0x...
 PLATFORM_WALLET_PRIVATE_KEY=0x...
-
-# KYC — Sumsub
-SUMSUB_APP_TOKEN=your-token
-SUMSUB_SECRET_KEY=your-secret
-SUMSUB_WEBHOOK_SECRET=your-webhook-secret
 
 # Email — SendGrid
 SENDGRID_API_KEY=SG.xxx
@@ -425,20 +417,12 @@ Authorization: Bearer <jwt_token>
 | `GET` | `/users/me/devices` | Required | List active sessions |
 | `DELETE` | `/users/me/devices/:id` | Required | Revoke a session |
 
-### KYC
-
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| `POST` | `/kyc/submit` | Required | Submit KYC documents |
-| `GET` | `/kyc/status` | Required | Check KYC status |
-| `POST` | `/kyc/webhook` | Internal | Sumsub webhook receiver |
-
 ### Trade Ads
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
 | `GET` | `/ads` | Public | List ads (filters: crypto, fiat, payment, type) |
-| `POST` | `/ads` | Required (KYC L2) | Create ad |
+| `POST` | `/ads` | Required | Create ad |
 | `GET` | `/ads/:id` | Public | Get single ad |
 | `PUT` | `/ads/:id` | Required | Update own ad |
 | `DELETE` | `/ads/:id` | Required | Delete own ad |
@@ -447,7 +431,7 @@ Authorization: Bearer <jwt_token>
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| `POST` | `/trades` | Required (KYC L2) | Initiate trade from ad |
+| `POST` | `/trades` | Required | Initiate trade from ad |
 | `GET` | `/trades/:id` | Required | Get trade details |
 | `POST` | `/trades/:id/paid` | Required (buyer) | Mark as paid |
 | `POST` | `/trades/:id/release` | Required (seller) | Release escrow |
@@ -516,15 +500,6 @@ AD_ACTIVE
             │               └─▶ RESOLVED  (admin decides)
             └─▶ CANCELLED       (before payment, by either party)
 ```
-
-### KYC tiers
-
-| Level | Requirement | Daily Limit |
-|---|---|---|
-| 0 — Guest | No account | Browse ads only |
-| 1 — Basic | Email verified | Cannot trade |
-| 2 — Verified | Gov ID + selfie | $10,000/day |
-| 3 — Enhanced | Additional docs | $50,000/day |
 
 ### Escrow flow
 

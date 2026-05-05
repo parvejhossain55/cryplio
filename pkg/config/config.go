@@ -36,7 +36,6 @@ type Config struct {
 	UserServiceURL     string
 	WalletServiceURL   string
 	TradeEngineURL     string
-	KYCEngineURL       string
 	NotificationURL    string
 	DisputeServiceURL  string
 	MerchantServiceURL string
@@ -74,11 +73,6 @@ type Config struct {
 	S3UseSSL          bool
 	S3BucketName      string
 	S3PublicBaseURL   string // Optional: public URL for accessing objects (if different from endpoint)
-
-	// Persona KYC
-	PersonaAPIKey        string
-	PersonaWebhookSecret string
-	PersonaTemplateID    string
 }
 
 func Load() (*Config, error) {
@@ -120,7 +114,6 @@ func Load() (*Config, error) {
 		UserServiceURL:     getEnvCompat("USER_SERVICE_URL", "http://localhost:8080"),
 		WalletServiceURL:   getEnvCompat("WALLET_SERVICE_URL", "http://localhost:8081"),
 		TradeEngineURL:     getEnvCompat("TRADE_ENGINE_URL", "http://localhost:8082"),
-		KYCEngineURL:       getEnvCompat("KYC_SERVICE_URL", "http://localhost:8083"),
 		NotificationURL:    getEnvCompat("NOTIFICATION_URL", "http://localhost:8084"),
 		DisputeServiceURL:  getEnvCompat("DISPUTE_SERVICE_URL", "http://localhost:8085"),
 		MerchantServiceURL: getEnvCompat("MERCHANT_SERVICE_URL", "http://localhost:8082"),
@@ -157,11 +150,6 @@ func Load() (*Config, error) {
 		S3UseSSL:          getEnvCompat("S3_USE_SSL", "false") == "true",
 		S3BucketName:      getEnvCompat("S3_BUCKET_NAME", "cryplio-storage"),
 		S3PublicBaseURL:   getEnvCompat("S3_PUBLIC_BASE_URL", ""),
-
-		// Persona
-		PersonaAPIKey:        getEnvCompat("PERSONA_API_KEY", ""),
-		PersonaWebhookSecret: getEnvCompat("PERSONA_WEBHOOK_SECRET", ""),
-		PersonaTemplateID:    getEnvCompat("PERSONA_TEMPLATE_ID", ""),
 	}
 
 	return cfg, nil

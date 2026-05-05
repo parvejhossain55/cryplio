@@ -89,7 +89,6 @@ const Sidebar = ({ role, isMobile }: SidebarProps) => {
             { name: "Admin Panel", href: "/admin/dashboard", icon: Shield },
             { name: "User Management", href: "/admin/dashboard/users", icon: Users },
             { name: "Merchants", href: "/admin/dashboard/merchants", icon: Store },
-            { name: "KYC Reviews", href: "/admin/dashboard/kyc", icon: UserCheck },
             { name: "System Stats", href: "/admin/dashboard/stats", icon: BarChart3 },
             { name: "Payment Methods", href: "/admin/dashboard/payment-methods", icon: CreditCard },
             { name: "Crypto Assets", href: "/admin/dashboard/crypto-assets", icon: Coins },

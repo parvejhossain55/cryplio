@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"cryplio/internal/domain/identity"
 	"cryplio/internal/domain/trading"
 	"cryplio/internal/interfaces/http/dto"
 
@@ -55,30 +54,20 @@ func (h *TradeHandler) ListAdsHandler(c *gin.Context) {
 	}
 
 	for i, ad := range ads {
-		var avatar string
-		if ad.User.AvatarURL != nil {
-			avatar = *ad.User.AvatarURL
-		}
 		response.Ads[i] = dto.AdResponse{
 			AdID:                 ad.AdID.String(),
 			UserID:               ad.UserID.String(),
-			Username:             ad.User.Username,
-			UserAvatar:           avatar,
-			UserRating:           0, // Default for now
-			UserTrades:           0, // Default for now
+			Username:             "", // TODO: fetch username from user service
+			UserAvatar:           "", // TODO: fetch avatar from user service
+			UserRating:           0,  // Default for now
+			UserTrades:           0,  // Default for now
 			Type:                 string(ad.Type),
 			PriceType:            string(ad.PriceType),
 			Price:                ad.Price,
 			MinAmount:            ad.MinAmount,
 			MaxAmount:            ad.MaxAmount,
 			PaymentWindowMinutes: ad.PaymentWindowMinutes,
-			IsOnline:             ad.User.IsOnline(),
-		}
-		if ad.Stats != nil {
-			response.Ads[i].UserTrades = ad.Stats.TotalTrades
-			if ad.Stats.AvgRating != nil {
-				response.Ads[i].UserRating = *ad.Stats.AvgRating
-			}
+			IsOnline:             false, // TODO: fetch online status from user service
 		}
 	}
 
@@ -153,7 +142,6 @@ func (h *TradeHandler) CreateAdHandler(c *gin.Context) {
 		PaymentMethods:       paymentMethods,
 		TradeTerms:           &req.TradeTerms,
 		PaymentWindowMinutes: req.PaymentWindowMinutes,
-		RequiresKYCLevel:     identity.KYCLevel(fmt.Sprintf("level_%d", req.RequiresKYCLevel)),
 		IsPublic:             true,
 		IsPaused:             false,
 		Timezone:             "UTC",

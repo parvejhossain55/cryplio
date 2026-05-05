@@ -31,7 +31,7 @@ const AdminDashboard = () => {
                                 { label: "API Latency", value: "24ms", icon: Server, status: "healthy" },
                                 { label: "Blockchain Sync", value: "99.9%", icon: Database, status: "healthy" },
                                 { label: "Active Sessions", value: "14.2k", icon: Globe, status: "healthy" },
-                                { label: "Pending KYC", value: "420", icon: Users, status: "warning" },
+                                { label: "Pending Reviews", value: "420", icon: Users, status: "warning" },
                             ].map((sys, i) => (
                                 <div key={i} className="p-4 rounded-2xl bg-white/5 border border-white/5">
                                     <div className="flex items-center space-x-2 mb-3">
@@ -83,7 +83,7 @@ const AdminDashboard = () => {
                     <div className="space-y-4">
                         {[
                             { user: "Merchant_X", issue: "Large Transaction Alert", amount: "$150,000", time: "10 min ago", severity: "high" },
-                            { user: "CryptoDave", issue: "Identity Verification (KYC)", amount: "-", time: "25 min ago", severity: "medium" },
+                            { user: "CryptoDave", issue: "Identity Verification", amount: "-", time: "25 min ago", severity: "medium" },
                             { user: "QuickTrade", issue: "Dispute: Order #8291", amount: "$4,200", time: "45 min ago", severity: "high" },
                             { user: "Z_Traders", issue: "Address Change Verification", amount: "-", time: "2h ago", severity: "low" },
                         ].map((item, i) => (

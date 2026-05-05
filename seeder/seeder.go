@@ -50,45 +50,39 @@ func (s *Seeder) SeedAll(ctx context.Context) error {
 	}
 	fmt.Printf("✅ Seeded %d users\n", len(users))
 
-	// 2. KYC
-	if err := s.SeedKYC(ctx, users); err != nil {
-		return fmt.Errorf("kyc: %w", err)
-	}
-	fmt.Println("✅ Seeded KYC records")
-
-	// 3. Wallets
+	// 2. Wallets
 	if err := s.SeedWallets(ctx, users, cryptoMap); err != nil {
 		return fmt.Errorf("wallets: %w", err)
 	}
 	fmt.Println("✅ Seeded wallets and balances")
 
-	// 4. Ads
+	// 3. Ads
 	ads, err := s.SeedTradeAds(ctx, users, cryptoMap, fiatMap, pmMap)
 	if err != nil {
 		return fmt.Errorf("ads: %w", err)
 	}
 	fmt.Printf("✅ Seeded %d trade ads\n", len(ads))
 
-	// 5. Trades & Feedback
+	// 4. Trades & Feedback
 	trades, err := s.SeedTrades(ctx, users, ads)
 	if err != nil {
 		return fmt.Errorf("trades: %w", err)
 	}
 	fmt.Printf("✅ Seeded %d trades and feedback\n", len(trades))
 
-	// 6. Disputes
+	// 5. Disputes
 	if err := s.SeedDisputes(ctx, trades); err != nil {
 		return fmt.Errorf("disputes: %w", err)
 	}
 	fmt.Println("✅ Seeded disputes")
 
-	// 7. Notifications
+	// 6. Notifications
 	if err := s.SeedNotifications(ctx, users); err != nil {
 		return fmt.Errorf("notifications: %w", err)
 	}
 	fmt.Println("✅ Seeded notifications")
 
-	// 8. Referrals
+	// 7. Referrals
 	if err := s.SeedReferrals(ctx, users); err != nil {
 		return fmt.Errorf("referrals: %w", err)
 	}

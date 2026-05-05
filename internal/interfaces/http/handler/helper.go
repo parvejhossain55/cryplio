@@ -61,15 +61,6 @@ func mapUser(u *identity.User) dto.UserResponse {
 	if u == nil {
 		return dto.UserResponse{}
 	}
-	kycLevel := 0
-	switch u.KYCLevel {
-	case identity.KYCLevel1:
-		kycLevel = 1
-	case identity.KYCLevel2:
-		kycLevel = 2
-	case identity.KYCLevel3:
-		kycLevel = 3
-	}
 	var lastSeenAt string
 	if u.LastSeenAt != nil {
 		lastSeenAt = u.LastSeenAt.Format(time.RFC3339)
@@ -79,7 +70,6 @@ func mapUser(u *identity.User) dto.UserResponse {
 		Email:         u.Email,
 		Username:      u.Username,
 		EmailVerified: u.EmailVerified,
-		KYCLevel:      kycLevel,
 		IsMerchant:    u.IsMerchant,
 		TwoFAEnabled:  u.TwoFASecret != nil,
 		AvatarURL:     u.AvatarURL,

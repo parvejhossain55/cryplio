@@ -3,8 +3,6 @@ package trading
 import (
 	"time"
 
-	identity "cryplio/internal/domain/identity"
-
 	"github.com/google/uuid"
 )
 
@@ -36,41 +34,36 @@ const (
 
 // TradeAd represents a trade advertisement
 type TradeAd struct {
-	AdID                 uuid.UUID         `db:"ad_id" json:"ad_id"`
-	UserID               uuid.UUID         `db:"user_id" json:"user_id"`
-	Type                 AdType            `db:"type" json:"type"`
-	CryptoID             int               `db:"crypto_id" json:"crypto_id"`
-	FiatID               int               `db:"fiat_id" json:"fiat_id"`
-	PriceType            PriceType         `db:"price_type" json:"price_type"`
-	Price                float64           `db:"price" json:"price"`
-	FloatingMarkup       *float64          `db:"floating_markup" json:"floating_markup,omitempty"`
-	MinAmount            float64           `db:"min_amount" json:"min_amount"`
-	MaxAmount            float64           `db:"max_amount" json:"max_amount"`
-	PaymentMethods       []int             `db:"payment_methods" json:"payment_methods"` // PostgreSQL int[]
-	TradeTerms           *string           `db:"trade_terms" json:"trade_terms,omitempty"`
-	PaymentWindowMinutes int               `db:"payment_window_minutes" json:"payment_window_minutes"`
-	RequiresKYCLevel     identity.KYCLevel `db:"requires_kyc_level" json:"requires_kyc_level"`
-	IsPublic             bool              `db:"is_public" json:"is_public"`
-	IsPaused             bool              `db:"is_paused" json:"is_paused"`
-	VisibilityStartAt    *time.Time        `db:"visibility_start_at" json:"visibility_start_at,omitempty"`
-	VisibilityEndAt      *time.Time        `db:"visibility_end_at" json:"visibility_end_at,omitempty"`
-	Timezone             string            `db:"timezone" json:"timezone"`
-	AutoRepost           bool              `db:"auto_repost" json:"auto_repost"`
-	RepostCount          int               `db:"repost_count" json:"repost_count"`
-	ViewsCount           int               `db:"views_count" json:"views_count"`
-	ResponseCount        int               `db:"response_count" json:"response_count"`
-	LockedBalance        float64           `db:"locked_balance" json:"locked_balance"`
-	Status               TradeAdStatus     `db:"status" json:"status"`
-	FirstPublishedAt     *time.Time        `db:"first_published_at" json:"first_published_at,omitempty"`
-	PublishedAt          time.Time         `db:"published_at" json:"published_at"`
-	ExpiresAt            *time.Time        `db:"expires_at" json:"expires_at,omitempty"`
-	CreatedAt            time.Time         `db:"created_at" json:"created_at"`
-	UpdatedAt            time.Time         `db:"updated_at" json:"updated_at"`
-	DeletedAt            *time.Time        `db:"deleted_at" json:"deleted_at,omitempty"`
-
-	// Embedded for search results
-	User  *identity.User      `json:"user,omitempty"`
-	Stats *identity.UserStats `json:"stats,omitempty"`
+	AdID                 uuid.UUID     `db:"ad_id" json:"ad_id"`
+	UserID               uuid.UUID     `db:"user_id" json:"user_id"`
+	Type                 AdType        `db:"type" json:"type"`
+	CryptoID             int           `db:"crypto_id" json:"crypto_id"`
+	FiatID               int           `db:"fiat_id" json:"fiat_id"`
+	PriceType            PriceType     `db:"price_type" json:"price_type"`
+	Price                float64       `db:"price" json:"price"`
+	FloatingMarkup       *float64      `db:"floating_markup" json:"floating_markup,omitempty"`
+	MinAmount            float64       `db:"min_amount" json:"min_amount"`
+	MaxAmount            float64       `db:"max_amount" json:"max_amount"`
+	PaymentMethods       []int         `db:"payment_methods" json:"payment_methods"` // PostgreSQL int[]
+	TradeTerms           *string       `db:"trade_terms" json:"trade_terms,omitempty"`
+	PaymentWindowMinutes int           `db:"payment_window_minutes" json:"payment_window_minutes"`
+	IsPublic             bool          `db:"is_public" json:"is_public"`
+	IsPaused             bool          `db:"is_paused" json:"is_paused"`
+	VisibilityStartAt    *time.Time    `db:"visibility_start_at" json:"visibility_start_at,omitempty"`
+	VisibilityEndAt      *time.Time    `db:"visibility_end_at" json:"visibility_end_at,omitempty"`
+	Timezone             string        `db:"timezone" json:"timezone"`
+	AutoRepost           bool          `db:"auto_repost" json:"auto_repost"`
+	RepostCount          int           `db:"repost_count" json:"repost_count"`
+	ViewsCount           int           `db:"views_count" json:"views_count"`
+	ResponseCount        int           `db:"response_count" json:"response_count"`
+	LockedBalance        float64       `db:"locked_balance" json:"locked_balance"`
+	Status               TradeAdStatus `db:"status" json:"status"`
+	FirstPublishedAt     *time.Time    `db:"first_published_at" json:"first_published_at,omitempty"`
+	PublishedAt          time.Time     `db:"published_at" json:"published_at"`
+	ExpiresAt            *time.Time    `db:"expires_at" json:"expires_at,omitempty"`
+	CreatedAt            time.Time     `db:"created_at" json:"created_at"`
+	UpdatedAt            time.Time     `db:"updated_at" json:"updated_at"`
+	DeletedAt            *time.Time    `db:"deleted_at" json:"deleted_at,omitempty"`
 }
 
 // IsActive checks if the ad is active and visible

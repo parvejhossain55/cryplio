@@ -142,13 +142,6 @@ const ProfileEdit = ({ user }: ProfileEditProps) => {
                     <Shield className="w-3.5 h-3.5 mr-1.5" /> 2FA Off
                 </span>
             )}
-            <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${
-                user.kycLevel >= 2 ? "bg-accent/10 text-accent border-accent/20" :
-                user.kycLevel === 1 ? "bg-primary/10 text-primary border-primary/20" :
-                "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
-            }`}>
-                Level {user.kycLevel} Trader
-            </span>
         </div>
     );
 

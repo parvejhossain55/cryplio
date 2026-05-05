@@ -52,7 +52,6 @@ const (
 	ErrCodeRateLimited       = "RATE_LIMITED"
 	ErrCodeDisabledAccount   = "DISABLED_ACCOUNT"
 	ErrCodeSuspendedAccount  = "SUSPENDED_ACCOUNT"
-	ErrCodeKYCRequired       = "KYC_REQUIRED"
 	ErrCodeInsufficientFunds = "INSUFFICIENT_FUNDS"
 	ErrCodeEscrowLocked      = "ESCROW_LOCKED"
 	ErrCodeTradeNotFound     = "TRADE_NOT_FOUND"

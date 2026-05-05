@@ -81,8 +81,8 @@ const SecurityPage = () => {
                             },
                             {
                                 icon: UserCheck,
-                                title: "Advanced KYC",
-                                desc: "Rigorous identity verification processes to maintain a clean ecosystem and prevent fraudulent actors from joining."
+                                title: "Advanced Risk Controls",
+                                desc: "Multi-layer risk checks help keep the marketplace safe and reduce fraud across P2P trading."
                             }
                         ].map((feature, i) => (
                             <motion.div

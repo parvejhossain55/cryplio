@@ -19,8 +19,6 @@ const (
 	NotificationTypeNewMessage          NotificationType = "new_message"
 	NotificationTypeDepositReceived     NotificationType = "deposit_received"
 	NotificationTypeWithdrawalCompleted NotificationType = "withdrawal_completed"
-	NotificationTypeKYCApproved         NotificationType = "kyc_approved"
-	NotificationTypeKYCRejected         NotificationType = "kyc_rejected"
 	NotificationTypeMerchantApproved    NotificationType = "merchant_approved"
 	NotificationTypeReferralEarned      NotificationType = "referral_earned"
 	NotificationTypeSystemAnnouncement  NotificationType = "system_announcement"

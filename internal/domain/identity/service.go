@@ -236,8 +236,8 @@ func (s *authService) Login(ctx context.Context, email, password string) (string
 
 	// Verify password
 	if err := sharedcrypto.CheckPassword(user.PasswordHash, password); err != nil {
-		// increment failed attempts (ignore error)
-		s.userRepo.IncrementFailedAttempts(ctx, user.UserID)
+		// increment failed attempts
+		_, _ = s.userRepo.IncrementFailedAttempts(ctx, user.UserID)
 		return "", "", nil, apperrors.Unauthorized("invalid credentials", nil)
 	}
 
@@ -499,7 +499,7 @@ func (s *authService) generateJWT(user *User) string {
 		sharedjwt.ClaimUserID:    user.UserID.String(),
 		"email":                  user.Email,
 		"username":               user.Username,
-		"kyc_level":              string(user.KYCLevel),
+		"role":                   string(user.Role),
 		sharedjwt.ClaimTokenType: TokenTypeAccess,
 	})
 	if err != nil {
@@ -905,10 +905,8 @@ func (s *authService) Verify2FA(ctx context.Context, userID uuid.UUID, code stri
 	if err := s.userRepo.Update(ctx, user); err != nil {
 		return apperrors.Internal("failed to update user", err)
 	}
-	// Remove pending record
-	if err := s.userRepo.DeleteTwoFactorPending(ctx, userID); err != nil {
-		// log but not critical
-	}
+	// Remove pending record (ignore error, not critical)
+	_ = s.userRepo.DeleteTwoFactorPending(ctx, userID)
 	if s.eventDispatcher != nil {
 		_ = s.eventDispatcher.Dispatch(ctx, events.TwoFactorEnabledEvent{
 			UserID:    user.UserID.String(),
