@@ -10,6 +10,7 @@ import (
 	"cryplio/internal/domain/platform"
 	domaintraing "cryplio/internal/domain/trading"
 	domainwallet "cryplio/internal/domain/wallet"
+	"cryplio/internal/infrastructure/blockchain"
 	"cryplio/internal/infrastructure/notification"
 	disputepostgres "cryplio/internal/infrastructure/persistence/postgres/dispute"
 	identitypostgres "cryplio/internal/infrastructure/persistence/postgres/identity"
@@ -75,13 +76,38 @@ func New() (*App, error) {
 	disputeRepo := disputepostgres.NewDisputeRepository(db)
 	disputeService := domaindispute.NewService(disputeRepo)
 
+	// Blockchain Clients
+	var escrowClient domaintraing.EscrowContractClient
+	var walletClient domainwallet.WalletClient
+
+	if cfg.EthPrivateKey != "" {
+		evmEscrow, err := blockchain.NewEvmEscrowClient(cfg.EthRPCURL, cfg.EthPrivateKey, cfg.EscrowContractAddress)
+		if err == nil {
+			escrowClient = evmEscrow
+		} else {
+			fmt.Printf("Warning: failed to init EVM Escrow Client: %v\n", err)
+			escrowClient = blockchain.NewNoopEscrowContractClient()
+		}
+
+		evmWallet, err := blockchain.NewEvmWalletClient(cfg.EthRPCURL, cfg.EthPrivateKey)
+		if err == nil {
+			walletClient = evmWallet
+		} else {
+			fmt.Printf("Warning: failed to init EVM Wallet Client: %v\n", err)
+			walletClient = blockchain.NewNoopWalletClient()
+		}
+	} else {
+		escrowClient = blockchain.NewNoopEscrowContractClient()
+		walletClient = blockchain.NewNoopWalletClient()
+	}
+
 	tradeRepo := tradingpostgres.NewTradeRepository(db)
-	tradeService := domaintraing.NewTradeService(tradeRepo, userRepo, disputeRepo)
+	tradeService := domaintraing.NewTradeService(tradeRepo, userRepo, disputeRepo, escrowClient)
 
 	platformRepo := platformpostgres.NewPlatformRepository(db)
 	platformService := platform.NewPlatformService(platformRepo)
 	walletRepo := walletpostgres.NewWalletRepository(db)
-	walletService := domainwallet.NewService(walletRepo)
+	walletService := domainwallet.NewService(walletRepo, walletClient)
 
 	storage, err := storage.NewS3Storage(cfg)
 	if err != nil {

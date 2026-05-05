@@ -13,6 +13,7 @@ type Service interface {
 	GetDispute(ctx context.Context, id uuid.UUID) (*Dispute, error)
 	AssignDispute(ctx context.Context, id uuid.UUID, adminID uuid.UUID) error
 	ResolveDispute(ctx context.Context, id uuid.UUID, adminID uuid.UUID, resolution DisputeResolution, note string) error
+	ListDisputes(ctx context.Context) ([]*Dispute, error)
 }
 
 type disputeService struct {
@@ -74,6 +75,10 @@ func (s *disputeService) ResolveDispute(ctx context.Context, id uuid.UUID, admin
 
 	d.Resolve(adminID, resolution, note)
 	return s.repo.Update(ctx, d)
+}
+
+func (s *disputeService) ListDisputes(ctx context.Context) ([]*Dispute, error) {
+	return s.repo.List(ctx)
 }
 
 func ValidateRaise(dispute *Dispute) error {

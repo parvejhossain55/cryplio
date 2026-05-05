@@ -88,3 +88,36 @@ func (r *disputeRepository) GetByID(ctx context.Context, id uuid.UUID) (*dispute
 	d.EvidenceLinks = evidenceLinks
 	return &d, nil
 }
+func (r *disputeRepository) List(ctx context.Context) ([]*dispute.Dispute, error) {
+	query := `
+		SELECT dispute_id, trade_id, raised_by, reason_code, reason_text,
+		       evidence_links, status, assigned_admin, assigned_at,
+		       resolution_type, resolution_note, resolved_by, resolved_at,
+		       created_at, updated_at
+		FROM disputes
+		ORDER BY created_at DESC
+	`
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("list disputes: %w", err)
+	}
+	defer rows.Close()
+
+	var disputes []*dispute.Dispute
+	for rows.Next() {
+		var d dispute.Dispute
+		var evidenceLinks []string
+		err := rows.Scan(
+			&d.DisputeID, &d.TradeID, &d.RaisedBy, &d.ReasonCode, &d.ReasonText,
+			pq.Array(&evidenceLinks), &d.Status, &d.AssignedAdmin, &d.AssignedAt,
+			&d.ResolutionType, &d.ResolutionNote, &d.ResolvedBy, &d.ResolvedAt,
+			&d.CreatedAt, &d.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan dispute: %w", err)
+		}
+		d.EvidenceLinks = evidenceLinks
+		disputes = append(disputes, &d)
+	}
+	return disputes, nil
+}

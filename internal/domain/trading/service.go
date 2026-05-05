@@ -41,13 +41,15 @@ type tradeService struct {
 	tradeRepo    TradeRepository
 	identityRepo identity.UserRepository
 	disputeRepo  dispute.Repository
+	escrowClient EscrowContractClient
 }
 
-func NewTradeService(tradeRepo TradeRepository, identityRepo identity.UserRepository, disputeRepo dispute.Repository) TradeService {
+func NewTradeService(tradeRepo TradeRepository, identityRepo identity.UserRepository, disputeRepo dispute.Repository, escrowClient EscrowContractClient) TradeService {
 	return &tradeService{
 		tradeRepo:    tradeRepo,
 		identityRepo: identityRepo,
 		disputeRepo:  disputeRepo,
+		escrowClient: escrowClient,
 	}
 }
 
@@ -131,6 +133,15 @@ func (s *tradeService) InitiateTrade(ctx context.Context, adID, buyerID uuid.UUI
 		PaymentWindowMinutes: ad.PaymentWindowMinutes,
 	}
 
+	// 8. Lock Escrow on Blockchain
+	txHash, contractAddr, err := s.escrowClient.Lock(ctx, trade)
+	if err != nil {
+		return nil, fmt.Errorf("blockchain escrow lock failed: %w", err)
+	}
+	trade.EscrowTxnHash = &txHash
+	trade.EscrowContractAddress = &contractAddr
+	trade.Status = TradeStatusActive // Active once locked
+
 	err = s.tradeRepo.CreateTrade(ctx, trade)
 	if err != nil {
 		return nil, fmt.Errorf("save trade: %w", err)
@@ -206,7 +217,14 @@ func (s *tradeService) ReleaseEscrow(ctx context.Context, tradeID, userID uuid.U
 	}
 
 	trade.Release()
-	// In a real app, this would also trigger the actual blockchain release
+
+	// 2. Release Escrow on Blockchain
+	txHash, err := s.escrowClient.Release(ctx, trade)
+	if err != nil {
+		return fmt.Errorf("blockchain escrow release failed: %w", err)
+	}
+	trade.EscrowTxnHash = &txHash
+
 	return s.tradeRepo.UpdateTrade(ctx, trade)
 }
 

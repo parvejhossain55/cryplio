@@ -14,6 +14,7 @@ import {
     Globe,
     Database
 } from "lucide-react";
+import Link from "next/link";
 
 const AdminDashboard = () => {
     return (
@@ -75,9 +76,14 @@ const AdminDashboard = () => {
                             <h3 className="text-xl font-black text-white uppercase tracking-tight">Compliance Queue</h3>
                             <p className="text-[10px] font-medium text-text-dim uppercase tracking-widest mt-1">Users awaiting manual review</p>
                         </div>
-                        <button className="text-xs font-bold text-primary hover:text-white transition-colors">
-                            View Full Audit Log
-                        </button>
+                        <div className="flex items-center gap-4">
+                            <Link href="/admin/dashboard/disputes" className="text-xs font-black text-primary hover:text-white transition-colors uppercase tracking-widest">
+                                Manage Disputes
+                            </Link>
+                            <button className="text-xs font-bold text-text-dim hover:text-white transition-colors">
+                                View Full Audit Log
+                            </button>
+                        </div>
                     </div>
 
                     <div className="space-y-4">
@@ -90,8 +96,8 @@ const AdminDashboard = () => {
                             <div key={i} className="flex items-center justify-between p-4 rounded-2x border border-white/5 hover:border-white/20 hover:bg-white/[0.02] transition-all group">
                                 <div className="flex items-center space-x-4">
                                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${item.severity === 'high' ? 'bg-primary/20 text-primary' :
-                                            item.severity === 'medium' ? 'bg-secondary/20 text-secondary' :
-                                                'bg-accent/20 text-accent'
+                                        item.severity === 'medium' ? 'bg-secondary/20 text-secondary' :
+                                            'bg-accent/20 text-accent'
                                         }`}>
                                         {item.severity === 'high' ? <ShieldAlert className="w-5 h-5" /> : <ShieldCheck className="w-5 h-5" />}
                                     </div>

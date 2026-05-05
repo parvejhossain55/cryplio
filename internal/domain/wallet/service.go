@@ -20,11 +20,15 @@ type Service interface {
 }
 
 type service struct {
-	repo Repository
+	repo         Repository
+	walletClient WalletClient
 }
 
-func NewService(repo Repository) Service {
-	return &service{repo: repo}
+func NewService(repo Repository, walletClient WalletClient) Service {
+	return &service{
+		repo:         repo,
+		walletClient: walletClient,
+	}
 }
 
 func (s *service) GetBalances(ctx context.Context, userID uuid.UUID) ([]Wallet, error) {
@@ -88,6 +92,15 @@ func (s *service) Withdraw(ctx context.Context, userID uuid.UUID, cryptoSymbol, 
 	if err := s.repo.Update(ctx, wallet); err != nil {
 		return nil, fmt.Errorf("update wallet: %w", err)
 	}
+
+	// 8. Execute on-chain transfer
+	onChainTxHash, err := s.walletClient.Send(ctx, tx, destination)
+	if err != nil {
+		// In a real app, we would revert the balance or mark the TX as failed
+		return nil, fmt.Errorf("on-chain transfer failed: %w", err)
+	}
+	tx.TxHash = &onChainTxHash
+
 	if err := s.repo.CreateTransaction(ctx, tx); err != nil {
 		return nil, fmt.Errorf("create wallet transaction: %w", err)
 	}

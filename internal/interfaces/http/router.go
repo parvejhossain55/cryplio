@@ -152,6 +152,7 @@ func SetupRouter(
 				admin.DELETE("/payment-methods/:id", platformHandler.DeletePaymentMethodHandler)
 
 				// Disputes management
+				admin.GET("/disputes", disputeHandler.ListDisputesHandler)
 				admin.GET("/disputes/:id", disputeHandler.GetDisputeHandler)
 				admin.POST("/disputes/:id/assign", disputeHandler.AssignDisputeHandler)
 				admin.POST("/disputes/:id/resolve", disputeHandler.ResolveDisputeHandler)

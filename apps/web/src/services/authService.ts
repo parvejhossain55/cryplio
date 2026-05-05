@@ -744,6 +744,90 @@ export const authService = {
 
         return await response.json();
     },
+
+    disputeTrade: async (tradeId: string, reasonCode: string, reasonText: string): Promise<any> => {
+        const response = await fetch(`/api/v1/marketplace/trades/${tradeId}/dispute`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reason_code: reasonCode, reason_text: reasonText }),
+            credentials: "include",
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "Failed to raise dispute");
+        }
+
+        return await response.json();
+    },
+
+    getNotifications: async (): Promise<any[]> => {
+        const response = await fetch(`/api/v1/notifications`, {
+            credentials: "include",
+        });
+
+        if (!response.ok) {
+            throw new Error("Failed to fetch notifications");
+        }
+
+        const data = await response.json();
+        return data.notifications || [];
+    },
+
+    markNotificationRead: async (notificationId: string): Promise<any> => {
+        const response = await fetch(`/api/v1/notifications/${notificationId}/read`, {
+            method: "PATCH",
+            credentials: "include",
+        });
+
+        if (!response.ok) {
+            throw new Error("Failed to mark notification as read");
+        }
+
+        return await response.json();
+    },
+
+    // Admin Dispute Management
+    getAdminDisputes: async (): Promise<any[]> => {
+        const response = await fetch(`/api/v1/admin/disputes`, {
+            credentials: "include",
+        });
+
+        if (!response.ok) {
+            throw new Error("Failed to fetch admin disputes");
+        }
+
+        const data = await response.json();
+        return data.disputes || [];
+    },
+
+    assignDispute: async (disputeId: string): Promise<any> => {
+        const response = await fetch(`/api/v1/admin/disputes/${disputeId}/assign`, {
+            method: "POST",
+            credentials: "include",
+        });
+
+        if (!response.ok) {
+            throw new Error("Failed to assign dispute");
+        }
+
+        return await response.json();
+    },
+
+    resolveDispute: async (disputeId: string, resolution: string, winnerId: string): Promise<any> => {
+        const response = await fetch(`/api/v1/admin/disputes/${disputeId}/resolve`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ resolution, winner_id: winnerId }),
+            credentials: "include",
+        });
+
+        if (!response.ok) {
+            throw new Error("Failed to resolve dispute");
+        }
+
+        return await response.json();
+    },
 };
 
 // Wrap fetch to automatically refresh on 401
@@ -763,7 +847,6 @@ export const fetchWithRefresh = async (url: string, options: RequestInit = {}): 
         } catch {
             console.error("Refresh failed, user must re-login");
             // Logout user on refresh failure
-            forgetAuthSession();
             localStorage.clear();
             sessionStorage.clear();
             window.location.href = "/login";

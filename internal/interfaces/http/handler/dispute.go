@@ -83,3 +83,12 @@ func (h *DisputeHandler) ResolveDisputeHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Dispute resolved successfully"})
 }
+func (h *DisputeHandler) ListDisputesHandler(c *gin.Context) {
+	disputes, err := h.disputeService.ListDisputes(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"disputes": disputes})
+}

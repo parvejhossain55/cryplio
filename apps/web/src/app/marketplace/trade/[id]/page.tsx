@@ -22,6 +22,7 @@ import Link from "next/link";
 import { authService } from "@/services/authService";
 import Navbar from "@/components/layout/Navbar";
 import { useAuth } from "@/context/AuthContext";
+import DisputeModal from "@/components/trade/DisputeModal";
 
 const TradeDetailPage = () => {
     const { id } = useParams();
@@ -32,6 +33,7 @@ const TradeDetailPage = () => {
     const [newMessage, setNewMessage] = useState("");
     const [isLoading, setIsLoading] = useState(true);
     const [isUpdating, setIsUpdating] = useState(false);
+    const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
     const chatEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -71,6 +73,15 @@ const TradeDetailPage = () => {
             setNewMessage("");
         } catch (err: any) {
             alert(err.message);
+        }
+    };
+
+    const handleRaiseDispute = async (reasonCode: string, reasonText: string) => {
+        try {
+            await authService.disputeTrade(id as string, reasonCode, reasonText);
+            fetchTradeDetails();
+        } catch (err: any) {
+            throw err;
         }
     };
 
@@ -119,8 +130,8 @@ const TradeDetailPage = () => {
 
                             <div className="flex items-center justify-between mb-8">
                                 <div className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${trade.status === 'released' ? 'bg-accent/10 text-accent border-accent/20' :
-                                        trade.status === 'paid' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
-                                            'bg-primary/10 text-primary border-primary/20'
+                                    trade.status === 'paid' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
+                                        'bg-primary/10 text-primary border-primary/20'
                                     }`}>
                                     {trade.status}
                                 </div>
@@ -198,6 +209,16 @@ const TradeDetailPage = () => {
                                         className="w-full py-4 bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-red-500/20 transition-all"
                                     >
                                         CANCEL ORDER
+                                    </button>
+                                )}
+
+                                {trade.status !== 'completed' && trade.status !== 'cancelled' && trade.status !== 'disputed' && (
+                                    <button
+                                        onClick={() => setIsDisputeModalOpen(true)}
+                                        className="w-full py-4 bg-background border border-white/10 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-white/5 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <AlertTriangle className="w-3.5 h-3.5" />
+                                        RAISE DISPUTE
                                     </button>
                                 )}
                             </div>
@@ -291,6 +312,12 @@ const TradeDetailPage = () => {
                         </div>
                     </div>
                 </div>
+
+                <DisputeModal
+                    isOpen={isDisputeModalOpen}
+                    onClose={() => setIsDisputeModalOpen(false)}
+                    onConfirm={handleRaiseDispute}
+                />
             </div>
         </main>
     );

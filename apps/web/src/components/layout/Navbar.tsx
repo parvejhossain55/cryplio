@@ -7,6 +7,7 @@ import { Wallet, Mail, LogOut, Menu, X, User } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { authService } from "@/services/authService";
+import NotificationBell from "./NotificationBell";
 
 const Navbar = () => {
     const { user, logout, isLoading } = useAuth();
@@ -65,6 +66,7 @@ const Navbar = () => {
 
                         {user ? (
                             <div className="flex items-center space-x-6">
+                                <NotificationBell />
                                 <Link
                                     href="/user/dashboard"
                                     className="text-[10px] font-black text-white px-5 py-2.5 bg-white/5 border border-white/5 rounded-xl hover:bg-white/10 transition-all uppercase tracking-widest"

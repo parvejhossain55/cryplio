@@ -78,6 +78,11 @@ type Config struct {
 	RedisAddr     string
 	RedisPassword string
 	RedisDB       int
+
+	// Blockchain
+	EthRPCURL             string
+	EthPrivateKey         string
+	EscrowContractAddress string
 }
 
 func Load() (*Config, error) {
@@ -163,6 +168,11 @@ func Load() (*Config, error) {
 			db, _ := strconv.Atoi(getEnvCompat("REDIS_DB", "0"))
 			return db
 		}(),
+
+		// Blockchain
+		EthRPCURL:             getEnvCompat("ETH_RPC_URL", "http://localhost:8545"),
+		EthPrivateKey:         getEnvCompat("ETH_PRIVATE_KEY", ""),
+		EscrowContractAddress: getEnvCompat("ESCROW_CONTRACT_ADDRESS", ""),
 	}
 
 	return cfg, nil
