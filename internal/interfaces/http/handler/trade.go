@@ -325,3 +325,33 @@ func (h *TradeHandler) GetChatHistoryHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, messages)
 }
+
+func (h *TradeHandler) DisputeTradeHandler(c *gin.Context) {
+	tradeID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid trade id"})
+		return
+	}
+
+	var req dto.RaiseDisputeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userIDStr, _ := c.Get("user_id")
+	userID, _ := uuid.Parse(userIDStr.(string))
+
+	trade, err := h.tradeService.DisputeTrade(c.Request.Context(), tradeID, userID, req.ReasonCode, req.ReasonText)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":    "Dispute raised successfully",
+		"trade_id":   trade.TradeID.String(),
+		"dispute_id": trade.DisputeID,
+		"status":     trade.Status,
+	})
+}

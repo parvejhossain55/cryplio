@@ -30,17 +30,21 @@ const (
 
 // Dispute represents a trade dispute
 type Dispute struct {
-	DisputeID     uuid.UUID          `db:"dispute_id" json:"dispute_id"`
-	TradeID       uuid.UUID          `db:"trade_id" json:"trade_id"`
-	RaisedBy      uuid.UUID          `db:"raised_by" json:"raised_by"` // User who raised the dispute
-	Reason        *string            `db:"reason" json:"reason,omitempty"`
-	EvidenceLinks []string           `db:"evidence_links" json:"evidence_links"` // JSONB: URLs to evidence
-	Status        DisputeStatus      `db:"status" json:"status"`
-	Resolution    *DisputeResolution `db:"resolution" json:"resolution,omitempty"`
-	ResolvedBy    *uuid.UUID         `db:"resolved_by" json:"resolved_by,omitempty"` // Admin ID
-	ResolvedAt    *time.Time         `db:"resolved_at" json:"resolved_at,omitempty"`
-	CreatedAt     time.Time          `db:"created_at" json:"created_at"`
-	UpdatedAt     time.Time          `db:"updated_at" json:"updated_at"`
+	DisputeID      uuid.UUID          `db:"dispute_id" json:"dispute_id"`
+	TradeID        uuid.UUID          `db:"trade_id" json:"trade_id"`
+	RaisedBy       uuid.UUID          `db:"raised_by" json:"raised_by"` // User who raised the dispute
+	ReasonCode     string             `db:"reason_code" json:"reason_code"`
+	ReasonText     *string            `db:"reason_text" json:"reason_text,omitempty"`
+	EvidenceLinks  []string           `db:"evidence_links" json:"evidence_links"` // JSONB: URLs to evidence
+	Status         DisputeStatus      `db:"status" json:"status"`
+	AssignedAdmin  *uuid.UUID         `db:"assigned_admin" json:"assigned_admin,omitempty"`
+	AssignedAt     *time.Time         `db:"assigned_at" json:"assigned_at,omitempty"`
+	ResolutionType *DisputeResolution `db:"resolution_type" json:"resolution_type,omitempty"`
+	ResolutionNote *string            `db:"resolution_note" json:"resolution_note,omitempty"`
+	ResolvedBy     *uuid.UUID         `db:"resolved_by" json:"resolved_by,omitempty"` // Admin ID who resolved it
+	ResolvedAt     *time.Time         `db:"resolved_at" json:"resolved_at,omitempty"`
+	CreatedAt      time.Time          `db:"created_at" json:"created_at"`
+	UpdatedAt      time.Time          `db:"updated_at" json:"updated_at"`
 }
 
 // IsOpen checks if the dispute is still open
@@ -56,17 +60,21 @@ func (d *Dispute) IsResolved() bool {
 // Assign assigns the dispute to an admin
 func (d *Dispute) Assign(adminID uuid.UUID) {
 	d.Status = DisputeStatusAssigned
-	// Could store assigned_to field if needed
-	_ = adminID
+	d.AssignedAdmin = &adminID
+	now := time.Now()
+	d.AssignedAt = &now
+	d.UpdatedAt = now
 }
 
 // Resolve resolves the dispute with a decision
-func (d *Dispute) Resolve(adminID uuid.UUID, resolution DisputeResolution) {
+func (d *Dispute) Resolve(adminID uuid.UUID, resolution DisputeResolution, note string) {
 	d.Status = DisputeStatusResolved
-	d.Resolution = &resolution
+	d.ResolutionType = &resolution
+	d.ResolutionNote = &note
 	now := time.Now()
 	d.ResolvedBy = &adminID
 	d.ResolvedAt = &now
+	d.UpdatedAt = now
 }
 
 // Close closes the dispute (after resolution or appeal)

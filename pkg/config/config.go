@@ -73,6 +73,11 @@ type Config struct {
 	S3UseSSL          bool
 	S3BucketName      string
 	S3PublicBaseURL   string // Optional: public URL for accessing objects (if different from endpoint)
+
+	// Redis
+	RedisAddr     string
+	RedisPassword string
+	RedisDB       int
 }
 
 func Load() (*Config, error) {
@@ -150,6 +155,14 @@ func Load() (*Config, error) {
 		S3UseSSL:          getEnvCompat("S3_USE_SSL", "false") == "true",
 		S3BucketName:      getEnvCompat("S3_BUCKET_NAME", "cryplio-storage"),
 		S3PublicBaseURL:   getEnvCompat("S3_PUBLIC_BASE_URL", ""),
+
+		// Redis
+		RedisAddr:     getEnvCompat("REDIS_ADDR", "localhost:6379"),
+		RedisPassword: getEnvCompat("REDIS_PASSWORD", ""),
+		RedisDB: func() int {
+			db, _ := strconv.Atoi(getEnvCompat("REDIS_DB", "0"))
+			return db
+		}(),
 	}
 
 	return cfg, nil

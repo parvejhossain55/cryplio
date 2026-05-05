@@ -169,6 +169,15 @@ func (c *SMTPClient) Send(ctx context.Context, message EmailMessage) error {
 	return nil
 }
 
+func (c *SMTPClient) SendEmail(ctx context.Context, to, subject, body string) error {
+	return c.Send(ctx, EmailMessage{
+		To:      to,
+		Subject: subject,
+		Text:    body,
+		HTML:    fmt.Sprintf("<html>" + body + "</html>"),
+	})
+}
+
 // SendPasswordReset sends a password reset email (implements PasswordResetMailer interface).
 func (c *SMTPClient) SendPasswordReset(ctx context.Context, email, token string) error {
 	resetLink := c.passwordResetURL(token)

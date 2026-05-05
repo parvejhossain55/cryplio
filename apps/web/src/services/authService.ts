@@ -61,6 +61,26 @@ export interface AdResponse {
     is_online: boolean;
 }
 
+export interface WalletBalance {
+    wallet_id: string;
+    user_id: string;
+    crypto_id: number;
+    address: string;
+    balance: number;
+    locked_balance: number;
+    is_active: boolean;
+}
+
+export interface WalletTransaction {
+    tx_id: string;
+    wallet_id: string;
+    type: string;
+    status: string;
+    amount: number;
+    fee: number;
+    created_at: string;
+}
+
 export interface AuthResponse {
     user: BackendUser;
     token?: string;
@@ -515,6 +535,66 @@ export const authService = {
 
         const data = await response.json();
         return data.blocks || [];
+    },
+
+    // Wallet
+    getWalletBalances: async (): Promise<WalletBalance[]> => {
+        const response = await fetchWithRefresh("/api/wallet/balance", {
+            credentials: "include",
+        });
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "Failed to fetch wallet balances");
+        }
+        const data = await response.json();
+        return data.wallets || [];
+    },
+
+    getDepositAddress: async (cryptoSymbol: string): Promise<{ wallet_id: string; crypto_id: number; address: string }> => {
+        const response = await fetchWithRefresh(`/api/wallet/deposit/${encodeURIComponent(cryptoSymbol)}`, {
+            credentials: "include",
+        });
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "Failed to fetch deposit address");
+        }
+        return await response.json();
+    },
+
+    withdrawFunds: async (payload: { crypto_symbol: string; address: string; amount: number; fee?: number; memo?: string }): Promise<any> => {
+        const response = await fetchWithRefresh("/api/wallet/withdraw", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+            credentials: "include",
+        });
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "Failed to request withdrawal");
+        }
+        return await response.json();
+    },
+
+    getWalletTransactions: async (params: { limit?: number; offset?: number } = {}): Promise<{ transactions: WalletTransaction[]; total: number }> => {
+        const query = new URLSearchParams();
+        if (params.limit !== undefined) query.append("limit", String(params.limit));
+        if (params.offset !== undefined) query.append("offset", String(params.offset));
+        const suffix = query.toString() ? `?${query.toString()}` : "";
+
+        const response = await fetchWithRefresh(`/api/wallet/transactions${suffix}`, {
+            credentials: "include",
+        });
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "Failed to fetch wallet transactions");
+        }
+        const data = await response.json();
+        return {
+            transactions: data.transactions || [],
+            total: data.total || 0,
+        };
     },
 
     // Marketplace

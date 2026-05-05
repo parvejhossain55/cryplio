@@ -2,6 +2,7 @@ package trading
 
 import (
 	"context"
+	"cryplio/internal/domain/dispute"
 	"cryplio/internal/domain/identity"
 	"errors"
 	"fmt"
@@ -23,6 +24,7 @@ type TradeService interface {
 	MarkAsPaid(ctx context.Context, tradeID, userID uuid.UUID) error
 	ReleaseEscrow(ctx context.Context, tradeID, userID uuid.UUID) error
 	CancelTrade(ctx context.Context, tradeID, userID uuid.UUID, reason string) error
+	DisputeTrade(ctx context.Context, tradeID, userID uuid.UUID, reasonCode string, reasonText string) (*Trade, error)
 	ReconcileExpiredTrades(ctx context.Context) (int, error)
 	FlagAutoDisputesForOverduePaidTrades(ctx context.Context, gracePeriod time.Duration) (int, error)
 
@@ -38,12 +40,14 @@ type TradeService interface {
 type tradeService struct {
 	tradeRepo    TradeRepository
 	identityRepo identity.UserRepository
+	disputeRepo  dispute.Repository
 }
 
-func NewTradeService(tradeRepo TradeRepository, identityRepo identity.UserRepository) TradeService {
+func NewTradeService(tradeRepo TradeRepository, identityRepo identity.UserRepository, disputeRepo dispute.Repository) TradeService {
 	return &tradeService{
 		tradeRepo:    tradeRepo,
 		identityRepo: identityRepo,
+		disputeRepo:  disputeRepo,
 	}
 }
 
@@ -223,6 +227,47 @@ func (s *tradeService) CancelTrade(ctx context.Context, tradeID, userID uuid.UUI
 
 	trade.Cancel(reason)
 	return s.tradeRepo.UpdateTrade(ctx, trade)
+}
+
+func (s *tradeService) DisputeTrade(ctx context.Context, tradeID, userID uuid.UUID, reasonCode string, reasonText string) (*Trade, error) {
+	trade, err := s.tradeRepo.GetTradeByID(ctx, tradeID)
+	if err != nil {
+		return nil, err
+	}
+	if trade == nil {
+		return nil, errors.New("trade not found")
+	}
+
+	if trade.BuyerID != userID && trade.SellerID != userID {
+		return nil, errors.New("unauthorized")
+	}
+
+	if trade.Status != TradeStatusPaid && trade.Status != TradeStatusActive {
+		return nil, errors.New("trade cannot be disputed in its current status")
+	}
+
+	// Create Dispute
+	d := &dispute.Dispute{
+		DisputeID:  uuid.New(),
+		TradeID:    tradeID,
+		RaisedBy:   userID,
+		ReasonCode: reasonCode,
+		ReasonText: &reasonText,
+		Status:     dispute.DisputeStatusPending,
+	}
+
+	if err := s.disputeRepo.Create(ctx, d); err != nil {
+		return nil, fmt.Errorf("create dispute: %w", err)
+	}
+
+	// Update Trade
+	trade.Status = TradeStatusDisputed
+	trade.DisputeID = &d.DisputeID
+	if err := s.tradeRepo.UpdateTrade(ctx, trade); err != nil {
+		return nil, fmt.Errorf("update trade status: %w", err)
+	}
+
+	return trade, nil
 }
 
 func (s *tradeService) SendMessage(ctx context.Context, tradeID, senderID uuid.UUID, content string) (*TradeMessage, error) {

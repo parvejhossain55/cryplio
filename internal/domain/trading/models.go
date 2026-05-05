@@ -128,7 +128,7 @@ type Trade struct {
 	PriceType              PriceType   `db:"price_type" json:"price_type"`
 	AgreedPrice            float64     `db:"agreed_price" json:"agreed_price"`
 	Status                 TradeStatus `db:"status" json:"status"`
-	DisputeID              *int        `db:"dispute_id" json:"dispute_id,omitempty"`
+	DisputeID              *uuid.UUID  `db:"dispute_id" json:"dispute_id,omitempty"`
 	ChatRoomID             *string     `db:"chat_room_id" json:"chat_room_id,omitempty"`
 	StartedAt              *time.Time  `db:"started_at" json:"started_at,omitempty"`
 	PaymentMarkedAt        *time.Time  `db:"payment_marked_at" json:"payment_marked_at,omitempty"`

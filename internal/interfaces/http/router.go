@@ -1,9 +1,12 @@
 package httpapi
 
 import (
+	"cryplio/internal/domain/dispute"
 	"cryplio/internal/domain/identity"
+	"cryplio/internal/domain/notification"
 	"cryplio/internal/domain/platform"
 	"cryplio/internal/domain/trading"
+	"cryplio/internal/domain/wallet"
 	"cryplio/internal/infrastructure/storage"
 	"cryplio/internal/interfaces/http/handler"
 	"cryplio/internal/interfaces/http/middleware"
@@ -18,6 +21,9 @@ func SetupRouter(
 	authService identity.AuthService,
 	tradeService trading.TradeService,
 	platformService platform.PlatformService,
+	walletService wallet.Service,
+	disputeService dispute.Service,
+	notificationService notification.Service,
 	storage storage.ObjectStorage,
 ) *gin.Engine {
 	// Set Gin mode
@@ -55,6 +61,9 @@ func SetupRouter(
 
 		tradeHandler := handler.NewTradeHandler(tradeService)
 		platformHandler := handler.NewPlatformHandler(platformService)
+		walletHandler := handler.NewWalletHandler(walletService)
+		disputeHandler := handler.NewDisputeHandler(disputeService)
+		notificationHandler := handler.NewNotificationHandler(notificationService)
 
 		// Public routes
 		v1.POST("/auth/register", authHandler.RegisterHandler)
@@ -103,8 +112,19 @@ func SetupRouter(
 			auth.GET("/marketplace/trades", tradeHandler.ListTradesHandler)
 			auth.GET("/marketplace/trades/:id", tradeHandler.GetTradeHandler)
 			auth.PATCH("/marketplace/trades/:id/status", tradeHandler.UpdateTradeStatusHandler)
+			auth.POST("/marketplace/trades/:id/dispute", tradeHandler.DisputeTradeHandler)
 			auth.GET("/marketplace/trades/:id/messages", tradeHandler.GetChatHistoryHandler)
 			auth.POST("/marketplace/trades/:id/messages", tradeHandler.SendMessageHandler)
+
+			// Wallet
+			auth.GET("/wallet/balance", walletHandler.GetBalancesHandler)
+			auth.GET("/wallet/deposit/:crypto", walletHandler.GetDepositAddressHandler)
+			auth.POST("/wallet/withdraw", walletHandler.WithdrawHandler)
+			auth.GET("/wallet/transactions", walletHandler.GetTransactionsHandler)
+
+			// Notifications
+			auth.GET("/notifications", notificationHandler.GetNotificationsHandler)
+			auth.PATCH("/notifications/:id/read", notificationHandler.MarkReadHandler)
 
 			// Admin Routes
 			admin := auth.Group("/admin")
@@ -130,6 +150,11 @@ func SetupRouter(
 				admin.GET("/payment-methods/:id", platformHandler.GetPaymentMethodHandler)
 				admin.PUT("/payment-methods/:id", platformHandler.UpdatePaymentMethodHandler)
 				admin.DELETE("/payment-methods/:id", platformHandler.DeletePaymentMethodHandler)
+
+				// Disputes management
+				admin.GET("/disputes/:id", disputeHandler.GetDisputeHandler)
+				admin.POST("/disputes/:id/assign", disputeHandler.AssignDisputeHandler)
+				admin.POST("/disputes/:id/resolve", disputeHandler.ResolveDisputeHandler)
 			}
 		}
 	}
