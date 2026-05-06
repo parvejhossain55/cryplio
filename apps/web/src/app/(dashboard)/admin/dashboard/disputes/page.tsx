@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { authService } from "@/services/authService";
+import { toast } from "sonner";
 import Link from "next/link";
 
 const AdminDisputesPage = () => {
@@ -43,25 +44,34 @@ const AdminDisputesPage = () => {
     const handleAssign = async (disputeId: string) => {
         try {
             await authService.assignDispute(disputeId);
+            toast.success("Dispute assigned to you");
             fetchDisputes();
         } catch (err: any) {
-            alert(err.message);
+            toast.error(err.message || "Failed to assign dispute");
         }
     };
 
     const handleResolve = async (disputeId: string, resolution: string, winnerId: 'buyer' | 'seller') => {
-        if (!confirm(`Are you sure you want to resolve this dispute in favor of ${winnerId === 'buyer' ? 'Buyer' : 'Seller'}?`)) return;
-
-        try {
-            const dispute = disputes.find(d => d.dispute_id === disputeId);
-            // Since we don't have the winner UUID easily, we'll use a placeholder or the backend should handle it.
-            // For now, let's just use a zero UUID if we don't have it, but better yet, let's just pass the raised_by as a hint.
-            // In a production app, the admin would have a dropdown of participants.
-            await authService.resolveDispute(disputeId, resolution, dispute.raised_by);
-            fetchDisputes();
-        } catch (err: any) {
-            alert(err.message);
-        }
+        toast(`Resolve in favor of ${winnerId === 'buyer' ? 'Buyer' : 'Seller'}?`, {
+            description: "This action will release or refund the escrowed assets. It cannot be undone.",
+            action: {
+                label: 'Confirm Resolve',
+                onClick: async () => {
+                    try {
+                        const dispute = disputes.find(d => d.dispute_id === disputeId);
+                        await authService.resolveDispute(disputeId, resolution, dispute.raised_by);
+                        toast.success("Dispute resolved successfully");
+                        fetchDisputes();
+                    } catch (err: any) {
+                        toast.error(err.message || "Failed to resolve dispute");
+                    }
+                }
+            },
+            cancel: {
+                label: 'Cancel',
+                onClick: () => { }
+            }
+        });
     };
 
     const getStatusColor = (status: string) => {

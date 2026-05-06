@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Plus, Edit, Trash2, Search, Eye, EyeOff, X } from "lucide-react";
+import { toast } from "sonner";
 
 interface PaymentMethod {
     id: number;
@@ -74,36 +75,51 @@ const AdminPaymentMethods = () => {
                 await fetchPaymentMethods(pagination.page);
                 setIsModalOpen(false);
                 setEditingMethod(null);
+                toast.success(editingMethod ? "Payment method updated" : "Payment method created");
             } else {
                 const errorData = await response.json();
-                alert(errorData.error || "Failed to save payment method");
+                toast.error(errorData.error || "Failed to save payment method");
             }
         } catch (error) {
             console.error("Failed to save payment method:", error);
-            alert("Failed to save payment method");
+            toast.error("Failed to save payment method");
         }
     };
 
     const handleDelete = async (id: number) => {
-        if (!confirm("Are you sure you want to delete this payment method?")) return;
+        toast("Delete Payment Method", {
+            description: "Are you sure you want to delete this payment method?",
+            action: {
+                label: 'Delete',
+                onClick: async () => {
+                    try {
+                        const response = await fetch(`/api/v1/admin/payment-methods/${id}`, {
+                            method: "DELETE",
+                            credentials: "include",
+                        });
 
-        try {
-            const response = await fetch(`/api/v1/admin/payment-methods/${id}`, {
-                method: "DELETE",
-                credentials: "include",
-            });
-
-            if (response.ok) {
-                await fetchPaymentMethods(pagination.page);
+                        if (response.ok) {
+                            toast.success("Payment method deleted");
+                            await fetchPaymentMethods(pagination.page);
+                        } else {
+                            toast.error("Failed to delete payment method");
+                        }
+                    } catch (error) {
+                        console.error("Failed to delete payment method:", error);
+                        toast.error("Failed to delete payment method");
+                    }
+                }
+            },
+            cancel: {
+                label: 'Cancel',
+                onClick: () => { }
             }
-        } catch (error) {
-            console.error("Failed to delete payment method:", error);
-        }
+        });
     };
 
     const filteredMethods = paymentMethods.filter(method => {
         const matchesSearch = method.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            method.code.toLowerCase().includes(searchQuery.toLowerCase());
+            method.code.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesActive = showInactive || method.is_active;
         return matchesSearch && matchesActive;
     });
@@ -161,9 +177,8 @@ const AdminPaymentMethods = () => {
                     </div>
                     <button
                         onClick={() => setShowInactive(!showInactive)}
-                        className={`flex items-center px-4 py-3 rounded-xl font-medium transition-all ${
-                            showInactive ? 'bg-primary/20 text-primary' : 'bg-white/5 text-text-dim'
-                        }`}
+                        className={`flex items-center px-4 py-3 rounded-xl font-medium transition-all ${showInactive ? 'bg-primary/20 text-primary' : 'bg-white/5 text-text-dim'
+                            }`}
                     >
                         {showInactive ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
                         Show Inactive
@@ -204,9 +219,8 @@ const AdminPaymentMethods = () => {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${
-                                                method.is_active ? 'bg-accent/20 text-accent' : 'bg-red-500/20 text-red-500'
-                                            }`}>
+                                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${method.is_active ? 'bg-accent/20 text-accent' : 'bg-red-500/20 text-red-500'
+                                                }`}>
                                                 {method.is_active ? 'Active' : 'Inactive'}
                                             </span>
                                         </td>
@@ -262,11 +276,10 @@ const AdminPaymentMethods = () => {
                                     <button
                                         key={pageNum}
                                         onClick={() => setPagination(prev => ({ ...prev, page: pageNum }))}
-                                        className={`px-3 py-2 rounded-lg text-sm font-bold transition-all ${
-                                            pagination.page === pageNum
-                                                ? 'bg-primary text-white'
-                                                : 'bg-white/5 border border-white/5 text-text-dim hover:bg-white/10'
-                                        }`}
+                                        className={`px-3 py-2 rounded-lg text-sm font-bold transition-all ${pagination.page === pageNum
+                                            ? 'bg-primary text-white'
+                                            : 'bg-white/5 border border-white/5 text-text-dim hover:bg-white/10'
+                                            }`}
                                     >
                                         {pageNum}
                                     </button>

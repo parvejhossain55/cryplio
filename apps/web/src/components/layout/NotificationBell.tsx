@@ -4,26 +4,31 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell, CheckCircle2, AlertTriangle, Info, Clock, Check } from "lucide-react";
 import { authService } from "@/services/authService";
+import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
 
 const NotificationBell = () => {
+    const { user } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
     const [notifications, setNotifications] = useState<any[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
 
     useEffect(() => {
-        fetchNotifications();
-        const interval = setInterval(fetchNotifications, 30000); // Poll every 30s
-        return () => clearInterval(interval);
-    }, []);
+        if (user) {
+            fetchNotifications();
+            const interval = setInterval(fetchNotifications, 30000); // Poll every 30s
+            return () => clearInterval(interval);
+        }
+    }, [user]);
 
     const fetchNotifications = async () => {
+        if (!user) return;
         try {
             const data = await authService.getNotifications();
             setNotifications(data);
             setUnreadCount(data.filter((n: any) => !n.is_read).length);
         } catch (err) {
-            console.error("Failed to fetch notifications");
+            // Silence errors for expected guest states or temporary service restarts
         }
     };
 

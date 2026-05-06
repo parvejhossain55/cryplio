@@ -64,6 +64,13 @@ type TradeAd struct {
 	CreatedAt            time.Time     `db:"created_at" json:"created_at"`
 	UpdatedAt            time.Time     `db:"updated_at" json:"updated_at"`
 	DeletedAt            *time.Time    `db:"deleted_at" json:"deleted_at,omitempty"`
+
+	// Enriched fields from joins (not persisted in trade_ads table)
+	Username     string     `json:"username,omitempty"`
+	UserAvatar   string     `json:"user_avatar,omitempty"`
+	UserLastSeen *time.Time `json:"user_last_seen,omitempty"`
+	UserTrades   int        `json:"user_trades,omitempty"`
+	UserRating   float64    `json:"user_rating,omitempty"`
 }
 
 // IsActive checks if the ad is active and visible

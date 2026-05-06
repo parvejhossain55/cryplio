@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Bell, BellOff, Mail, Smartphone, Globe, Volume2, VolumeX, Loader2, CheckCircle, AlertCircle, Save } from "lucide-react";
 import { motion } from "framer-motion";
 import { authService } from "@/services/authService";
+import { toast } from "sonner";
 
 interface NotificationChannel {
     id: string;
@@ -23,8 +24,7 @@ interface NotificationCategory {
 
 const AlertsSettings = () => {
     const [isSaving, setIsSaving] = useState(false);
-    const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-    
+
     // Initialize from localStorage or defaults
     const getInitialChannels = (): NotificationChannel[] => [
         { id: "email_security", name: "Email Security Alerts", description: "Login alerts, password changes, security notifications", icon: Mail, enabled: true },
@@ -50,22 +50,21 @@ const AlertsSettings = () => {
     }, []);
 
     const toggleChannel = (id: string) => {
-        setChannels(prev => prev.map(ch => 
+        setChannels(prev => prev.map(ch =>
             ch.id === id ? { ...ch, enabled: !ch.enabled } : ch
         ));
     };
 
     const handleSave = async () => {
         setIsSaving(true);
-        setMessage(null);
         try {
             const prefs = channels.reduce((acc, ch) => ({ ...acc, [ch.id]: ch.enabled }), {});
             localStorage.setItem("cryplio_notification_preferences", JSON.stringify(prefs));
             // In future: POST to /api/users/notifications/preferences
             await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API
-            setMessage({ type: "success", text: "Notification preferences saved successfully" });
+            toast.success("Notification preferences saved successfully");
         } catch (error: any) {
-            setMessage({ type: "error", text: error.message || "Failed to save preferences" });
+            toast.error(error.message || "Failed to save preferences");
         } finally {
             setIsSaving(false);
         }
@@ -140,25 +139,6 @@ const AlertsSettings = () => {
                 </div>
             </div>
 
-            {/* Success/Error Message */}
-            {message && (
-                <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`p-4 rounded-2xl flex items-center space-x-3 ${
-                        message.type === "success"
-                            ? "bg-green-500/10 border border-green-500/30 text-green-400"
-                            : "bg-red-500/10 border border-red-500/30 text-red-400"
-                    }`}
-                >
-                    {message.type === "success" ? (
-                        <CheckCircle className="w-5 h-5 flex-shrink-0" />
-                    ) : (
-                        <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                    )}
-                    <span className="text-sm font-medium">{message.text}</span>
-                </motion.div>
-            )}
 
             {/* Save Button */}
             <div className="flex justify-end">

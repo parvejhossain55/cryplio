@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"cryplio/internal/domain/trading"
 	"cryplio/internal/interfaces/http/dto"
@@ -57,17 +58,17 @@ func (h *TradeHandler) ListAdsHandler(c *gin.Context) {
 		response.Ads[i] = dto.AdResponse{
 			AdID:                 ad.AdID.String(),
 			UserID:               ad.UserID.String(),
-			Username:             "", // TODO: fetch username from user service
-			UserAvatar:           "", // TODO: fetch avatar from user service
-			UserRating:           0,  // Default for now
-			UserTrades:           0,  // Default for now
+			Username:             ad.Username,
+			UserAvatar:           ad.UserAvatar,
+			UserRating:           ad.UserRating,
+			UserTrades:           ad.UserTrades,
 			Type:                 string(ad.Type),
 			PriceType:            string(ad.PriceType),
 			Price:                ad.Price,
 			MinAmount:            ad.MinAmount,
 			MaxAmount:            ad.MaxAmount,
 			PaymentWindowMinutes: ad.PaymentWindowMinutes,
-			IsOnline:             false, // TODO: fetch online status from user service
+			IsOnline:             ad.UserLastSeen != nil && ad.UserLastSeen.After(time.Now().Add(-5*time.Minute)),
 		}
 	}
 

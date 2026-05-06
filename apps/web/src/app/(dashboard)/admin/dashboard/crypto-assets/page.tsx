@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Plus, Edit, Trash2, Search, Eye, EyeOff, X } from "lucide-react";
+import { toast } from "sonner";
 
 interface CryptoAsset {
     id: number;
@@ -75,39 +76,54 @@ const AdminCryptoAssets = () => {
                 await fetchCryptoAssets(pagination.page);
                 setIsModalOpen(false);
                 setEditingAsset(null);
+                toast.success(editingAsset ? "Crypto asset updated" : "Crypto asset created");
             } else {
                 const errorData = await response.json();
-                alert(errorData.error || "Failed to save crypto asset");
+                toast.error(errorData.error || "Failed to save crypto asset");
             }
         } catch (error) {
             console.error("Failed to save crypto asset:", error);
-            alert("Failed to save crypto asset");
+            toast.error("Failed to save crypto asset");
         }
     };
 
     const handleDelete = async (id: number) => {
-        if (!confirm("Are you sure you want to delete this crypto asset? This may affect existing trades.")) return;
+        toast("Delete Crypto Asset", {
+            description: "Are you sure you want to delete this crypto asset? This may affect existing trades.",
+            action: {
+                label: 'Delete',
+                onClick: async () => {
+                    try {
+                        const response = await fetch(`/api/v1/admin/crypto-assets/${id}`, {
+                            method: "DELETE",
+                            credentials: "include",
+                        });
 
-        try {
-            const response = await fetch(`/api/v1/admin/crypto-assets/${id}`, {
-                method: "DELETE",
-                credentials: "include",
-            });
-
-            if (response.ok) {
-                await fetchCryptoAssets(pagination.page);
+                        if (response.ok) {
+                            toast.success("Crypto asset deleted");
+                            await fetchCryptoAssets(pagination.page);
+                        } else {
+                            toast.error("Failed to delete crypto asset");
+                        }
+                    } catch (error) {
+                        console.error("Failed to delete crypto asset:", error);
+                        toast.error("Failed to delete crypto asset");
+                    }
+                }
+            },
+            cancel: {
+                label: 'Cancel',
+                onClick: () => { }
             }
-        } catch (error) {
-            console.error("Failed to delete crypto asset:", error);
-        }
+        });
     };
 
 
 
     const filteredAssets = cryptoAssets.filter(asset => {
         const matchesSearch = asset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            asset.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            asset.blockchain.toLowerCase().includes(searchQuery.toLowerCase());
+            asset.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            asset.blockchain.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesActive = showInactive || asset.is_active;
         return matchesSearch && matchesActive;
     });
@@ -154,9 +170,8 @@ const AdminCryptoAssets = () => {
                     </div>
                     <button
                         onClick={() => setShowInactive(!showInactive)}
-                        className={`flex items-center px-4 py-3 rounded-xl font-medium transition-all ${
-                            showInactive ? 'bg-primary/20 text-primary' : 'bg-white/5 text-text-dim'
-                        }`}
+                        className={`flex items-center px-4 py-3 rounded-xl font-medium transition-all ${showInactive ? 'bg-primary/20 text-primary' : 'bg-white/5 text-text-dim'
+                            }`}
                     >
                         {showInactive ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
                         Show Inactive
@@ -202,9 +217,8 @@ const AdminCryptoAssets = () => {
                                         <td className="px-6 py-4 text-white font-bold">{asset.decimals}</td>
                                         <td className="px-6 py-4 text-white font-bold">{asset.min_confirmation}</td>
                                         <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${
-                                                asset.is_active ? 'bg-accent/20 text-accent' : 'bg-red-500/20 text-red-500'
-                                            }`}>
+                                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${asset.is_active ? 'bg-accent/20 text-accent' : 'bg-red-500/20 text-red-500'
+                                                }`}>
                                                 {asset.is_active ? 'Active' : 'Inactive'}
                                             </span>
                                         </td>
@@ -259,11 +273,10 @@ const AdminCryptoAssets = () => {
                                     <button
                                         key={pageNum}
                                         onClick={() => setPagination(prev => ({ ...prev, page: pageNum }))}
-                                        className={`px-3 py-2 rounded-lg text-sm font-bold transition-all ${
-                                            pagination.page === pageNum
-                                                ? 'bg-primary text-white'
-                                                : 'bg-white/5 border border-white/5 text-text-dim hover:bg-white/10'
-                                        }`}
+                                        className={`px-3 py-2 rounded-lg text-sm font-bold transition-all ${pagination.page === pageNum
+                                            ? 'bg-primary text-white'
+                                            : 'bg-white/5 border border-white/5 text-text-dim hover:bg-white/10'
+                                            }`}
                                     >
                                         {pageNum}
                                     </button>

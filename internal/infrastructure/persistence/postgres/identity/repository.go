@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"time"
 
 	domainidentity "cryplio/internal/domain/identity"
 
@@ -21,6 +20,7 @@ type PasswordResetToken = domainidentity.PasswordResetToken
 type UserSession = domainidentity.UserSession
 type TwoFactorPending = domainidentity.TwoFactorPending
 type UserBlock = domainidentity.UserBlock
+type UserPaymentMethod = domainidentity.UserPaymentMethod
 
 // UserRepository is the domain interface (aliased for convenience)
 type UserRepository = domainidentity.UserRepository
@@ -240,14 +240,14 @@ func (r *userRepository) Update(ctx context.Context, u *User) error {
 	query := `
 		UPDATE users
 		SET email = $1, username = $2, phone_country_code = $3, phone_number = $4,
-		    phone_verified = $5, email_verified = $6, avatar_url = $9, bio = $10, timezone = $11, 
-		    locale = $12, is_merchant = $13, is_suspended = $14, 
-		    suspension_reason = $15, suspended_at = $16, suspended_until = $17, 
-		    last_login_at = $18, login_count = $19, failed_login_attempts = $20, 
-		    locked_until = $21, referral_code = $22, referred_by = $23, 
-		    two_fa_secret = $24, remember_2fa = $25, remember_2fa_expiry = $26, 
+		    phone_verified = $5, email_verified = $6, avatar_url = $7, bio = $8, timezone = $9, 
+		    locale = $10, is_merchant = $11, is_suspended = $12, 
+		    suspension_reason = $13, suspended_at = $14, suspended_until = $15, 
+		    last_login_at = $16, login_count = $17, failed_login_attempts = $18, 
+		    locked_until = $19, referral_code = $20, referred_by = $21, 
+		    two_fa_secret = $22, remember_2fa = $23, remember_2fa_expiry = $24, 
 		    updated_at = NOW()
-		WHERE user_id = $27 AND deleted_at IS NULL
+		WHERE user_id = $25 AND deleted_at IS NULL
 		RETURNING updated_at
 	`
 	nullReferredBy := sql.NullString{}
@@ -911,73 +911,115 @@ func (r *userRepository) UpdateLastSeen(ctx context.Context, userID uuid.UUID) e
 	return nil
 }
 
-// BlockUser blocks a user
-func (r *userRepository) BlockUser(ctx context.Context, blockerID, blockedID uuid.UUID, reason string, isPermanent bool, expiresAt *time.Time) error {
+// User Payment Methods
+
+func (r *userRepository) CreateUserPaymentMethod(ctx context.Context, pm *UserPaymentMethod) error {
 	query := `
-		INSERT INTO user_blocks (blocker_id, blocked_id, reason, is_permanent, expires_at, created_at)
-		VALUES ($1, $2, $3, $4, $5, NOW())
-		ON CONFLICT (blocker_id, blocked_id) DO UPDATE SET
-			reason = EXCLUDED.reason,
-			is_permanent = EXCLUDED.is_permanent,
-			expires_at = EXCLUDED.expires_at,
-			created_at = NOW()
+		INSERT INTO user_payment_methods (
+			user_id, payment_method_code, display_name, account_name,
+			account_number, bank_name, is_active, is_default
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		RETURNING id, created_at, updated_at
 	`
-	_, err := r.db.ExecContext(ctx, query, blockerID, blockedID, reason, isPermanent, expiresAt)
-	if err != nil {
-		return fmt.Errorf("block user: %w", err)
-	}
-	return nil
+	return r.db.QueryRowContext(
+		ctx, query,
+		pm.UserID, pm.PaymentMethodCode, pm.DisplayName, pm.AccountName,
+		pm.AccountNumber, pm.BankName, pm.IsActive, pm.IsDefault,
+	).Scan(&pm.ID, &pm.CreatedAt, &pm.UpdatedAt)
 }
 
-// UnblockUser removes a user block
-func (r *userRepository) UnblockUser(ctx context.Context, blockerID, blockedID uuid.UUID) error {
-	query := `DELETE FROM user_blocks WHERE blocker_id = $1 AND blocked_id = $2`
-	_, err := r.db.ExecContext(ctx, query, blockerID, blockedID)
-	if err != nil {
-		return fmt.Errorf("unblock user: %w", err)
-	}
-	return nil
-}
-
-// IsBlocked checks if a user is blocked by another user
-func (r *userRepository) IsBlocked(ctx context.Context, blockerID, blockedID uuid.UUID) (bool, error) {
+func (r *userRepository) GetUserPaymentMethod(ctx context.Context, id uuid.UUID) (*UserPaymentMethod, error) {
 	query := `
-		SELECT EXISTS(
-			SELECT 1 FROM user_blocks
-			WHERE blocker_id = $1 AND blocked_id = $2
-			AND (is_permanent = true OR expires_at > NOW() OR expires_at IS NULL)
-		)
+		SELECT id, user_id, payment_method_code, display_name, account_name,
+		       account_number, bank_name, is_active, is_default,
+		       created_at, updated_at
+		FROM user_payment_methods
+		WHERE id = $1
 	`
-	var blocked bool
-	err := r.db.QueryRowContext(ctx, query, blockerID, blockedID).Scan(&blocked)
-	if err != nil {
-		return false, fmt.Errorf("check blocked: %w", err)
+	var pm UserPaymentMethod
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&pm.ID, &pm.UserID, &pm.PaymentMethodCode, &pm.DisplayName, &pm.AccountName,
+		&pm.AccountNumber, &pm.BankName, &pm.IsActive, &pm.IsDefault,
+		&pm.CreatedAt, &pm.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
 	}
-	return blocked, nil
+	return &pm, err
 }
 
-// ListBlocks returns all users blocked by the given user
-func (r *userRepository) ListBlocks(ctx context.Context, userID uuid.UUID) ([]UserBlock, error) {
+func (r *userRepository) GetUserPaymentMethodsByUserID(ctx context.Context, userID uuid.UUID) ([]UserPaymentMethod, error) {
 	query := `
-		SELECT id, blocker_id, blocked_id, reason, is_permanent, expires_at, created_at
-		FROM user_blocks
-		WHERE blocker_id = $1
-		ORDER BY created_at DESC
+		SELECT id, user_id, payment_method_code, display_name, account_name,
+		       account_number, bank_name, is_active, is_default,
+		       created_at, updated_at
+		FROM user_payment_methods
+		WHERE user_id = $1
+		ORDER BY is_default DESC, created_at DESC
 	`
 	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
-		return nil, fmt.Errorf("query blocks: %w", err)
+		return nil, err
 	}
 	defer rows.Close()
 
-	var blocks []UserBlock
+	var methods []UserPaymentMethod
 	for rows.Next() {
-		var b UserBlock
-		err := rows.Scan(&b.ID, &b.BlockerID, &b.BlockedID, &b.Reason, &b.IsPermanent, &b.ExpiresAt, &b.CreatedAt)
+		var pm UserPaymentMethod
+		err := rows.Scan(
+			&pm.ID, &pm.UserID, &pm.PaymentMethodCode, &pm.DisplayName, &pm.AccountName,
+			&pm.AccountNumber, &pm.BankName, &pm.IsActive, &pm.IsDefault,
+			&pm.CreatedAt, &pm.UpdatedAt,
+		)
 		if err != nil {
-			return nil, fmt.Errorf("scan block: %w", err)
+			return nil, err
 		}
-		blocks = append(blocks, b)
+		methods = append(methods, pm)
 	}
-	return blocks, nil
+	return methods, nil
+}
+
+func (r *userRepository) UpdateUserPaymentMethod(ctx context.Context, pm *UserPaymentMethod) error {
+	query := `
+		UPDATE user_payment_methods
+		SET display_name = $1, account_name = $2, account_number = $3,
+		    bank_name = $4, is_active = $5, is_default = $6,
+		    updated_at = NOW()
+		WHERE id = $7 AND user_id = $8
+		RETURNING updated_at
+	`
+	return r.db.QueryRowContext(
+		ctx, query,
+		pm.DisplayName, pm.AccountName, pm.AccountNumber,
+		pm.BankName, pm.IsActive, pm.IsDefault,
+		pm.ID, pm.UserID,
+	).Scan(&pm.UpdatedAt)
+}
+
+func (r *userRepository) DeleteUserPaymentMethod(ctx context.Context, id uuid.UUID) error {
+	query := `DELETE FROM user_payment_methods WHERE id = $1`
+	_, err := r.db.ExecContext(ctx, query, id)
+	return err
+}
+
+func (r *userRepository) SetDefaultUserPaymentMethod(ctx context.Context, userID, id uuid.UUID) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Unset existing default
+	_, err = tx.ExecContext(ctx, `UPDATE user_payment_methods SET is_default = false WHERE user_id = $1`, userID)
+	if err != nil {
+		return err
+	}
+
+	// Set new default
+	_, err = tx.ExecContext(ctx, `UPDATE user_payment_methods SET is_default = true WHERE id = $1 AND user_id = $2`, id, userID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }

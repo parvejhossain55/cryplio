@@ -101,6 +101,7 @@ CREATE TABLE IF NOT EXISTS user_blocks (
     is_permanent BOOLEAN NOT NULL DEFAULT true,
     expires_at TIMESTAMP,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
     UNIQUE(blocker_id, blocked_id)
 );
 

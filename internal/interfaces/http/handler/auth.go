@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 
 	"cryplio/internal/domain/identity"
 	"cryplio/internal/infrastructure/storage"
@@ -534,105 +533,127 @@ func (h *AuthHandler) GetUserByUsernameHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"user": userResp})
 }
 
-// BlockUserHandler blocks another user
-func (h *AuthHandler) BlockUserHandler(c *gin.Context) {
-	blockerIDStr, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-		return
-	}
-	blockerID, err := uuid.Parse(blockerIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
-		return
-	}
+// ── User Payment Method Handlers ──────────────────────────────────────────
 
-	var req struct {
-		BlockedID   string  `json:"blocked_id" binding:"required"`
-		Reason      *string `json:"reason,omitempty"`
-		IsPermanent bool    `json:"is_permanent"`
-		ExpiresAt   *string `json:"expires_at,omitempty"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request", "details": err.Error()})
-		return
-	}
-
-	blockedID, err := uuid.Parse(req.BlockedID)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid blocked user ID"})
-		return
-	}
-	var expiresAt *time.Time
-	if req.ExpiresAt != nil && *req.ExpiresAt != "" {
-		t, err := time.Parse(time.RFC3339, *req.ExpiresAt)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid expires_at format"})
-			return
-		}
-		expiresAt = &t
-	}
-
-	err = h.authService.BlockUser(c.Request.Context(), blockerID, blockedID, *req.Reason, req.IsPermanent, expiresAt)
-	if err != nil {
-		handleError(c, err)
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "User blocked successfully"})
-}
-
-// UnblockUserHandler unblocks another user
-func (h *AuthHandler) UnblockUserHandler(c *gin.Context) {
-	blockerIDStr, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-		return
-	}
-	blockerID, err := uuid.Parse(blockerIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
-		return
-	}
-
-	blockedIDStr := c.Param("blocked_id")
-	if blockedIDStr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Blocked user ID is required"})
-		return
-	}
-	blockedID, err := uuid.Parse(blockedIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid blocked user ID"})
-		return
-	}
-
-	err = h.authService.UnblockUser(c.Request.Context(), blockerID, blockedID)
-	if err != nil {
-		handleError(c, err)
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "User unblocked successfully"})
-}
-
-// ListBlocksHandler lists all users blocked by the current user
-func (h *AuthHandler) ListBlocksHandler(c *gin.Context) {
-	userIDStr, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-		return
-	}
+// ListPaymentMethodsHandler returns all payment methods for the current user
+func (h *AuthHandler) ListPaymentMethodsHandler(c *gin.Context) {
+	userIDStr, _ := c.Get("user_id")
 	userID, err := uuid.Parse(userIDStr.(string))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
 		return
 	}
 
-	blocks, err := h.authService.ListBlocks(c.Request.Context(), userID)
+	methods, err := h.authService.GetPaymentMethods(c.Request.Context(), userID)
 	if err != nil {
 		handleError(c, err)
 		return
 	}
+	if methods == nil {
+		methods = []identity.UserPaymentMethod{}
+	}
+	c.JSON(http.StatusOK, gin.H{"payment_methods": methods})
+}
 
-	c.JSON(http.StatusOK, gin.H{"blocks": blocks})
+// CreatePaymentMethodHandler adds a new payment method for the current user
+func (h *AuthHandler) CreatePaymentMethodHandler(c *gin.Context) {
+	userIDStr, _ := c.Get("user_id")
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	var pm identity.UserPaymentMethod
+	if err := c.ShouldBindJSON(&pm); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request", "details": err.Error()})
+		return
+	}
+	if pm.PaymentMethodCode == "" || pm.DisplayName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "payment_method_code and display_name are required"})
+		return
+	}
+	pm.IsActive = true
+
+	result, err := h.authService.AddPaymentMethod(c.Request.Context(), userID, &pm)
+	if err != nil {
+		handleError(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"payment_method": result})
+}
+
+// UpdatePaymentMethodHandler updates a payment method owned by the current user
+func (h *AuthHandler) UpdatePaymentMethodHandler(c *gin.Context) {
+	userIDStr, _ := c.Get("user_id")
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	pmID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payment method id"})
+		return
+	}
+
+	var pm identity.UserPaymentMethod
+	if err := c.ShouldBindJSON(&pm); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+	pm.ID = pmID
+	pm.UserID = userID
+
+	result, err := h.authService.UpdatePaymentMethod(c.Request.Context(), userID, &pm)
+	if err != nil {
+		handleError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"payment_method": result})
+}
+
+// DeletePaymentMethodHandler removes a payment method owned by the current user
+func (h *AuthHandler) DeletePaymentMethodHandler(c *gin.Context) {
+	userIDStr, _ := c.Get("user_id")
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	pmID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payment method id"})
+		return
+	}
+
+	if err := h.authService.RemovePaymentMethod(c.Request.Context(), userID, pmID); err != nil {
+		handleError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "payment method removed"})
+}
+
+// SetDefaultPaymentMethodHandler sets a payment method as the user's default
+func (h *AuthHandler) SetDefaultPaymentMethodHandler(c *gin.Context) {
+	userIDStr, _ := c.Get("user_id")
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	pmID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payment method id"})
+		return
+	}
+
+	if err := h.authService.SetDefaultPaymentMethod(c.Request.Context(), userID, pmID); err != nil {
+		handleError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "default payment method updated"})
 }

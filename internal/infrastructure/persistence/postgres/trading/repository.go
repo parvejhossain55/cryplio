@@ -164,15 +164,37 @@ func (r *tradeRepository) ListAds(ctx context.Context, filter trading.AdFilter) 
 	for rows.Next() {
 		var ad trading.TradeAd
 		var paymentMethods []int64
+		var username, avatarURL sql.NullString
+		var lastSeen pq.NullTime
+		var totalTrades sql.NullInt64
+		var avgRating sql.NullFloat64
+
 		err := rows.Scan(
 			&ad.AdID, &ad.UserID, &ad.Type, &ad.CryptoID, &ad.FiatID, &ad.PriceType,
 			&ad.Price, &ad.FloatingMarkup, &ad.MinAmount, &ad.MaxAmount,
 			pq.Array(&paymentMethods), &ad.TradeTerms, &ad.PaymentWindowMinutes,
 			&ad.IsPublic, &ad.IsPaused, &ad.Timezone,
 			&ad.Status, &ad.PublishedAt, &ad.CreatedAt, &ad.UpdatedAt,
+			&username, &avatarURL, &lastSeen, &totalTrades, &avgRating,
 		)
 		if err != nil {
 			return nil, 0, fmt.Errorf("scan ad: %w", err)
+		}
+
+		if username.Valid {
+			ad.Username = username.String
+		}
+		if avatarURL.Valid {
+			ad.UserAvatar = avatarURL.String
+		}
+		if lastSeen.Valid {
+			ad.UserLastSeen = &lastSeen.Time
+		}
+		if totalTrades.Valid {
+			ad.UserTrades = int(totalTrades.Int64)
+		}
+		if avgRating.Valid {
+			ad.UserRating = avgRating.Float64
 		}
 
 		ad.PaymentMethods = make([]int, len(paymentMethods))
@@ -192,9 +214,9 @@ func (r *tradeRepository) UpdateAd(ctx context.Context, ad *trading.TradeAd) err
 		SET type = $1, crypto_id = $2, fiat_id = $3, price_type = $4,
 		    price = $5, floating_markup = $6, min_amount = $7,
 		    max_amount = $8, payment_methods = $9, trade_terms = $10,
-		    payment_window_minutes = $11, is_public = $13, is_paused = $14, timezone = $15,
-		    status = $16, updated_at = NOW()
-		WHERE ad_id = $17 AND deleted_at IS NULL
+		    payment_window_minutes = $11, is_public = $12, is_paused = $13, timezone = $14,
+		    status = $15, updated_at = NOW()
+		WHERE ad_id = $16 AND deleted_at IS NULL
 	`
 	_, err := r.db.ExecContext(
 		ctx, query,
@@ -244,9 +266,11 @@ func (r *tradeRepository) GetTradeByID(ctx context.Context, id uuid.UUID) (*trad
 	query := `
 		SELECT trade_id, ad_id, buyer_id, seller_id, crypto_id, fiat_id,
 		       crypto_amount, fiat_amount, exchange_rate, payment_method,
-		       price_type, agreed_price, status, payment_window_minutes,
-		       payment_marked_at, is_auto_dispute_triggered,
-		       created_at, updated_at
+		       price_type, agreed_price, status, dispute_id, chat_room_id,
+		       started_at, payment_marked_at, released_at, cancelled_at,
+		       completed_at, expired_at, payment_window_minutes,
+		       is_auto_dispute_triggered, cancel_reason, escrow_txn_hash,
+		       escrow_contract_address, created_at, updated_at, deleted_at
 		FROM trades
 		WHERE trade_id = $1 AND deleted_at IS NULL
 	`
@@ -254,9 +278,11 @@ func (r *tradeRepository) GetTradeByID(ctx context.Context, id uuid.UUID) (*trad
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&t.TradeID, &t.AdID, &t.BuyerID, &t.SellerID, &t.CryptoID, &t.FiatID,
 		&t.CryptoAmount, &t.FiatAmount, &t.ExchangeRate, &t.PaymentMethod,
-		&t.PriceType, &t.AgreedPrice, &t.Status, &t.PaymentWindowMinutes,
-		&t.PaymentMarkedAt, &t.IsAutoDisputeTriggered,
-		&t.CreatedAt, &t.UpdatedAt,
+		&t.PriceType, &t.AgreedPrice, &t.Status, &t.DisputeID, &t.ChatRoomID,
+		&t.StartedAt, &t.PaymentMarkedAt, &t.ReleasedAt, &t.CancelledAt,
+		&t.CompletedAt, &t.ExpiredAt, &t.PaymentWindowMinutes,
+		&t.IsAutoDisputeTriggered, &t.CancelReason, &t.EscrowTxnHash,
+		&t.EscrowContractAddress, &t.CreatedAt, &t.UpdatedAt, &t.DeletedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -269,12 +295,21 @@ func (r *tradeRepository) GetTradeByID(ctx context.Context, id uuid.UUID) (*trad
 
 func (r *tradeRepository) ListTrades(ctx context.Context, userID uuid.UUID, role string) ([]trading.Trade, error) {
 	var query string
+	columns := `
+		trade_id, ad_id, buyer_id, seller_id, crypto_id, fiat_id,
+		crypto_amount, fiat_amount, exchange_rate, payment_method,
+		price_type, agreed_price, status, dispute_id, chat_room_id,
+		started_at, payment_marked_at, released_at, cancelled_at,
+		completed_at, expired_at, payment_window_minutes,
+		is_auto_dispute_triggered, cancel_reason, escrow_txn_hash,
+		escrow_contract_address, created_at, updated_at, deleted_at
+	`
 	if role == "buyer" {
-		query = `SELECT * FROM trades WHERE buyer_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC`
+		query = fmt.Sprintf("SELECT %s FROM trades WHERE buyer_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC", columns)
 	} else if role == "seller" {
-		query = `SELECT * FROM trades WHERE seller_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC`
+		query = fmt.Sprintf("SELECT %s FROM trades WHERE seller_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC", columns)
 	} else {
-		query = `SELECT * FROM trades WHERE (buyer_id = $1 OR seller_id = $1) AND deleted_at IS NULL ORDER BY created_at DESC`
+		query = fmt.Sprintf("SELECT %s FROM trades WHERE (buyer_id = $1 OR seller_id = $1) AND deleted_at IS NULL ORDER BY created_at DESC", columns)
 	}
 
 	// For simplicity, using SELECT * but in production should list columns

@@ -101,6 +101,15 @@ type SessionManager interface {
 	DeleteSessionsByUserID(ctx context.Context, userID uuid.UUID) error
 }
 
+// PaymentManager handles user payment methods.
+type PaymentManager interface {
+	AddPaymentMethod(ctx context.Context, userID uuid.UUID, pm *UserPaymentMethod) (*UserPaymentMethod, error)
+	GetPaymentMethods(ctx context.Context, userID uuid.UUID) ([]UserPaymentMethod, error)
+	UpdatePaymentMethod(ctx context.Context, userID uuid.UUID, pm *UserPaymentMethod) (*UserPaymentMethod, error)
+	RemovePaymentMethod(ctx context.Context, userID, pmID uuid.UUID) error
+	SetDefaultPaymentMethod(ctx context.Context, userID, pmID uuid.UUID) error
+}
+
 // AuthService combines all auth operations (legacy composite).
 type AuthService interface {
 	UserRegistrar
@@ -111,12 +120,7 @@ type AuthService interface {
 	PasswordResetter
 	TwoFactorManager
 	SessionManager
-
-	// User block
-	BlockUser(ctx context.Context, blockerID, blockedID uuid.UUID, reason string, isPermanent bool, expiresAt *time.Time) error
-	UnblockUser(ctx context.Context, blockerID, blockedID uuid.UUID) error
-	IsBlocked(ctx context.Context, blockerID, blockedID uuid.UUID) (bool, error)
-	ListBlocks(ctx context.Context, userID uuid.UUID) ([]UserBlock, error)
+	PaymentManager
 }
 
 type authService struct {
@@ -968,26 +972,6 @@ func (s *authService) CreateSession(ctx context.Context, userID uuid.UUID, token
 	return session, nil
 }
 
-// BlockUser blocks another user
-func (s *authService) BlockUser(ctx context.Context, blockerID, blockedID uuid.UUID, reason string, isPermanent bool, expiresAt *time.Time) error {
-	return s.userRepo.BlockUser(ctx, blockerID, blockedID, reason, isPermanent, expiresAt)
-}
-
-// UnblockUser unblocks a user
-func (s *authService) UnblockUser(ctx context.Context, blockerID, blockedID uuid.UUID) error {
-	return s.userRepo.UnblockUser(ctx, blockerID, blockedID)
-}
-
-// IsBlocked checks if a user is blocked
-func (s *authService) IsBlocked(ctx context.Context, blockerID, blockedID uuid.UUID) (bool, error) {
-	return s.userRepo.IsBlocked(ctx, blockerID, blockedID)
-}
-
-// ListBlocks lists all users blocked by the given user
-func (s *authService) ListBlocks(ctx context.Context, userID uuid.UUID) ([]UserBlock, error) {
-	return s.userRepo.ListBlocks(ctx, userID)
-}
-
 func (s *authService) GetSession(ctx context.Context, tokenID string) (*UserSession, error) {
 	return s.userRepo.GetSession(ctx, tokenID)
 }
@@ -1072,4 +1056,54 @@ func validatePasswordComplexity(password string) error {
 	}
 
 	return nil
+}
+
+// User Payment Methods implementation
+
+func (s *authService) AddPaymentMethod(ctx context.Context, userID uuid.UUID, pm *UserPaymentMethod) (*UserPaymentMethod, error) {
+	pm.UserID = userID
+	err := s.userRepo.CreateUserPaymentMethod(ctx, pm)
+	if err != nil {
+		return nil, fmt.Errorf("create payment method: %w", err)
+	}
+	return pm, nil
+}
+
+func (s *authService) GetPaymentMethods(ctx context.Context, userID uuid.UUID) ([]UserPaymentMethod, error) {
+	return s.userRepo.GetUserPaymentMethodsByUserID(ctx, userID)
+}
+
+func (s *authService) UpdatePaymentMethod(ctx context.Context, userID uuid.UUID, pm *UserPaymentMethod) (*UserPaymentMethod, error) {
+	pm.UserID = userID
+	err := s.userRepo.UpdateUserPaymentMethod(ctx, pm)
+	if err != nil {
+		return nil, fmt.Errorf("update payment method: %w", err)
+	}
+	return pm, nil
+}
+
+func (s *authService) RemovePaymentMethod(ctx context.Context, userID, pmID uuid.UUID) error {
+	// Verify ownership
+	pm, err := s.userRepo.GetUserPaymentMethod(ctx, pmID)
+	if err != nil {
+		return err
+	}
+	if pm == nil || pm.UserID != userID {
+		return apperrors.NotFound("payment method not found", nil)
+	}
+
+	return s.userRepo.DeleteUserPaymentMethod(ctx, pmID)
+}
+
+func (s *authService) SetDefaultPaymentMethod(ctx context.Context, userID, pmID uuid.UUID) error {
+	// Verify ownership
+	pm, err := s.userRepo.GetUserPaymentMethod(ctx, pmID)
+	if err != nil {
+		return err
+	}
+	if pm == nil || pm.UserID != userID {
+		return apperrors.NotFound("payment method not found", nil)
+	}
+
+	return s.userRepo.SetDefaultUserPaymentMethod(ctx, userID, pmID)
 }

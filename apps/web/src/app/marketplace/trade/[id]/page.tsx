@@ -18,6 +18,7 @@ import {
     FileText,
     ExternalLink
 } from "lucide-react";
+import { toast } from "sonner";
 import Link from "next/link";
 import { authService } from "@/services/authService";
 import Navbar from "@/components/layout/Navbar";
@@ -72,7 +73,7 @@ const TradeDetailPage = () => {
             setMessages([...messages, msg]);
             setNewMessage("");
         } catch (err: any) {
-            alert(err.message);
+            toast.error(err.message || "Failed to send message");
         }
     };
 
@@ -89,9 +90,10 @@ const TradeDetailPage = () => {
         setIsUpdating(true);
         try {
             await authService.updateTradeStatus(id as string, action);
+            toast.success(`Trade ${action === 'pay' ? 'marked as paid' : action === 'release' ? 'assets released' : 'cancelled'}`);
             fetchTradeDetails();
         } catch (err: any) {
-            alert(err.message);
+            toast.error(err.message || "Action failed");
         } finally {
             setIsUpdating(false);
         }

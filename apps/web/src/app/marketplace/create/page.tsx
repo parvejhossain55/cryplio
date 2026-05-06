@@ -39,6 +39,18 @@ const CreateAdPage = () => {
     const [tradeTerms, setTradeTerms] = useState("");
     const [selectedMethods, setSelectedMethods] = useState<number[]>([]);
 
+    // Dropdown states
+    const [isCryptoOpen, setIsCryptoOpen] = useState(false);
+    const [isFiatOpen, setIsFiatOpen] = useState(false);
+    const [isWindowOpen, setIsWindowOpen] = useState(false);
+
+    // Close all dropdowns when clicking outside
+    const closeDropdowns = () => {
+        setIsCryptoOpen(false);
+        setIsFiatOpen(false);
+        setIsWindowOpen(false);
+    };
+
     const assets = [
         { id: 1, symbol: "USDT", name: "Tether (ERC20)" },
         { id: 2, symbol: "USDT", name: "Tether (TRC20)" },
@@ -148,14 +160,22 @@ const CreateAdPage = () => {
                         </div>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="space-y-8">
+                    <form onSubmit={handleSubmit} className="space-y-8 relative">
+                        {/* Global dropdown overlay */}
+                        {(isCryptoOpen || isFiatOpen || isWindowOpen) && (
+                            <div className="fixed inset-0 z-40" onClick={closeDropdowns} />
+                        )}
+
                         {/* Step 1: Ad Type & Asset */}
-                        <div className="glass rounded-[3rem] p-8 md:p-12 border-border/50 relative overflow-hidden">
-                            <div className="absolute top-0 right-0 p-8 text-primary/10 select-none">
-                                <span className="text-9xl font-black italic">01</span>
+                        <div className="glass rounded-[3rem] p-8 md:p-12 border-border/50 relative">
+                            {/* Watermark restricted to container bounds */}
+                            <div className="absolute inset-0 overflow-hidden rounded-[3rem] pointer-events-none">
+                                <div className="absolute top-0 right-0 p-8 text-primary/10 select-none">
+                                    <span className="text-9xl font-black italic">01</span>
+                                </div>
                             </div>
 
-                            <h2 className="text-xl font-black text-white uppercase tracking-tight mb-8 flex items-center">
+                            <h2 className="text-xl font-black text-white uppercase tracking-tight mb-8 flex items-center relative z-10">
                                 <Plus className="w-5 h-5 mr-3 text-primary" />
                                 Basic Information
                             </h2>
@@ -182,37 +202,79 @@ const CreateAdPage = () => {
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-3">
+                                    <div className="space-y-3 relative z-50">
                                         <label className="block text-[10px] font-black text-text-dim uppercase tracking-[0.2em] ml-1">Asset</label>
-                                        <select
-                                            value={cryptoId}
-                                            onChange={(e) => setCryptoId(parseInt(e.target.value))}
-                                            className="w-full bg-background/50 border border-border rounded-2xl p-4 text-sm font-bold text-white outline-none focus:border-primary transition-all appearance-none cursor-pointer"
+                                        <button
+                                            type="button"
+                                            onClick={() => { closeDropdowns(); setIsCryptoOpen(!isCryptoOpen); }}
+                                            className="w-full h-[52px] px-4 flex items-center justify-between bg-background/50 border border-border hover:border-white/20 rounded-2xl text-sm font-bold text-white outline-none focus:border-primary transition-all"
                                         >
-                                            {assets.map(a => <option key={a.id} value={a.id}>{a.symbol}</option>)}
-                                        </select>
+                                            <div className="flex items-baseline gap-1.5 truncate pr-2">
+                                                <span>{assets.find(a => a.id === cryptoId)?.symbol}</span>
+                                                <span className="text-[10px] text-text-dim font-medium truncate">{assets.find(a => a.id === cryptoId)?.name}</span>
+                                            </div>
+                                            <svg className={`shrink-0 w-4 h-4 text-text-dim transition-transform ${isCryptoOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                        </button>
+
+                                        {isCryptoOpen && (
+                                            <div className="absolute w-full mt-2 bg-surface border border-border rounded-2xl shadow-2xl overflow-hidden shadow-black/50 py-1">
+                                                {assets.map(a => (
+                                                    <button
+                                                        key={a.id}
+                                                        type="button"
+                                                        onClick={() => { setCryptoId(a.id); setIsCryptoOpen(false); }}
+                                                        className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-all text-left group ${cryptoId === a.id ? "bg-primary/10 text-white font-black" : "text-text-dim hover:text-white hover:bg-white/5 font-bold"}`}
+                                                    >
+                                                        <span>{a.symbol}</span>
+                                                        <span className={`text-[10px] font-medium transition-colors ${cryptoId === a.id ? "text-primary/80" : "text-white/30 group-hover:text-white/50"}`}>{a.name}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="space-y-3">
+                                    <div className="space-y-3 relative z-40">
                                         <label className="block text-[10px] font-black text-text-dim uppercase tracking-[0.2em] ml-1">Fiat</label>
-                                        <select
-                                            value={fiatId}
-                                            onChange={(e) => setFiatId(parseInt(e.target.value))}
-                                            className="w-full bg-background/50 border border-border rounded-2xl p-4 text-sm font-bold text-white outline-none focus:border-primary transition-all appearance-none cursor-pointer"
+                                        <button
+                                            type="button"
+                                            onClick={() => { closeDropdowns(); setIsFiatOpen(!isFiatOpen); }}
+                                            className="w-full h-[52px] px-4 flex items-center justify-between bg-background/50 border border-border hover:border-white/20 rounded-2xl text-sm font-bold text-white outline-none focus:border-primary transition-all"
                                         >
-                                            {fiats.map(f => <option key={f.id} value={f.id}>{f.symbol}</option>)}
-                                        </select>
+                                            <div className="flex items-baseline gap-1.5 truncate pr-2">
+                                                <span>{fiats.find(f => f.id === fiatId)?.symbol}</span>
+                                                <span className="text-[10px] text-text-dim font-medium truncate">{fiats.find(f => f.id === fiatId)?.name}</span>
+                                            </div>
+                                            <svg className={`shrink-0 w-4 h-4 text-text-dim transition-transform ${isFiatOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                        </button>
+
+                                        {isFiatOpen && (
+                                            <div className="absolute w-full mt-2 bg-surface border border-border rounded-2xl shadow-2xl overflow-hidden shadow-black/50 py-1">
+                                                {fiats.map(f => (
+                                                    <button
+                                                        key={f.id}
+                                                        type="button"
+                                                        onClick={() => { setFiatId(f.id); setIsFiatOpen(false); }}
+                                                        className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-all text-left group ${fiatId === f.id ? "bg-primary/10 text-white font-black" : "text-text-dim hover:text-white hover:bg-white/5 font-bold"}`}
+                                                    >
+                                                        <span>{f.symbol}</span>
+                                                        <span className={`text-[10px] font-medium transition-colors ${fiatId === f.id ? "text-primary/80" : "text-white/30 group-hover:text-white/50"}`}>{f.name}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         {/* Step 2: Pricing */}
-                        <div className="glass rounded-[3rem] p-8 md:p-12 border-border/50 relative overflow-hidden">
-                            <div className="absolute top-0 right-0 p-8 text-primary/10 select-none">
-                                <span className="text-9xl font-black italic">02</span>
+                        <div className="glass rounded-[3rem] p-8 md:p-12 border-border/50 relative">
+                            <div className="absolute inset-0 overflow-hidden rounded-[3rem] pointer-events-none">
+                                <div className="absolute top-0 right-0 p-8 text-primary/10 select-none">
+                                    <span className="text-9xl font-black italic">02</span>
+                                </div>
                             </div>
 
-                            <h2 className="text-xl font-black text-white uppercase tracking-tight mb-8 flex items-center">
+                            <h2 className="text-xl font-black text-white uppercase tracking-tight mb-8 flex items-center relative z-10">
                                 <Zap className="w-5 h-5 mr-3 text-primary" />
                                 Pricing Structure
                             </h2>
@@ -284,12 +346,14 @@ const CreateAdPage = () => {
                         </div>
 
                         {/* Step 3: Methods & Terms */}
-                        <div className="glass rounded-[3rem] p-8 md:p-12 border-border/50 relative overflow-hidden">
-                            <div className="absolute top-0 right-0 p-8 text-primary/10 select-none">
-                                <span className="text-9xl font-black italic">03</span>
+                        <div className="glass rounded-[3rem] p-8 md:p-12 border-border/50 relative">
+                            <div className="absolute inset-0 overflow-hidden rounded-[3rem] pointer-events-none">
+                                <div className="absolute top-0 right-0 p-8 text-primary/10 select-none">
+                                    <span className="text-9xl font-black italic">03</span>
+                                </div>
                             </div>
 
-                            <h2 className="text-xl font-black text-white uppercase tracking-tight mb-8 flex items-center">
+                            <h2 className="text-xl font-black text-white uppercase tracking-tight mb-8 flex items-center relative z-10">
                                 <ShieldCheck className="w-5 h-5 mr-3 text-primary" />
                                 Trade Requirements
                             </h2>
@@ -312,18 +376,31 @@ const CreateAdPage = () => {
                                 </div>
 
                                 <div className="grid md:grid-cols-2 gap-8">
-                                    <div className="space-y-3">
+                                    <div className="space-y-3 relative z-50">
                                         <label className="block text-[10px] font-black text-text-dim uppercase tracking-[0.2em] ml-1">Order Expiry (Minutes)</label>
-                                        <select
-                                            value={paymentWindow}
-                                            onChange={(e) => setPaymentWindow(parseInt(e.target.value))}
-                                            className="w-full bg-background/50 border border-border rounded-2xl p-4 text-sm font-bold text-white outline-none focus:border-primary transition-all appearance-none cursor-pointer"
+                                        <button
+                                            type="button"
+                                            onClick={() => { closeDropdowns(); setIsWindowOpen(!isWindowOpen); }}
+                                            className="w-full flex items-center justify-between bg-background/50 border border-border rounded-2xl p-4 text-sm font-bold text-white outline-none focus:border-primary transition-all text-left"
                                         >
-                                            <option value={15}>15 Minutes</option>
-                                            <option value={30}>30 Minutes</option>
-                                            <option value={45}>45 Minutes</option>
-                                            <option value={60}>60 Minutes</option>
-                                        </select>
+                                            <span>{paymentWindow} Minutes</span>
+                                            <svg className={`w-4 h-4 text-text-dim transition-transform ${isWindowOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                        </button>
+
+                                        {isWindowOpen && (
+                                            <div className="absolute w-full mt-2 bg-surface border border-border rounded-2xl shadow-2xl overflow-hidden shadow-black/50">
+                                                {[15, 30, 45, 60].map(val => (
+                                                    <button
+                                                        key={val}
+                                                        type="button"
+                                                        onClick={() => { setPaymentWindow(val); setIsWindowOpen(false); }}
+                                                        className={`w-full flex items-center justify-start p-4 text-sm font-bold transition-all text-left ${paymentWindow === val ? "bg-primary text-white" : "text-text-dim hover:text-white hover:bg-white/5"}`}
+                                                    >
+                                                        {val} Minutes
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="space-y-3">
                                         <label className="block text-[10px] font-black text-text-dim uppercase tracking-[0.2em] ml-1">Security</label>

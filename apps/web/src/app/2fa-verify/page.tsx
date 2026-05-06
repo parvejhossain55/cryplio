@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Shield, Loader2, ArrowLeft, Smartphone } from "lucide-react";
 import AuthLayout from "@/components/auth/AuthLayout";
 import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
 
 const TwoFactorVerifyPage = () => {
     const { complete2FALogin, isLoading } = useAuth();
@@ -120,11 +121,21 @@ const TwoFactorVerifyPage = () => {
                         <button
                             type="button"
                             onClick={() => {
-                                if (confirm("Cancel 2FA verification and return to login?")) {
-                                    sessionStorage.removeItem("2fa_temp_token");
-                                    sessionStorage.removeItem("2fa_user_id");
-                                    router.push("/login");
-                                }
+                                toast("Cancel 2FA verification?", {
+                                    description: "You will be returned to the login page.",
+                                    action: {
+                                        label: "Yes, Cancel",
+                                        onClick: () => {
+                                            sessionStorage.removeItem("2fa_temp_token");
+                                            sessionStorage.removeItem("2fa_user_id");
+                                            router.push("/login");
+                                        }
+                                    },
+                                    cancel: {
+                                        label: "Stay here",
+                                        onClick: () => { }
+                                    }
+                                });
                             }}
                             className="text-primary hover:underline"
                         >

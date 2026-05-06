@@ -21,6 +21,7 @@ import {
     Activity
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
 import { authService, BackendUser, UserStats } from "@/services/authService";
 import { useAuth } from "@/context/AuthContext";
 import Navbar from "@/components/layout/Navbar";
@@ -35,8 +36,7 @@ const PublicProfilePage = () => {
     const [profile, setProfile] = useState<{ user: BackendUser; stats: UserStats } | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [isBlocking, setIsBlocking] = useState(false);
-    const [showBlockModal, setShowBlockModal] = useState(false);
+
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -56,20 +56,7 @@ const PublicProfilePage = () => {
         }
     }, [username]);
 
-    const handleBlock = async () => {
-        if (!profile) return;
-        setIsBlocking(true);
-        try {
-            await authService.blockUser(profile.user.id);
-            // Optionally update UI or show success message
-            setShowBlockModal(false);
-            alert("User blocked successfully. They will no longer be able to initiate trades with you.");
-        } catch (err: any) {
-            alert(err.message || "Failed to block user");
-        } finally {
-            setIsBlocking(false);
-        }
-    };
+
 
     if (isLoading) {
         return (
@@ -172,19 +159,11 @@ const PublicProfilePage = () => {
                                     )}
 
                                     <div className="w-full space-y-3">
-                                        {!isOwnProfile && (
-                                            <>
-                                                <button className="w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-primary/20 flex items-center justify-center gap-2">
-                                                    <MessageSquare className="w-4 h-4" /> Message Merchant
-                                                </button>
-                                                <button
-                                                    onClick={() => setShowBlockModal(true)}
-                                                    className="w-full py-4 bg-surface-light text-red-500 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/20 flex items-center justify-center gap-2"
-                                                >
-                                                    <Ban className="w-4 h-4" /> Block User
-                                                </button>
-                                            </>
-                                        )}
+                                        <>
+                                            <button className="w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-primary/20 flex items-center justify-center gap-2">
+                                                <MessageSquare className="w-4 h-4" /> Message
+                                            </button>
+                                        </>
                                         {isOwnProfile && (
                                             <button
                                                 onClick={() => router.push("/user/dashboard/settings")}
@@ -223,10 +202,10 @@ const PublicProfilePage = () => {
                             {/* Summary Totals */}
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 {[
-                                    { label: "Total Trades", value: stats.total_trades, icon: Activity, color: "text-primary" },
-                                    { label: "Completion", value: `${stats.success_rate.toFixed(1)}%`, icon: Zap, color: "text-accent" },
-                                    { label: "Pos. Feedback", value: `${((stats.positive_feedback_count / (stats.total_trades || 1)) * 100).toFixed(0)}%`, icon: ThumbsUp, color: "text-green-500" },
-                                    { label: "Volume (USD)", value: `$${(stats.total_volume_usd / 1000).toFixed(1)}k`, icon: TrendingUp, color: "text-blue-500" },
+                                    { label: "Total Trades", value: stats.total_trades || 0, icon: Activity, color: "text-primary" },
+                                    { label: "Completion", value: `${(stats.success_rate || 0).toFixed(1)}%`, icon: Zap, color: "text-accent" },
+                                    { label: "Pos. Feedback", value: `${(((stats.positive_feedback_count || 0) / (stats.total_trades || 1)) * 100).toFixed(0)}%`, icon: ThumbsUp, color: "text-green-500" },
+                                    { label: "Volume (USD)", value: `$${((stats.total_volume_usd || 0) / 1000).toFixed(1)}k`, icon: TrendingUp, color: "text-blue-500" },
                                 ].map((stat, i) => (
                                     <motion.div
                                         key={i}
@@ -351,18 +330,6 @@ const PublicProfilePage = () => {
             </div>
 
             <Footer />
-
-            {/* Block Confirmation Modal */}
-            <ConfirmModal
-                open={showBlockModal}
-                title="Block User?"
-                description={`Are you sure you want to block ${user.username}? They will no longer be able to initiate trades with you.`}
-                onConfirm={handleBlock}
-                onClose={() => setShowBlockModal(false)}
-                confirmText={isBlocking ? "Blocking..." : "Block User"}
-                cancelText="Cancel"
-                isDestructive={true}
-            />
         </main>
     );
 };

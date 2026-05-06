@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Plus, Edit, Trash2, Search, Eye, EyeOff, X } from "lucide-react";
+import { toast } from "sonner";
 
 interface FiatCurrency {
     id: number;
@@ -71,37 +72,52 @@ const AdminFiatCurrencies = () => {
                 await fetchFiatCurrencies(pagination.page);
                 setIsModalOpen(false);
                 setEditingCurrency(null);
+                toast.success(editingCurrency ? "Fiat currency updated" : "Fiat currency created");
             } else {
                 const errorData = await response.json();
-                alert(errorData.error || "Failed to save fiat currency");
+                toast.error(errorData.error || "Failed to save fiat currency");
             }
         } catch (error) {
             console.error("Failed to save fiat currency:", error);
-            alert("Failed to save fiat currency");
+            toast.error("Failed to save fiat currency");
         }
     };
 
     const handleDelete = async (id: number) => {
-        if (!confirm("Are you sure you want to delete this fiat currency? This may affect existing trades.")) return;
+        toast("Delete Fiat Currency", {
+            description: "Are you sure you want to delete this fiat currency? This may affect existing trades.",
+            action: {
+                label: 'Delete',
+                onClick: async () => {
+                    try {
+                        const response = await fetch(`/api/v1/admin/fiat-currencies/${id}`, {
+                            method: "DELETE",
+                            credentials: "include",
+                        });
 
-        try {
-            const response = await fetch(`/api/v1/admin/fiat-currencies/${id}`, {
-                method: "DELETE",
-                credentials: "include",
-            });
-
-            if (response.ok) {
-                await fetchFiatCurrencies(pagination.page);
+                        if (response.ok) {
+                            toast.success("Fiat currency deleted");
+                            await fetchFiatCurrencies(pagination.page);
+                        } else {
+                            toast.error("Failed to delete fiat currency");
+                        }
+                    } catch (error) {
+                        console.error("Failed to delete fiat currency:", error);
+                        toast.error("Failed to delete fiat currency");
+                    }
+                }
+            },
+            cancel: {
+                label: 'Cancel',
+                onClick: () => { }
             }
-        } catch (error) {
-            console.error("Failed to delete fiat currency:", error);
-        }
+        });
     };
 
     const filteredCurrencies = fiatCurrencies.filter(currency => {
         const matchesSearch = currency.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            currency.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            currency.symbol.toLowerCase().includes(searchQuery.toLowerCase());
+            currency.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            currency.symbol.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesActive = showInactive || currency.is_active;
         return matchesSearch && matchesActive;
     });
@@ -148,9 +164,8 @@ const AdminFiatCurrencies = () => {
                     </div>
                     <button
                         onClick={() => setShowInactive(!showInactive)}
-                        className={`flex items-center px-4 py-3 rounded-xl font-medium transition-all ${
-                            showInactive ? 'bg-primary/20 text-primary' : 'bg-white/5 text-text-dim'
-                        }`}
+                        className={`flex items-center px-4 py-3 rounded-xl font-medium transition-all ${showInactive ? 'bg-primary/20 text-primary' : 'bg-white/5 text-text-dim'
+                            }`}
                     >
                         {showInactive ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
                         Show Inactive
@@ -185,9 +200,8 @@ const AdminFiatCurrencies = () => {
                                             <span className="text-lg font-bold text-white">{currency.symbol}</span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${
-                                                currency.is_active ? 'bg-accent/20 text-accent' : 'bg-red-500/20 text-red-500'
-                                            }`}>
+                                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${currency.is_active ? 'bg-accent/20 text-accent' : 'bg-red-500/20 text-red-500'
+                                                }`}>
                                                 {currency.is_active ? 'Active' : 'Inactive'}
                                             </span>
                                         </td>
@@ -242,11 +256,10 @@ const AdminFiatCurrencies = () => {
                                     <button
                                         key={pageNum}
                                         onClick={() => setPagination(prev => ({ ...prev, page: pageNum }))}
-                                        className={`px-3 py-2 rounded-lg text-sm font-bold transition-all ${
-                                            pagination.page === pageNum
-                                                ? 'bg-primary text-white'
-                                                : 'bg-white/5 border border-white/5 text-text-dim hover:bg-white/10'
-                                        }`}
+                                        className={`px-3 py-2 rounded-lg text-sm font-bold transition-all ${pagination.page === pageNum
+                                            ? 'bg-primary text-white'
+                                            : 'bg-white/5 border border-white/5 text-text-dim hover:bg-white/10'
+                                            }`}
                                     >
                                         {pageNum}
                                     </button>

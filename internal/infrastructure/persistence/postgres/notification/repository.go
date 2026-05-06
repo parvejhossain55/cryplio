@@ -77,7 +77,8 @@ func (r *notificationRepository) GetPreferences(ctx context.Context, userID uuid
 	var p notification.NotificationPreference
 	// Note: We'll need to handle the JSONB fields properly in a real app,
 	// for now we'll just mock the preferences or return a default.
-	err := r.db.QueryRowContext(ctx, query, userID).Scan(&p.UserID, nil, nil, nil, &p.CreatedAt, &p.UpdatedAt)
+	var emailPrefs, pushPrefs, smsPrefs interface{}
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(&p.UserID, &emailPrefs, &pushPrefs, &smsPrefs, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// Return default preferences

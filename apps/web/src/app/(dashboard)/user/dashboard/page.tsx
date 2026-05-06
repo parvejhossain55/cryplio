@@ -172,8 +172,8 @@ const UserDashboard = () => {
                         </div>
                         <div className="space-y-4">
                             <div className="flex items-center justify-between">
-                                <span className="text-xs text-text-dim font-medium">Identity Verification</span>
-                                <span className="text-[10px] bg-accent/10 text-accent px-2 py-0.5 rounded font-black uppercase tracking-widest">Level 2</span>
+                                <span className="text-xs text-text-dim font-medium">Account Security</span>
+                                <span className="text-[10px] bg-accent/10 text-accent px-2 py-0.5 rounded font-black uppercase tracking-widest">Verified</span>
                             </div>
                             <div className="flex items-center justify-between">
                                 <span className="text-xs text-text-dim font-medium">2FA Status</span>

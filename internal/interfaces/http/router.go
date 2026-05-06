@@ -90,11 +90,6 @@ func SetupRouter(
 			auth.PUT("/users/me", authHandler.UpdateUserHandler)
 			auth.POST("/users/me/avatar", authHandler.UploadAvatarHandler)
 
-			// User block management
-			auth.POST("/users/me/block", authHandler.BlockUserHandler)
-			auth.DELETE("/users/me/block/:blocked_id", authHandler.UnblockUserHandler)
-			auth.GET("/users/me/block", authHandler.ListBlocksHandler)
-
 			// 2FA management
 			auth.POST("/auth/2fa/setup", authHandler.Setup2FAHandler)
 			auth.POST("/auth/2fa/verify", authHandler.Verify2FAHandler)
@@ -103,6 +98,13 @@ func SetupRouter(
 			// Session management
 			auth.GET("/sessions", authHandler.GetSessionsHandler)
 			auth.DELETE("/sessions/:tokenId", authHandler.DeleteSessionHandler)
+
+			// User Payment Methods
+			auth.GET("/users/me/payment-methods", authHandler.ListPaymentMethodsHandler)
+			auth.POST("/users/me/payment-methods", authHandler.CreatePaymentMethodHandler)
+			auth.PUT("/users/me/payment-methods/:id", authHandler.UpdatePaymentMethodHandler)
+			auth.DELETE("/users/me/payment-methods/:id", authHandler.DeletePaymentMethodHandler)
+			auth.PATCH("/users/me/payment-methods/:id/default", authHandler.SetDefaultPaymentMethodHandler)
 
 			// Trading (Authenticated)
 			auth.POST("/marketplace/ads", tradeHandler.CreateAdHandler)

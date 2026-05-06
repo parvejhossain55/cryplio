@@ -9,6 +9,7 @@ import ConfirmModal from "@/components/ui/ConfirmModal";
 import ProfileEdit from "@/components/settings/user/ProfileSettings";
 import AlertsSettings from "@/components/settings/user/AlertsSettings";
 import PaymentSettings from "@/components/settings/user/PaymentSettings";
+import { toast } from "sonner";
 import {
     User,
     Shield,
@@ -36,16 +37,16 @@ import {
 // QR Code component using qrcode library
 const QRCodeSVG = ({ value, size = 200 }: { value: string; size?: number }) => {
     const [svgUrl, setSvgUrl] = useState<string>('');
-    
+
     useEffect(() => {
         let mounted = true;
-        
+
         const generateQR = async () => {
             try {
                 // Dynamic import to avoid SSR issues
                 const QRCode = (await import('qrcode')).default;
                 if (!mounted) return;
-                
+
                 const svgString = await QRCode.toString(value, {
                     type: 'svg',
                     margin: 2,
@@ -55,7 +56,7 @@ const QRCodeSVG = ({ value, size = 200 }: { value: string; size?: number }) => {
                         light: '#ffffff'
                     }
                 });
-                
+
                 if (mounted) {
                     const url = 'data:image/svg+xml;base64,' + btoa(svgString);
                     setSvgUrl(url);
@@ -112,7 +113,6 @@ export default function SettingsPage() {
     const [setupCode, setSetupCode] = useState("");
     const [sessions, setSessions] = useState<any[]>([]);
     const [isLoadingSessions, setIsLoadingSessions] = useState(false);
-    const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
 
@@ -144,14 +144,13 @@ export default function SettingsPage() {
 
     const handleEnable2FA = async () => {
         setIsSettingUp2FA(true);
-        setMessage(null);
         try {
             const result = await authService.setup2FA();
             setSecret(result.secret);
             setQrCode(result.provisioning_uri);
             setShowQR(true);
         } catch (error: any) {
-            setMessage({ type: "error", text: error.message || "Failed to setup 2FA" });
+            toast.error(error.message || "Failed to setup 2FA");
         } finally {
             setIsSettingUp2FA(false);
         }
@@ -159,7 +158,7 @@ export default function SettingsPage() {
 
     const handleVerify2FA = async () => {
         if (!setupCode || setupCode.length !== 6) {
-            setMessage({ type: "error", text: "Enter a valid 6-digit code" });
+            toast.error("Enter a valid 6-digit code");
             return;
         }
         setIsSettingUp2FA(true);
@@ -170,9 +169,9 @@ export default function SettingsPage() {
             setSecret(null);
             setQrCode(null);
             setSetupCode("");
-            setMessage({ type: "success", text: "Two-factor authentication enabled successfully!" });
+            toast.success("Two-factor authentication enabled successfully!");
         } catch (error: any) {
-            setMessage({ type: "error", text: error.message || "Verification failed" });
+            toast.error(error.message || "Verification failed");
         } finally {
             setIsSettingUp2FA(false);
             refreshUser()
@@ -189,9 +188,9 @@ export default function SettingsPage() {
         try {
             await authService.revokeSession(selectedTokenId);
             setSessions(sessions.filter(s => s.token_id !== selectedTokenId));
-            setMessage({ type: "success", text: "Session revoked successfully" });
+            toast.success("Session revoked successfully");
         } catch (error: any) {
-            setMessage({ type: "error", text: error.message || "Failed to revoke session" });
+            toast.error(error.message || "Failed to revoke session");
         } finally {
             setModalOpen(false);
             setSelectedTokenId(null);
@@ -214,9 +213,9 @@ export default function SettingsPage() {
         try {
             await authService.disable2FA(password);
             setIs2FAEnabled(false);
-            setMessage({ type: "success", text: "Two-factor authentication disabled" });
+            toast.success("Two-factor authentication disabled");
         } catch (error: any) {
-            setMessage({ type: "error", text: error.message || "Failed to disable 2FA" });
+            toast.error(error.message || "Failed to disable 2FA");
         } finally {
             setIsSettingUp2FA(false);
             setModalOpen(false);
@@ -235,9 +234,9 @@ export default function SettingsPage() {
                 await authService.revokeSession(session.token_id);
             }
             setSessions([]);
-            setMessage({ type: "success", text: "Logged out from all devices successfully" });
+            toast.success("Logged out from all devices successfully");
         } catch (error: any) {
-            setMessage({ type: "error", text: error.message || "Failed to logout from all devices" });
+            toast.error(error.message || "Failed to logout from all devices");
         } finally {
             setModalOpen(false);
             setSelectedTokenId(null);
@@ -269,11 +268,10 @@ export default function SettingsPage() {
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`flex items-center px-6 py-4 rounded-2xl transition-all group ${
-                                    activeTab === tab.id
-                                        ? "bg-primary text-white shadow-xl shadow-primary/20"
-                                        : "text-text-dim hover:bg-white/5 hover:text-white"
-                                }`}
+                                className={`flex items-center px-6 py-4 rounded-2xl transition-all group ${activeTab === tab.id
+                                    ? "bg-primary text-white shadow-xl shadow-primary/20"
+                                    : "text-text-dim hover:bg-white/5 hover:text-white"
+                                    }`}
                             >
                                 <tab.icon className={`w-5 h-5 mr-4 transition-colors ${activeTab === tab.id ? "text-white" : "text-text-dim group-hover:text-white"}`} />
                                 <span className="text-sm font-black uppercase tracking-widest">{tab.label}</span>
@@ -286,24 +284,6 @@ export default function SettingsPage() {
                 <div className="lg:col-span-3 space-y-8">
                     {activeTab === "security" && (
                         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
-                            {message && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: -10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className={`p-4 rounded-2xl flex items-center space-x-3 ${
-                                        message.type === "success"
-                                            ? "bg-green-500/10 border border-green-500/30 text-green-400"
-                                            : "bg-red-500/10 border border-red-500/30 text-red-400"
-                                    }`}
-                                >
-                                    {message.type === "success" ? (
-                                        <CheckCircle className="w-5 h-5 flex-shrink-0" />
-                                    ) : (
-                                        <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                                    )}
-                                    <span className="text-sm font-medium">{message.text}</span>
-                                </motion.div>
-                            )}
 
                             <ConfirmModal
                                 open={modalOpen}
@@ -496,7 +476,7 @@ export default function SettingsPage() {
                             <ProfileEdit user={user} />
                         </motion.div>
                     )}
-                    
+
                     {activeTab === "notifications" && (
                         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                             <AlertsSettings />
@@ -508,7 +488,7 @@ export default function SettingsPage() {
                             <PaymentSettings />
                         </motion.div>
                     )}
-                    
+
                     {activeTab === "preferences" && (
                         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                         </motion.div>

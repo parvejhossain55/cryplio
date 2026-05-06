@@ -73,8 +73,8 @@ const AdminDashboard = () => {
                 <div className="lg:col-span-2 bg-surface border border-white/10 rounded-[2.5rem] p-8">
                     <div className="flex items-center justify-between mb-8">
                         <div>
-                            <h3 className="text-xl font-black text-white uppercase tracking-tight">Compliance Queue</h3>
-                            <p className="text-[10px] font-medium text-text-dim uppercase tracking-widest mt-1">Users awaiting manual review</p>
+                            <h3 className="text-xl font-black text-white uppercase tracking-tight">Financial Protocol Queue</h3>
+                            <p className="text-[10px] font-medium text-text-dim uppercase tracking-widest mt-1">Operations awaiting oversight</p>
                         </div>
                         <div className="flex items-center gap-4">
                             <Link href="/admin/dashboard/disputes" className="text-xs font-black text-primary hover:text-white transition-colors uppercase tracking-widest">
@@ -89,9 +89,9 @@ const AdminDashboard = () => {
                     <div className="space-y-4">
                         {[
                             { user: "Merchant_X", issue: "Large Transaction Alert", amount: "$150,000", time: "10 min ago", severity: "high" },
-                            { user: "CryptoDave", issue: "Identity Verification", amount: "-", time: "25 min ago", severity: "medium" },
                             { user: "QuickTrade", issue: "Dispute: Order #8291", amount: "$4,200", time: "45 min ago", severity: "high" },
-                            { user: "Z_Traders", issue: "Address Change Verification", amount: "-", time: "2h ago", severity: "low" },
+                            { user: "Z_Traders", issue: "Suspicious API Activity", amount: "-", time: "2h ago", severity: "medium" },
+                            { user: "CryptoKing", issue: "Escrow Timeout", amount: "$1,200", time: "3h ago", severity: "low" },
                         ].map((item, i) => (
                             <div key={i} className="flex items-center justify-between p-4 rounded-2x border border-white/5 hover:border-white/20 hover:bg-white/[0.02] transition-all group">
                                 <div className="flex items-center space-x-4">

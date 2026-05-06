@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import type { User as UserType } from "@/context/AuthContext";
 import { authService } from "@/services/authService";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import { toast } from "sonner";
 
 interface ProfileEditProps {
     user: UserType;
@@ -20,7 +21,6 @@ const ProfileEdit = ({ user }: ProfileEditProps) => {
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
-    const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
     const [showCancelModal, setShowCancelModal] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -32,17 +32,15 @@ const ProfileEdit = ({ user }: ProfileEditProps) => {
             setBio(user.bio || "");
             setAvatarPreview(null);
             setAvatarFile(null);
-            setMessage(null);
         }
     }, [user, isEditing]);
 
     const handleSave = async () => {
         if (!username.trim()) {
-            setMessage({ type: "error", text: "Username is required" });
+            toast.error("Username is required");
             return;
         }
         setIsSaving(true);
-        setMessage(null);
         try {
             await authService.updateCurrentUser({
                 username: username.trim(),
@@ -52,7 +50,7 @@ const ProfileEdit = ({ user }: ProfileEditProps) => {
             if (avatarFile) {
                 const formData = new FormData();
                 formData.append("avatar", avatarFile);
-                const response = await fetch("/api/users/me/avatar", {
+                const response = await fetch("/api/v1/users/me/avatar", {
                     method: "POST",
                     body: formData,
                     credentials: "include",
@@ -64,12 +62,12 @@ const ProfileEdit = ({ user }: ProfileEditProps) => {
             }
 
             await refreshUser();
-            setMessage({ type: "success", text: "Profile updated successfully" });
+            toast.success("Profile updated successfully");
             setIsEditing(false);
             setAvatarFile(null);
             setAvatarPreview(null);
         } catch (error: any) {
-            setMessage({ type: "error", text: error.message || "Failed to update profile" });
+            toast.error(error.message || "Failed to update profile");
         } finally {
             setIsSaving(false);
         }
@@ -88,15 +86,14 @@ const ProfileEdit = ({ user }: ProfileEditProps) => {
         setIsEditing(false);
         setAvatarFile(null);
         setAvatarPreview(null);
-        setMessage(null);
     };
 
     const handleResendVerification = async () => {
         try {
             await authService.requestEmailVerification(user.id);
-            setMessage({ type: "success", text: "Verification email sent" });
+            toast.success("Verification email sent");
         } catch (error: any) {
-            setMessage({ type: "error", text: error.message || "Failed to send verification" });
+            toast.error(error.message || "Failed to send verification");
         }
     };
 
@@ -104,12 +101,12 @@ const ProfileEdit = ({ user }: ProfileEditProps) => {
         const file = e.target.files?.[0];
         if (!file) return;
         if (file.size > 2 * 1024 * 1024) {
-            setMessage({ type: "error", text: "File size must be less than 2MB" });
+            toast.error("File size must be less than 2MB");
             e.target.value = '';
             return;
         }
         if (!file.type.match(/image\/(jpeg|png)/)) {
-            setMessage({ type: "error", text: "Only JPEG and PNG files are allowed" });
+            toast.error("Only JPEG and PNG files are allowed");
             e.target.value = '';
             return;
         }
@@ -396,27 +393,6 @@ const ProfileEdit = ({ user }: ProfileEditProps) => {
                 </div>
             )}
 
-            {/* Feedback Message */}
-            <AnimatePresence>
-                {message && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className={`p-4 rounded-2xl flex items-center space-x-3 ${
-                            message.type === "success"
-                                ? "bg-green-500/10 border border-green-500/30 text-green-400"
-                                : "bg-red-500/10 border border-red-500/30 text-red-400"
-                        }`}
-                    >
-                        {message.type === "success"
-                            ? <CheckCircle className="w-5 h-5 flex-shrink-0" />
-                            : <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                        }
-                        <span className="text-sm font-medium">{message.text}</span>
-                    </motion.div>
-                )}
-            </AnimatePresence>
 
             {/* Cancel Confirmation Modal */}
             <ConfirmModal

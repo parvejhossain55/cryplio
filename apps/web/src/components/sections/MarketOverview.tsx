@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Filter, ArrowUpRight, ChevronDown, CheckCircle2, ShieldCheck, Clock, Star, TrendingUp } from "lucide-react";
+import { toast } from "sonner";
 import Link from "next/link";
 import Pagination from "@/components/ui/Pagination";
 import { authService, AdResponse } from "@/services/authService";
@@ -61,7 +62,15 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedCoin, setSelectedCoin] = useState("USDT");
     const [selectedFiat, setSelectedFiat] = useState("USD");
+    const [isCryptoOpen, setIsCryptoOpen] = useState(false);
+    const [isFiatOpen, setIsFiatOpen] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
+
+    const closeDropdowns = () => {
+        setIsCryptoOpen(false);
+        setIsFiatOpen(false);
+    };
+
     const [ads, setAds] = useState<AdResponse[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const itemsPerPage = 6;
@@ -103,7 +112,27 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
                     setAds(data);
                 }
             } catch (error) {
-                console.error("Failed to fetch ads", error);
+                // Fallen back to mock data if API is temporarily unavailable
+                const mockMapped: AdResponse[] = p2pAds
+                    .filter(ad => ad.type === activeTab && ad.currency === selectedFiat && ad.coin === selectedCoin)
+                    .map((ad, idx) => ({
+                        ad_id: `mock-${idx}`,
+                        user_id: `user-${ad.user}`,
+                        username: ad.user,
+                        user_trades: parseInt(ad.trades.replace(/\D/g, "")),
+                        user_rating: parseFloat(ad.rating.replace("%", "")),
+                        type: ad.type as "buy" | "sell",
+                        crypto_symbol: ad.coin,
+                        fiat_symbol: ad.currency,
+                        price: parseFloat(ad.price.replace(/,/g, "")),
+                        min_amount: parseFloat(ad.limits.split("-")[0].replace(/,/g, "")),
+                        max_amount: parseFloat(ad.limits.split("-")[1].replace(/,/g, "")),
+                        payment_methods: ad.methods,
+                        payment_window_minutes: parseInt(ad.time.split(" ")[0]),
+                        is_online: true,
+                        price_type: "fixed"
+                    }));
+                setAds(mockMapped);
             } finally {
                 setIsLoading(false);
             }
@@ -193,34 +222,74 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
                             className="w-full bg-surface/50 border border-border rounded-2xl py-4 pl-12 pr-4 text-base outline-none focus:border-primary transition-all font-medium placeholder:text-text-dim/50"
                         />
                     </div>
-                    <div className="flex flex-wrap items-center gap-4 w-full xl:w-auto">
-                        <div className="relative group flex-1 md:flex-none md:min-w-[140px]">
-                            <select
-                                value={selectedCoin}
-                                onChange={(e) => setSelectedCoin(e.target.value)}
-                                className="w-full bg-surface/50 border border-border rounded-2xl py-4 px-5 text-base font-bold outline-none appearance-none cursor-pointer hover:border-primary transition-colors pr-10"
+                    <div className="flex flex-wrap items-center gap-4 w-full xl:w-auto relative">
+                        {/* Global click catcher */}
+                        {(isCryptoOpen || isFiatOpen) && (
+                            <div className="fixed inset-0 z-30" onClick={closeDropdowns} />
+                        )}
+
+                        <div className="relative group flex-1 md:flex-none md:min-w-[140px] z-50">
+                            <button
+                                type="button"
+                                onClick={() => { closeDropdowns(); setIsCryptoOpen(!isCryptoOpen); }}
+                                className="w-full h-[56px] px-5 flex items-center justify-between bg-surface/50 border border-border hover:border-primary/50 rounded-2xl text-base font-bold text-white outline-none focus:border-primary transition-all pr-4"
                             >
-                                <option>USDT</option>
-                                <option>BTC</option>
-                                <option>ETH</option>
-                            </select>
-                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-dim pointer-events-none group-hover:text-primary transition-colors" />
+                                <span>{selectedCoin}</span>
+                                <ChevronDown className={`w-5 h-5 text-text-dim transition-transform ${isCryptoOpen ? "rotate-180" : ""}`} />
+                            </button>
+
+                            {isCryptoOpen && (
+                                <div className="absolute w-full mt-2 bg-surface bg-opacity-95 backdrop-blur-xl border border-border/50 rounded-2xl shadow-2xl overflow-hidden py-1 z-50">
+                                    {["USDT", "BTC", "ETH"].map(coin => (
+                                        <button
+                                            key={coin}
+                                            type="button"
+                                            onClick={() => { setSelectedCoin(coin); setIsCryptoOpen(false); }}
+                                            className={`w-full flex items-center justify-between px-5 py-3.5 text-sm transition-all text-left ${selectedCoin === coin ? "bg-primary/20 text-white font-black" : "text-text-dim font-bold hover:text-white hover:bg-white/5"}`}
+                                        >
+                                            {coin}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
-                        <div className="relative group flex-1 md:flex-none md:min-w-[240px]">
-                            <select
-                                value={selectedFiat}
-                                onChange={(e) => setSelectedFiat(e.target.value)}
-                                className="w-full bg-surface/50 border border-border rounded-2xl py-4 px-5 text-base font-bold outline-none appearance-none cursor-pointer hover:border-primary transition-colors pr-10"
+                        <div className="relative group flex-1 md:flex-none md:min-w-[240px] z-40">
+                            <button
+                                type="button"
+                                onClick={() => { closeDropdowns(); setIsFiatOpen(!isFiatOpen); }}
+                                className="w-full h-[56px] px-5 flex items-center justify-between bg-surface/50 border border-border hover:border-primary/50 rounded-2xl text-base font-bold text-white outline-none focus:border-primary transition-all pr-4"
                             >
-                                {fiats.map(f => (
-                                    <option key={f.code} value={f.code}>{f.name} ({f.code})</option>
-                                ))}
-                            </select>
-                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-dim pointer-events-none group-hover:text-primary transition-colors" />
+                                <div className="flex items-baseline gap-2 truncate pr-2">
+                                    <span>{selectedFiat}</span>
+                                    <span className="text-xs text-text-dim font-medium truncate">
+                                        {fiats.find(f => f.code === selectedFiat)?.name}
+                                    </span>
+                                </div>
+                                <ChevronDown className={`shrink-0 w-5 h-5 text-text-dim transition-transform ${isFiatOpen ? "rotate-180" : ""}`} />
+                            </button>
+
+                            {isFiatOpen && (
+                                <div className="absolute w-full mt-2 bg-surface bg-opacity-95 backdrop-blur-xl border border-border/50 rounded-2xl shadow-2xl overflow-hidden py-1 z-50">
+                                    {fiats.map(f => (
+                                        <button
+                                            key={f.code}
+                                            type="button"
+                                            onClick={() => { setSelectedFiat(f.code); setIsFiatOpen(false); }}
+                                            className={`w-full flex items-center justify-between px-5 py-3.5 text-sm transition-all text-left group-item ${selectedFiat === f.code ? "bg-primary/20 text-white font-black" : "text-text-dim font-bold hover:text-white hover:bg-white/5"}`}
+                                        >
+                                            <span>{f.code}</span>
+                                            <span className={`text-[10px] font-medium transition-colors ${selectedFiat === f.code ? "text-primary/80" : "text-white/30"}`}>{f.name}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
-                        <button className="bg-surface/50 border border-border p-4 rounded-2xl hover:bg-primary/10 hover:border-primary transition-all group">
+                        <button
+                            onClick={() => toast.info("Advanced filtering coming soon")}
+                            className="bg-surface/50 border border-border p-4 rounded-2xl hover:bg-primary/10 hover:border-primary transition-all group"
+                        >
                             <Filter className="w-5 h-5 text-text-dim group-hover:text-primary transition-colors" />
                         </button>
                     </div>

@@ -42,6 +42,28 @@ export interface UserBlock {
     created_at: string;
 }
 
+export interface UserPaymentMethod {
+    id: string;
+    user_id: string;
+    payment_method_code: string;
+    display_name: string;
+    account_name?: string;
+    account_number?: string;
+    bank_name?: string;
+    is_active: boolean;
+    is_default: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface CreatePaymentMethodRequest {
+    payment_method_code: string;
+    display_name: string;
+    account_name?: string;
+    account_number?: string;
+    bank_name?: string;
+}
+
 export interface AdResponse {
     ad_id: string;
     user_id: string;
@@ -112,7 +134,7 @@ const hasRememberedAuthSession = () => {
 
 export const authService = {
     login: async (email: string, password: string): Promise<BackendUser> => {
-        const response = await fetch("/api/auth/login", {
+        const response = await fetch("/api/v1/auth/login", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -150,7 +172,7 @@ export const authService = {
         username: string,
         password: string
     ): Promise<BackendUser> => {
-        const response = await fetch("/api/auth/register", {
+        const response = await fetch("/api/v1/auth/register", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -171,7 +193,7 @@ export const authService = {
 
     logout: async (): Promise<void> => {
         try {
-            await fetch("/api/auth/logout", {
+            await fetch("/api/v1/auth/logout", {
                 method: "POST",
                 credentials: "include",
             });
@@ -185,7 +207,7 @@ export const authService = {
 
     getCurrentUser: async (): Promise<BackendUser | null> => {
         try {
-            const response = await fetch("/api/users/me", {
+            const response = await fetch("/api/v1/users/me", {
                 credentials: "include",
             });
 
@@ -199,7 +221,7 @@ export const authService = {
                     try {
                         await authService.refreshToken();
                         // Retry getting user
-                        const retryResponse = await fetch("/api/users/me", {
+                        const retryResponse = await fetch("/api/v1/users/me", {
                             credentials: "include",
                         });
                         if (retryResponse.ok) {
@@ -230,7 +252,7 @@ export const authService = {
         bio?: string;
         avatarUrl?: string | null;
     }): Promise<BackendUser> => {
-        const response = await fetch("/api/users/me", {
+        const response = await fetch("/api/v1/users/me", {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json",
@@ -250,12 +272,12 @@ export const authService = {
     },
 
     loginWithGoogle: (): void => {
-        window.location.href = "/api/auth/google";
+        window.location.href = "/api/v1/auth/google";
     },
 
     // Password reset
     requestPasswordReset: async (email: string): Promise<void> => {
-        const response = await fetch("/api/auth/password/reset-request", {
+        const response = await fetch("/api/v1/auth/password/reset-request", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -271,7 +293,7 @@ export const authService = {
     },
 
     resetPassword: async (token: string, newPassword: string): Promise<void> => {
-        const response = await fetch("/api/auth/password/reset", {
+        const response = await fetch("/api/v1/auth/password/reset", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -288,7 +310,7 @@ export const authService = {
 
     // 2FA methods
     setup2FA: async (): Promise<{ secret: string; provisioning_uri: string }> => {
-        const response = await fetch("/api/auth/2fa/setup", {
+        const response = await fetch("/api/v1/auth/2fa/setup", {
             method: "POST",
             credentials: "include",
         });
@@ -302,7 +324,7 @@ export const authService = {
     },
 
     verify2FA: async (code: string): Promise<void> => {
-        const response = await fetch("/api/auth/2fa/verify", {
+        const response = await fetch("/api/v1/auth/2fa/verify", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -318,7 +340,7 @@ export const authService = {
     },
 
     disable2FA: async (password: string): Promise<void> => {
-        const response = await fetch("/api/auth/2fa/disable", {
+        const response = await fetch("/api/v1/auth/2fa/disable", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -334,7 +356,7 @@ export const authService = {
     },
 
     complete2FALogin: async (tempToken: string, code: string): Promise<BackendUser> => {
-        const response = await fetch("/api/auth/2fa/complete-login", {
+        const response = await fetch("/api/v1/auth/2fa/complete-login", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -355,7 +377,7 @@ export const authService = {
 
     // Email verification
     requestEmailVerification: async (userId: string): Promise<void> => {
-        const response = await fetch("/api/auth/email/request", {
+        const response = await fetch("/api/v1/auth/email/request", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -371,7 +393,7 @@ export const authService = {
     },
 
     verifyEmail: async (token: string): Promise<void> => {
-        const response = await fetch("/api/auth/email/verify", {
+        const response = await fetch("/api/v1/auth/email/verify", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -389,7 +411,7 @@ export const authService = {
     // Sessions
     getSessions: async (): Promise<BackendSession[]> => {
         try {
-            const response = await fetch("/api/sessions", {
+            const response = await fetch("/api/v1/sessions", {
                 credentials: "include",
             });
 
@@ -397,7 +419,7 @@ export const authService = {
                 // Try to refresh once
                 try {
                     await authService.refreshToken();
-                    const retryResponse = await fetch("/api/sessions", {
+                    const retryResponse = await fetch("/api/v1/sessions", {
                         credentials: "include",
                     });
                     if (retryResponse.ok) {
@@ -418,7 +440,7 @@ export const authService = {
     },
 
     revokeSession: async (tokenId: string): Promise<void> => {
-        const response = await fetch(`/api/sessions/${tokenId}`, {
+        const response = await fetch(`/api/v1/sessions/${tokenId}`, {
             method: "DELETE",
             credentials: "include",
         });
@@ -441,7 +463,7 @@ export const authService = {
         isRefreshing = true;
         let refreshError: unknown;
         try {
-            const response = await fetch("/api/auth/refresh", {
+            const response = await fetch("/api/v1/auth/refresh", {
                 method: "POST",
                 credentials: "include",
             });
@@ -469,7 +491,7 @@ export const authService = {
 
     // User Profile & Stats
     getUserByUsername: async (username: string): Promise<{ user: BackendUser; stats: UserStats }> => {
-        const response = await fetch(`/api/users/username/${username}`, {
+        const response = await fetch(`/api/v1/users/username/${username}`, {
             credentials: "include",
         });
 
@@ -490,56 +512,75 @@ export const authService = {
         };
     },
 
-    // User Blocking
-    blockUser: async (blockedId: string, reason: string = "No reason provided", isPermanent: boolean = true): Promise<void> => {
-        const response = await fetchWithRefresh("/api/users/me/block", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                blocked_id: blockedId,
-                reason: reason,
-                is_permanent: isPermanent
-            }),
+
+    // User Payment Methods
+    getPaymentMethods: async (): Promise<UserPaymentMethod[]> => {
+        const response = await fetchWithRefresh("/api/v1/users/me/payment-methods", {
             credentials: "include",
         });
-
         if (!response.ok) {
             const data = await response.json();
-            throw new Error(data.error || "Failed to block user");
+            throw new Error(data.error || "Failed to fetch payment methods");
         }
+        const data = await response.json();
+        return data.payment_methods || [];
     },
 
-    unblockUser: async (blockedId: string): Promise<void> => {
-        const response = await fetchWithRefresh(`/api/users/me/block/${blockedId}`, {
+    createPaymentMethod: async (req: CreatePaymentMethodRequest): Promise<UserPaymentMethod> => {
+        const response = await fetchWithRefresh("/api/v1/users/me/payment-methods", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(req),
+        });
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "Failed to create payment method");
+        }
+        const data = await response.json();
+        return data.payment_method;
+    },
+
+    updatePaymentMethod: async (id: string, req: Partial<CreatePaymentMethodRequest>): Promise<UserPaymentMethod> => {
+        const response = await fetchWithRefresh(`/api/v1/users/me/payment-methods/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(req),
+        });
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "Failed to update payment method");
+        }
+        const data = await response.json();
+        return data.payment_method;
+    },
+
+    deletePaymentMethod: async (id: string): Promise<void> => {
+        const response = await fetchWithRefresh(`/api/v1/users/me/payment-methods/${id}`, {
             method: "DELETE",
             credentials: "include",
         });
-
         if (!response.ok) {
             const data = await response.json();
-            throw new Error(data.error || "Failed to unblock user");
+            throw new Error(data.error || "Failed to delete payment method");
         }
     },
 
-    getBlocks: async (): Promise<UserBlock[]> => {
-        const response = await fetchWithRefresh("/api/users/me/block", {
+    setDefaultPaymentMethod: async (id: string): Promise<void> => {
+        const response = await fetchWithRefresh(`/api/v1/users/me/payment-methods/${id}/default`, {
+            method: "PATCH",
             credentials: "include",
         });
-
         if (!response.ok) {
             const data = await response.json();
-            throw new Error(data.error || "Failed to fetch blocked users");
+            throw new Error(data.error || "Failed to set default payment method");
         }
-
-        const data = await response.json();
-        return data.blocks || [];
     },
 
     // Wallet
     getWalletBalances: async (): Promise<WalletBalance[]> => {
-        const response = await fetchWithRefresh("/api/wallet/balance", {
+        const response = await fetchWithRefresh("/api/v1/wallet/balance", {
             credentials: "include",
         });
         if (!response.ok) {
@@ -551,7 +592,7 @@ export const authService = {
     },
 
     getDepositAddress: async (cryptoSymbol: string): Promise<{ wallet_id: string; crypto_id: number; address: string }> => {
-        const response = await fetchWithRefresh(`/api/wallet/deposit/${encodeURIComponent(cryptoSymbol)}`, {
+        const response = await fetchWithRefresh(`/api/v1/wallet/deposit/${encodeURIComponent(cryptoSymbol)}`, {
             credentials: "include",
         });
         if (!response.ok) {
@@ -562,7 +603,7 @@ export const authService = {
     },
 
     withdrawFunds: async (payload: { crypto_symbol: string; address: string; amount: number; fee?: number; memo?: string }): Promise<any> => {
-        const response = await fetchWithRefresh("/api/wallet/withdraw", {
+        const response = await fetchWithRefresh("/api/v1/wallet/withdraw", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -583,7 +624,7 @@ export const authService = {
         if (params.offset !== undefined) query.append("offset", String(params.offset));
         const suffix = query.toString() ? `?${query.toString()}` : "";
 
-        const response = await fetchWithRefresh(`/api/wallet/transactions${suffix}`, {
+        const response = await fetchWithRefresh(`/api/v1/wallet/transactions${suffix}`, {
             credentials: "include",
         });
         if (!response.ok) {

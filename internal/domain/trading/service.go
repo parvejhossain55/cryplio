@@ -106,15 +106,6 @@ func (s *tradeService) InitiateTrade(ctx context.Context, adID, buyerID uuid.UUI
 		return nil, fmt.Errorf("amount must be between %.2f and %.2f", ad.MinAmount, ad.MaxAmount)
 	}
 
-	// 5. CRITICAL: Check if Buyer is blocked by Seller (Ad Creator) - FR-136
-	isBlocked, err := s.identityRepo.IsBlocked(ctx, ad.UserID, buyerID)
-	if err != nil {
-		return nil, fmt.Errorf("check block status: %w", err)
-	}
-	if isBlocked {
-		return nil, errors.New("you are blocked by this user and cannot initiate trades")
-	}
-
 	// 7. Create Trade
 	trade := &Trade{
 		TradeID:              uuid.New(),

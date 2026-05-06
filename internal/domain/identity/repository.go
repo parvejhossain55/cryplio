@@ -2,7 +2,6 @@ package identity
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -48,9 +47,12 @@ type UserRepository interface {
 	DeleteSession(ctx context.Context, tokenID string) error
 	DeleteSessionsByUserID(ctx context.Context, userID uuid.UUID) error
 	UpdateSessionLastUsed(ctx context.Context, tokenID string) error
-	// User block
-	BlockUser(ctx context.Context, blockerID, blockedID uuid.UUID, reason string, isPermanent bool, expiresAt *time.Time) error
-	UnblockUser(ctx context.Context, blockerID, blockedID uuid.UUID) error
-	IsBlocked(ctx context.Context, blockerID, blockedID uuid.UUID) (bool, error)
-	ListBlocks(ctx context.Context, userID uuid.UUID) ([]UserBlock, error)
+
+	// User Payment Methods
+	CreateUserPaymentMethod(ctx context.Context, pm *UserPaymentMethod) error
+	GetUserPaymentMethod(ctx context.Context, id uuid.UUID) (*UserPaymentMethod, error)
+	GetUserPaymentMethodsByUserID(ctx context.Context, userID uuid.UUID) ([]UserPaymentMethod, error)
+	UpdateUserPaymentMethod(ctx context.Context, pm *UserPaymentMethod) error
+	DeleteUserPaymentMethod(ctx context.Context, id uuid.UUID) error
+	SetDefaultUserPaymentMethod(ctx context.Context, userID, id uuid.UUID) error
 }

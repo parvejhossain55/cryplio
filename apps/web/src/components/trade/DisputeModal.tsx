@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, X, Loader2, Info } from "lucide-react";
+import { toast } from "sonner";
 
 interface DisputeModalProps {
     isOpen: boolean;
@@ -27,9 +28,10 @@ const DisputeModal = ({ isOpen, onClose, onConfirm }: DisputeModalProps) => {
         setIsSubmitting(true);
         try {
             await onConfirm(reasonCode, reasonText);
+            toast.success("Dispute raised successfully");
             onClose();
         } catch (err: any) {
-            alert(err.message);
+            toast.error(err.message || "Failed to raise dispute");
         } finally {
             setIsSubmitting(false);
         }
@@ -86,8 +88,8 @@ const DisputeModal = ({ isOpen, onClose, onConfirm }: DisputeModalProps) => {
                                                 type="button"
                                                 onClick={() => setReasonCode(rc.code)}
                                                 className={`p-4 rounded-xl text-left text-xs font-bold transition-all border ${reasonCode === rc.code
-                                                        ? "bg-primary/10 border-primary text-white"
-                                                        : "bg-background border-white/5 text-text-dim hover:border-white/10"
+                                                    ? "bg-primary/10 border-primary text-white"
+                                                    : "bg-background border-white/5 text-text-dim hover:border-white/10"
                                                     }`}
                                             >
                                                 {rc.label}
