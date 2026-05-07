@@ -16,6 +16,7 @@ type UserRepository interface {
 	Update(ctx context.Context, user *User) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	GetAll(ctx context.Context, limit, offset int) ([]User, error)
+	CountUsers(ctx context.Context) (int, error)
 	IncrementLogin(ctx context.Context, userID uuid.UUID) error
 	UpdateLastSeen(ctx context.Context, userID uuid.UUID) error
 	IncrementFailedAttempts(ctx context.Context, userID uuid.UUID) (int, error)
@@ -50,9 +51,9 @@ type UserRepository interface {
 
 	// User Payment Methods
 	CreateUserPaymentMethod(ctx context.Context, pm *UserPaymentMethod) error
-	GetUserPaymentMethod(ctx context.Context, id uuid.UUID) (*UserPaymentMethod, error)
-	GetUserPaymentMethodsByUserID(ctx context.Context, userID uuid.UUID) ([]UserPaymentMethod, error)
+	GetUserPaymentMethod(ctx context.Context, pmID uuid.UUID) (*UserPaymentMethod, error)
+	GetUserPaymentMethods(ctx context.Context, userID uuid.UUID) ([]UserPaymentMethod, error)
 	UpdateUserPaymentMethod(ctx context.Context, pm *UserPaymentMethod) error
-	DeleteUserPaymentMethod(ctx context.Context, id uuid.UUID) error
-	SetDefaultUserPaymentMethod(ctx context.Context, userID, id uuid.UUID) error
+	DeleteUserPaymentMethod(ctx context.Context, pmID uuid.UUID) error
+	SetDefaultUserPaymentMethod(ctx context.Context, userID, pmID uuid.UUID) error
 }

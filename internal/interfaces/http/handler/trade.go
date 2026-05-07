@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"cryplio/internal/domain/trading"
+	"cryplio/internal/infrastructure/storage"
 	"cryplio/internal/interfaces/http/dto"
+	"cryplio/internal/interfaces/websocket"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -15,10 +17,12 @@ import (
 
 type TradeHandler struct {
 	tradeService trading.TradeService
+	storage      storage.ObjectStorage
+	wsService    websocket.Service
 }
 
-func NewTradeHandler(service trading.TradeService) *TradeHandler {
-	return &TradeHandler{tradeService: service}
+func NewTradeHandler(service trading.TradeService, storage storage.ObjectStorage, wsService websocket.Service) *TradeHandler {
+	return &TradeHandler{tradeService: service, storage: storage, wsService: wsService}
 }
 
 func (h *TradeHandler) ListAdsHandler(c *gin.Context) {
@@ -107,6 +111,73 @@ func (h *TradeHandler) InitiateTradeHandler(c *gin.Context) {
 		"trade_id": trade.TradeID.String(),
 		"status":   trade.Status,
 	})
+}
+
+func (h *TradeHandler) UpdateAdHandler(c *gin.Context) {
+	adID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid ad id"})
+		return
+	}
+
+	var req dto.UpdateAdRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userIDStr, _ := c.Get("user_id")
+	userID, _ := uuid.Parse(userIDStr.(string))
+
+	paymentMethods := make([]int, 0, len(req.PaymentMethods))
+	for _, pm := range req.PaymentMethods {
+		id, err := strconv.Atoi(pm)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("invalid payment method ID: %s", pm)})
+			return
+		}
+		paymentMethods = append(paymentMethods, id)
+	}
+
+	updates := &trading.TradeAd{
+		Type:                 trading.AdType(req.Type),
+		CryptoID:             req.CryptoID,
+		FiatID:               req.FiatID,
+		PriceType:            trading.PriceType(req.PriceType),
+		Price:                req.Price,
+		FloatingMarkup:       req.FloatingMarkup,
+		MinAmount:            req.MinAmount,
+		MaxAmount:            req.MaxAmount,
+		PaymentMethods:       paymentMethods,
+		TradeTerms:           &req.TradeTerms,
+		PaymentWindowMinutes: req.PaymentWindowMinutes,
+		Timezone:             req.Timezone,
+	}
+
+	if err := h.tradeService.UpdateAd(c.Request.Context(), adID, userID, updates); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Ad updated successfully"})
+}
+
+func (h *TradeHandler) DeleteAdHandler(c *gin.Context) {
+	adID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid ad id"})
+		return
+	}
+
+	userIDStr, _ := c.Get("user_id")
+	userID, _ := uuid.Parse(userIDStr.(string))
+
+	if err := h.tradeService.DeleteAd(c.Request.Context(), adID, userID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Ad deleted successfully"})
 }
 
 func (h *TradeHandler) CreateAdHandler(c *gin.Context) {
@@ -288,16 +359,102 @@ func (h *TradeHandler) SendMessageHandler(c *gin.Context) {
 		return
 	}
 
+	userIDStr, _ := c.Get("user_id")
+	userID, _ := uuid.Parse(userIDStr.(string))
+
+	// Check if this is a file upload request
+	file, header, err := c.Request.FormFile("file")
+	if err == nil {
+		// Handle file upload
+		defer file.Close()
+
+		// Validate file size (max 5MB)
+		if header.Size > 5*1024*1024 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "file size must be less than 5MB"})
+			return
+		}
+
+		// Validate file type
+		contentType := header.Header.Get("Content-Type")
+		if !isAllowedFileType(contentType) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "file type not allowed"})
+			return
+		}
+
+		// Read file content
+		fileContent := make([]byte, header.Size)
+		_, err := file.Read(fileContent)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read file"})
+			return
+		}
+
+		// Upload to storage
+		fileName := header.Filename
+		uploadInput := storage.UploadInput{
+			Key:         fmt.Sprintf("trade-files/%s/%s/%s", tradeID.String(), userID.String(), fileName),
+			ContentType: contentType,
+			Body:        fileContent,
+		}
+
+		uploadResult, err := h.storage.Upload(c.Request.Context(), uploadInput)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload file"})
+			return
+		}
+
+		// Send file message
+		msg, err := h.tradeService.SendFileMessage(c.Request.Context(), tradeID, userID, uploadResult.URL, contentType, int(header.Size))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Broadcast message to trade participants via WebSocket
+		if h.wsService != nil && msg.MessageID != uuid.Nil {
+			var fileURL, mimeType string
+			var fileSize int
+
+			if msg.FileURL != nil {
+				fileURL = *msg.FileURL
+			}
+			if msg.FileMimeType != nil {
+				mimeType = *msg.FileMimeType
+			}
+			if msg.FileSize != nil {
+				fileSize = *msg.FileSize
+			}
+
+			chatMessage := websocket.ChatMessage{
+				ID:        msg.MessageID.String(),
+				TradeID:   msg.TradeID.String(),
+				SenderID:  msg.SenderID.String(),
+				FileURL:   fileURL,
+				MimeType:  mimeType,
+				FileSize:  fileSize,
+				CreatedAt: msg.CreatedAt.Format(time.RFC3339),
+			}
+
+			h.wsService.BroadcastMessage("chat_message", chatMessage, tradeID.String())
+		}
+
+		c.JSON(http.StatusCreated, msg)
+		return
+	}
+
+	// Handle text message
 	var req struct {
-		Content string `json:"content" binding:"required"`
+		Content string `json:"content"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	userIDStr, _ := c.Get("user_id")
-	userID, _ := uuid.Parse(userIDStr.(string))
+	if req.Content == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "content is required for text messages"})
+		return
+	}
 
 	msg, err := h.tradeService.SendMessage(c.Request.Context(), tradeID, userID, req.Content)
 	if err != nil {
@@ -305,7 +462,38 @@ func (h *TradeHandler) SendMessageHandler(c *gin.Context) {
 		return
 	}
 
+	// Broadcast message to trade participants via WebSocket
+	if h.wsService != nil && msg.MessageID != uuid.Nil {
+		var content string
+		if msg.Content != nil {
+			content = *msg.Content
+		}
+
+		chatMessage := websocket.ChatMessage{
+			ID:        msg.MessageID.String(),
+			TradeID:   msg.TradeID.String(),
+			SenderID:  msg.SenderID.String(),
+			Content:   content,
+			CreatedAt: msg.CreatedAt.Format(time.RFC3339),
+		}
+
+		h.wsService.BroadcastMessage("chat_message", chatMessage, tradeID.String())
+	}
+
 	c.JSON(http.StatusCreated, msg)
+}
+
+func isAllowedFileType(contentType string) bool {
+	allowedTypes := []string{
+		"image/jpeg", "image/png", "image/gif",
+		"application/pdf",
+	}
+	for _, allowed := range allowedTypes {
+		if contentType == allowed {
+			return true
+		}
+	}
+	return false
 }
 
 func (h *TradeHandler) GetChatHistoryHandler(c *gin.Context) {
@@ -325,6 +513,17 @@ func (h *TradeHandler) GetChatHistoryHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, messages)
+}
+
+// ListAllTradesHandler returns all trades for admin monitoring
+func (h *TradeHandler) ListAllTradesHandler(c *gin.Context) {
+	status := c.Query("status")
+	trades, err := h.tradeService.ListAllTrades(c.Request.Context(), status)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"trades": trades})
 }
 
 func (h *TradeHandler) DisputeTradeHandler(c *gin.Context) {
@@ -355,4 +554,30 @@ func (h *TradeHandler) DisputeTradeHandler(c *gin.Context) {
 		"dispute_id": trade.DisputeID,
 		"status":     trade.Status,
 	})
+}
+
+func (h *TradeHandler) LeaveFeedbackHandler(c *gin.Context) {
+	tradeID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid trade id"})
+		return
+	}
+
+	var req dto.LeaveFeedbackRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userIDStr, _ := c.Get("user_id")
+	userID, _ := uuid.Parse(userIDStr.(string))
+
+	rating := trading.FeedbackRating(req.Rating)
+	err = h.tradeService.LeaveFeedback(c.Request.Context(), tradeID, userID, rating, req.Comment)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Feedback submitted successfully"})
 }

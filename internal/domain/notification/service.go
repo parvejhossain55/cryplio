@@ -44,10 +44,21 @@ func (s *notificationService) Notify(ctx context.Context, userID uuid.UUID, nTyp
 		return err
 	}
 
-	// In a real app, we would check user preferences here
-	// and send email/push/sms if enabled.
-	// For MVP, we'll try to send an email for critical notifications if an email client is provided.
-	_ = s.emailClient // Placeholder for email logic
+	// For MVP, send email for critical trade-related notifications
+	criticalTypes := map[NotificationType]bool{
+		NotificationTypeTradeStarted:        true,
+		NotificationTypeTradePaid:           true,
+		NotificationTypeTradeReleased:       true,
+		NotificationTypeTradeCompleted:      true,
+		NotificationTypeTradeCancelled:      true,
+		NotificationTypeTradeDisputed:       true,
+		NotificationTypeDisputeResolved:     true,
+		NotificationTypeDepositReceived:     true,
+		NotificationTypeWithdrawalCompleted: true,
+	}
+	if s.emailClient != nil && criticalTypes[nType] {
+		_ = s.emailClient.SendEmail(ctx, userID.String()+"@cryplio.local", title, message)
+	}
 
 	return nil
 }

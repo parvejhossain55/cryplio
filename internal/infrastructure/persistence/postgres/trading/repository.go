@@ -340,6 +340,89 @@ func (r *tradeRepository) ListTrades(ctx context.Context, userID uuid.UUID, role
 	return trades, nil
 }
 
+func (r *tradeRepository) ListAllTrades(ctx context.Context, status string) ([]trading.Trade, error) {
+	columns := `
+		trade_id, ad_id, buyer_id, seller_id, crypto_id, fiat_id,
+		crypto_amount, fiat_amount, exchange_rate, payment_method,
+		price_type, agreed_price, status, dispute_id, chat_room_id,
+		started_at, payment_marked_at, released_at, cancelled_at,
+		completed_at, expired_at, payment_window_minutes,
+		is_auto_dispute_triggered, cancel_reason, escrow_txn_hash,
+		escrow_contract_address, created_at, updated_at, deleted_at
+	`
+	query := fmt.Sprintf("SELECT %s FROM trades WHERE deleted_at IS NULL ORDER BY created_at DESC", columns)
+	if status != "" && status != "all" {
+		query = fmt.Sprintf("SELECT %s FROM trades WHERE status = $1 AND deleted_at IS NULL ORDER BY created_at DESC", columns)
+		rows, err := r.db.QueryContext(ctx, query, status)
+		if err != nil {
+			return nil, fmt.Errorf("query all trades: %w", err)
+		}
+		defer rows.Close()
+
+		var trades []trading.Trade
+		for rows.Next() {
+			var t trading.Trade
+			err := rows.Scan(
+				&t.TradeID, &t.AdID, &t.BuyerID, &t.SellerID, &t.CryptoID, &t.FiatID,
+				&t.CryptoAmount, &t.FiatAmount, &t.ExchangeRate, &t.PaymentMethod,
+				&t.PriceType, &t.AgreedPrice, &t.Status, &t.DisputeID, &t.ChatRoomID,
+				&t.StartedAt, &t.PaymentMarkedAt, &t.ReleasedAt, &t.CancelledAt,
+				&t.CompletedAt, &t.ExpiredAt, &t.PaymentWindowMinutes,
+				&t.IsAutoDisputeTriggered, &t.CancelReason, &t.EscrowTxnHash,
+				&t.EscrowContractAddress, &t.CreatedAt, &t.UpdatedAt, &t.DeletedAt,
+			)
+			if err != nil {
+				return nil, fmt.Errorf("scan trade: %w", err)
+			}
+			trades = append(trades, t)
+		}
+		return trades, nil
+	}
+
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("query all trades: %w", err)
+	}
+	defer rows.Close()
+
+	var trades []trading.Trade
+	for rows.Next() {
+		var t trading.Trade
+		err := rows.Scan(
+			&t.TradeID, &t.AdID, &t.BuyerID, &t.SellerID, &t.CryptoID, &t.FiatID,
+			&t.CryptoAmount, &t.FiatAmount, &t.ExchangeRate, &t.PaymentMethod,
+			&t.PriceType, &t.AgreedPrice, &t.Status, &t.DisputeID, &t.ChatRoomID,
+			&t.StartedAt, &t.PaymentMarkedAt, &t.ReleasedAt, &t.CancelledAt,
+			&t.CompletedAt, &t.ExpiredAt, &t.PaymentWindowMinutes,
+			&t.IsAutoDisputeTriggered, &t.CancelReason, &t.EscrowTxnHash,
+			&t.EscrowContractAddress, &t.CreatedAt, &t.UpdatedAt, &t.DeletedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan trade: %w", err)
+		}
+		trades = append(trades, t)
+	}
+	return trades, nil
+}
+
+func (r *tradeRepository) CountTrades(ctx context.Context, status string) (int, error) {
+	var count int
+	query := `SELECT COUNT(*) FROM trades WHERE deleted_at IS NULL`
+	if status != "" && status != "all" {
+		query = `SELECT COUNT(*) FROM trades WHERE status = $1 AND deleted_at IS NULL`
+		err := r.db.QueryRowContext(ctx, query, status).Scan(&count)
+		if err != nil {
+			return 0, fmt.Errorf("count trades: %w", err)
+		}
+		return count, nil
+	}
+	err := r.db.QueryRowContext(ctx, query).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("count trades: %w", err)
+	}
+	return count, nil
+}
+
 func (r *tradeRepository) ListExpiredPendingTrades(ctx context.Context, now time.Time) ([]trading.Trade, error) {
 	query := `
 		SELECT trade_id, ad_id, buyer_id, seller_id, crypto_id, fiat_id,
@@ -353,7 +436,7 @@ func (r *tradeRepository) ListExpiredPendingTrades(ctx context.Context, now time
 		WHERE deleted_at IS NULL
 		  AND status IN ('pending', 'active')
 		  AND payment_marked_at IS NULL
-		  AND (created_at + make_interval(mins => payment_window_minutes)) <= $1
+		  AND (COALESCE(started_at, created_at) + make_interval(mins => payment_window_minutes)) <= $1
 	`
 
 	rows, err := r.db.QueryContext(ctx, query, now)
@@ -492,4 +575,44 @@ func (r *tradeRepository) ListTradeMessages(ctx context.Context, tradeID uuid.UU
 		messages = append(messages, m)
 	}
 	return messages, nil
+}
+
+func (r *tradeRepository) CreateFeedback(ctx context.Context, feedback *trading.TradeFeedback) error {
+	query := `
+		INSERT INTO trade_feedback (
+			feedback_id, trade_id, from_user_id, to_user_id, rating, comment, is_public, created_at
+		) VALUES (
+			$1, $2, $3, $4, $5, $6, $7, NOW()
+		) RETURNING created_at
+	`
+	err := r.db.QueryRowContext(
+		ctx, query,
+		feedback.FeedbackID, feedback.TradeID, feedback.FromUserID,
+		feedback.ToUserID, feedback.Rating, feedback.Comment, true,
+	).Scan(&feedback.CreatedAt)
+
+	if err != nil {
+		return fmt.Errorf("create feedback: %w", err)
+	}
+	return nil
+}
+
+func (r *tradeRepository) GetFeedbackByTrade(ctx context.Context, tradeID uuid.UUID) (*trading.TradeFeedback, error) {
+	query := `
+		SELECT feedback_id, trade_id, from_user_id, to_user_id, rating, comment, created_at
+		FROM trade_feedback
+		WHERE trade_id = $1
+	`
+	var f trading.TradeFeedback
+	err := r.db.QueryRowContext(ctx, query, tradeID).Scan(
+		&f.FeedbackID, &f.TradeID, &f.FromUserID, &f.ToUserID,
+		&f.Rating, &f.Comment, &f.CreatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get feedback: %w", err)
+	}
+	return &f, nil
 }

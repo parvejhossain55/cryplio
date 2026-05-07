@@ -110,6 +110,30 @@ type PaymentManager interface {
 	SetDefaultPaymentMethod(ctx context.Context, userID, pmID uuid.UUID) error
 }
 
+// UserAdminManager handles admin user management operations.
+type UserAdminManager interface {
+	ListUsers(ctx context.Context, limit, offset int) ([]User, error)
+	CountUsers(ctx context.Context) (int, error)
+	SuspendUser(ctx context.Context, adminID, userID uuid.UUID, reason string, duration *time.Duration) error
+	UnsuspendUser(ctx context.Context, adminID, userID uuid.UUID) error
+	BanUser(ctx context.Context, adminID, userID uuid.UUID, reason string) error
+	UnbanUser(ctx context.Context, adminID, userID uuid.UUID) error
+}
+
+// DashboardStats holds admin dashboard aggregated metrics
+type DashboardStats struct {
+	TotalUsers      int `json:"total_users"`
+	TotalTrades     int `json:"total_trades"`
+	PendingTrades   int `json:"pending_trades"`
+	ActiveTrades    int `json:"active_trades"`
+	PaidTrades      int `json:"paid_trades"`
+	CompletedTrades int `json:"completed_trades"`
+	DisputedTrades  int `json:"disputed_trades"`
+	CancelledTrades int `json:"cancelled_trades"`
+	TotalDisputes   int `json:"total_disputes"`
+	PendingDisputes int `json:"pending_disputes"`
+}
+
 // AuthService combines all auth operations (legacy composite).
 type AuthService interface {
 	UserRegistrar
@@ -121,6 +145,7 @@ type AuthService interface {
 	TwoFactorManager
 	SessionManager
 	PaymentManager
+	UserAdminManager
 }
 
 type authService struct {
@@ -1070,7 +1095,7 @@ func (s *authService) AddPaymentMethod(ctx context.Context, userID uuid.UUID, pm
 }
 
 func (s *authService) GetPaymentMethods(ctx context.Context, userID uuid.UUID) ([]UserPaymentMethod, error) {
-	return s.userRepo.GetUserPaymentMethodsByUserID(ctx, userID)
+	return s.userRepo.GetUserPaymentMethods(ctx, userID)
 }
 
 func (s *authService) UpdatePaymentMethod(ctx context.Context, userID uuid.UUID, pm *UserPaymentMethod) (*UserPaymentMethod, error) {
@@ -1106,4 +1131,99 @@ func (s *authService) SetDefaultPaymentMethod(ctx context.Context, userID, pmID 
 	}
 
 	return s.userRepo.SetDefaultUserPaymentMethod(ctx, userID, pmID)
+}
+
+// UserAdminManager implementation
+
+func (s *authService) CountUsers(ctx context.Context) (int, error) {
+	return s.userRepo.CountUsers(ctx)
+}
+
+func (s *authService) ListUsers(ctx context.Context, limit, offset int) ([]User, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	return s.userRepo.GetAll(ctx, limit, offset)
+}
+
+func (s *authService) SuspendUser(ctx context.Context, adminID, userID uuid.UUID, reason string, duration *time.Duration) error {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return apperrors.Internal("failed to get user", err)
+	}
+	if user == nil {
+		return apperrors.NotFound("user not found", nil)
+	}
+	if user.Role == UserRoleAdmin {
+		return apperrors.Forbidden("cannot suspend admin users", nil)
+	}
+
+	var until *time.Time
+	if duration != nil {
+		t := time.Now().Add(*duration)
+		until = &t
+	}
+	user.Suspend(reason, until)
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return apperrors.Internal("failed to suspend user", err)
+	}
+	return nil
+}
+
+func (s *authService) UnsuspendUser(ctx context.Context, adminID, userID uuid.UUID) error {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return apperrors.Internal("failed to get user", err)
+	}
+	if user == nil {
+		return apperrors.NotFound("user not found", nil)
+	}
+	user.Unsuspend()
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return apperrors.Internal("failed to unsuspend user", err)
+	}
+	return nil
+}
+
+func (s *authService) BanUser(ctx context.Context, adminID, userID uuid.UUID, reason string) error {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return apperrors.Internal("failed to get user", err)
+	}
+	if user == nil {
+		return apperrors.NotFound("user not found", nil)
+	}
+	if user.Role == UserRoleAdmin {
+		return apperrors.Forbidden("cannot ban admin users", nil)
+	}
+	user.Status = UserStatusBanned
+	user.IsSuspended = true
+	user.SuspensionReason = &reason
+	now := time.Now()
+	user.SuspendedAt = &now
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return apperrors.Internal("failed to ban user", err)
+	}
+	// Delete all sessions for banned user
+	_ = s.userRepo.DeleteSessionsByUserID(ctx, userID)
+	return nil
+}
+
+func (s *authService) UnbanUser(ctx context.Context, adminID, userID uuid.UUID) error {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return apperrors.NotFound("user not found", nil)
+	}
+	user.Status = UserStatusActive
+	user.IsSuspended = false
+	user.SuspensionReason = nil
+	user.SuspendedAt = nil
+	user.SuspendedUntil = nil
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return apperrors.Internal("failed to unban user", err)
+	}
+	return nil
 }

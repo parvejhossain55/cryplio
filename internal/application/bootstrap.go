@@ -6,6 +6,7 @@ import (
 
 	domaindispute "cryplio/internal/domain/dispute"
 	domainidentity "cryplio/internal/domain/identity"
+	"cryplio/internal/domain/market"
 	domainnotification "cryplio/internal/domain/notification"
 	"cryplio/internal/domain/platform"
 	domaintraing "cryplio/internal/domain/trading"
@@ -21,6 +22,7 @@ import (
 	"cryplio/internal/infrastructure/storage"
 	"cryplio/internal/infrastructure/worker"
 	httpapi "cryplio/internal/interfaces/http"
+	"cryplio/internal/interfaces/websocket"
 	"cryplio/pkg/config"
 	"cryplio/pkg/database"
 
@@ -80,15 +82,20 @@ func New() (*App, error) {
 	var escrowClient domaintraing.EscrowContractClient
 	var walletClient domainwallet.WalletClient
 
-	if cfg.EthPrivateKey != "" {
+	if cfg.EscrowContractAddress != "" && cfg.EthRPCURL != "" {
 		evmEscrow, err := blockchain.NewEvmEscrowClient(cfg.EthRPCURL, cfg.EthPrivateKey, cfg.EscrowContractAddress)
 		if err == nil {
 			escrowClient = evmEscrow
 		} else {
 			fmt.Printf("Warning: failed to init EVM Escrow Client: %v\n", err)
-			escrowClient = blockchain.NewNoopEscrowContractClient()
+			escrowClient = blockchain.NewMockEscrowContractClient()
 		}
+	} else {
+		// Use mock escrow service for MVP without smart contracts
+		escrowClient = blockchain.NewMockEscrowContractClient()
+	}
 
+	if cfg.EthPrivateKey != "" {
 		evmWallet, err := blockchain.NewEvmWalletClient(cfg.EthRPCURL, cfg.EthPrivateKey)
 		if err == nil {
 			walletClient = evmWallet
@@ -102,19 +109,28 @@ func New() (*App, error) {
 	}
 
 	tradeRepo := tradingpostgres.NewTradeRepository(db)
-	tradeService := domaintraing.NewTradeService(tradeRepo, userRepo, disputeRepo, escrowClient)
+	tradeService := domaintraing.NewTradeService(tradeRepo, userRepo, disputeRepo, escrowClient, notificationService)
 
 	platformRepo := platformpostgres.NewPlatformRepository(db)
 	platformService := platform.NewPlatformService(platformRepo)
 	walletRepo := walletpostgres.NewWalletRepository(db)
 	walletService := domainwallet.NewService(walletRepo, walletClient)
 
+	rateService := market.NewRateService()
+
 	storage, err := storage.NewS3Storage(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("initialize storage: %w", err)
 	}
 
-	router := httpapi.SetupRouter(cfg, authService, tradeService, platformService, walletService, disputeService, notificationService, storage)
+	// Create WebSocket service
+	wsService := websocket.NewService()
+
+	// Create WebSocket notifier for real-time notifications
+	emailService := notification.NewMockEmailService("noreply@cryplio.com", "Cryplio")
+	_ = notification.NewWebSocketNotifier(wsService, emailService) // TODO: Integrate with handlers
+
+	router := httpapi.SetupRouter(cfg, authService, tradeService, platformService, walletService, disputeService, notificationService, storage, rateService, wsService)
 
 	asynqWorker := worker.NewWorker(cfg, tradeService)
 	asynqScheduler := worker.NewScheduler(cfg)

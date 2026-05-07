@@ -13,7 +13,11 @@ import {
     ChevronRight,
     Loader2,
     Search,
-    Filter
+    Filter,
+    Upload,
+    FileText,
+    Eye,
+    Download
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { authService } from "@/services/authService";
@@ -24,6 +28,8 @@ const AdminDisputesPage = () => {
     const [disputes, setDisputes] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [filter, setFilter] = useState("all");
+    const [uploadingEvidence, setUploadingEvidence] = useState<string | null>(null);
+    const [selectedDispute, setSelectedDispute] = useState<any | null>(null);
 
     useEffect(() => {
         fetchDisputes();
@@ -72,6 +78,34 @@ const AdminDisputesPage = () => {
                 onClick: () => { }
             }
         });
+    };
+
+    const handleEvidenceUpload = async (disputeId: string, file: File) => {
+        setUploadingEvidence(disputeId);
+        
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch(`/api/disputes/${disputeId}/evidence`, {
+                method: 'POST',
+                body: formData,
+            });
+
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.error || "Failed to upload evidence");
+            }
+
+            toast.success("Evidence uploaded successfully");
+            fetchDisputes(); // Refresh to show new evidence
+        } catch (error) {
+            console.error("Error uploading evidence:", error);
+            toast.error("Failed to upload evidence");
+        } finally {
+            setUploadingEvidence(null);
+        }
     };
 
     const getStatusColor = (status: string) => {

@@ -802,6 +802,22 @@ export const authService = {
         return await response.json();
     },
 
+    leaveFeedback: async (tradeId: string, rating: string, comment: string): Promise<any> => {
+        const response = await fetch(`/api/v1/marketplace/trades/${tradeId}/feedback`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rating, comment }),
+            credentials: "include",
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "Failed to submit feedback");
+        }
+
+        return await response.json();
+    },
+
     getNotifications: async (): Promise<any[]> => {
         const response = await fetch(`/api/v1/notifications`, {
             credentials: "include",

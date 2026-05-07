@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
+	"cryplio/internal/domain/dispute"
 	"cryplio/internal/domain/identity"
+	"cryplio/internal/domain/trading"
 	"cryplio/internal/infrastructure/storage"
 	"cryplio/internal/interfaces/http/dto"
 	httpvalidator "cryplio/internal/interfaces/http/validator"
@@ -18,9 +21,11 @@ import (
 
 // AuthHandler handles auth HTTP requests
 type AuthHandler struct {
-	authService identity.AuthService
-	cfg         *Config
-	storage     storage.ObjectStorage
+	authService    identity.AuthService
+	tradeService   trading.TradeService
+	disputeService dispute.Service
+	cfg            *Config
+	storage        storage.ObjectStorage
 }
 
 // NewAuthHandler creates new auth handler
@@ -30,6 +35,18 @@ func NewAuthHandler(authService identity.AuthService, cfg *Config, storage stora
 		cfg:         cfg,
 		storage:     storage,
 	}
+}
+
+// WithTradeService sets the trade service for admin dashboard
+func (h *AuthHandler) WithTradeService(s trading.TradeService) *AuthHandler {
+	h.tradeService = s
+	return h
+}
+
+// WithDisputeService sets the dispute service for admin dashboard
+func (h *AuthHandler) WithDisputeService(s dispute.Service) *AuthHandler {
+	h.disputeService = s
+	return h
 }
 
 // RegisterHandler handles user registration
@@ -656,4 +673,154 @@ func (h *AuthHandler) SetDefaultPaymentMethodHandler(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "default payment method updated"})
+}
+
+// Admin User Management Handlers
+
+// ListUsersHandler returns a paginated list of users (admin only)
+func (h *AuthHandler) ListUsersHandler(c *gin.Context) {
+	limit := 50
+	offset := 0
+	if l := c.Query("limit"); l != "" {
+		if parsed, err := fmt.Sscanf(l, "%d", &limit); err == nil && parsed == 1 {
+			if limit > 100 {
+				limit = 100
+			}
+		}
+	}
+	if o := c.Query("offset"); o != "" {
+		fmt.Sscanf(o, "%d", &offset)
+	}
+
+	users, err := h.authService.ListUsers(c.Request.Context(), limit, offset)
+	if err != nil {
+		handleError(c, err)
+		return
+	}
+
+	response := make([]dto.UserResponse, 0, len(users))
+	for _, u := range users {
+		response = append(response, mapUser(&u))
+	}
+	c.JSON(http.StatusOK, gin.H{"users": response, "limit": limit, "offset": offset})
+}
+
+// SuspendUserHandler suspends a user account (admin only)
+func (h *AuthHandler) SuspendUserHandler(c *gin.Context) {
+	adminIDStr, _ := c.Get("user_id")
+	adminID, _ := uuid.Parse(adminIDStr.(string))
+
+	userID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	var req struct {
+		Reason   string `json:"reason" binding:"required"`
+		Duration *int   `json:"duration_minutes,omitempty"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var duration *time.Duration
+	if req.Duration != nil && *req.Duration > 0 {
+		d := time.Duration(*req.Duration) * time.Minute
+		duration = &d
+	}
+
+	if err := h.authService.SuspendUser(c.Request.Context(), adminID, userID, req.Reason, duration); err != nil {
+		handleError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "user suspended successfully"})
+}
+
+// UnsuspendUserHandler lifts a user suspension (admin only)
+func (h *AuthHandler) UnsuspendUserHandler(c *gin.Context) {
+	adminIDStr, _ := c.Get("user_id")
+	adminID, _ := uuid.Parse(adminIDStr.(string))
+
+	userID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	if err := h.authService.UnsuspendUser(c.Request.Context(), adminID, userID); err != nil {
+		handleError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "user unsuspended successfully"})
+}
+
+// BanUserHandler bans a user account permanently (admin only)
+func (h *AuthHandler) BanUserHandler(c *gin.Context) {
+	adminIDStr, _ := c.Get("user_id")
+	adminID, _ := uuid.Parse(adminIDStr.(string))
+
+	userID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	var req struct {
+		Reason string `json:"reason" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.authService.BanUser(c.Request.Context(), adminID, userID, req.Reason); err != nil {
+		handleError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "user banned successfully"})
+}
+
+// UnbanUserHandler unbans a user account (admin only)
+func (h *AuthHandler) UnbanUserHandler(c *gin.Context) {
+	adminID, ok := getUserIDFromContext(c)
+	if !ok {
+		return
+	}
+	userID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+	if err := h.authService.UnbanUser(c.Request.Context(), adminID, userID); err != nil {
+		handleError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "user unbanned successfully"})
+}
+
+// GetDashboardStatsHandler returns admin dashboard aggregated stats
+func (h *AuthHandler) GetDashboardStatsHandler(c *gin.Context) {
+	ctx := c.Request.Context()
+	stats := identity.DashboardStats{}
+
+	if h.authService != nil {
+		stats.TotalUsers, _ = h.authService.CountUsers(ctx)
+	}
+	if h.tradeService != nil {
+		stats.TotalTrades, _ = h.tradeService.CountTrades(ctx, "")
+		stats.PendingTrades, _ = h.tradeService.CountTrades(ctx, "pending")
+		stats.ActiveTrades, _ = h.tradeService.CountTrades(ctx, "active")
+		stats.PaidTrades, _ = h.tradeService.CountTrades(ctx, "paid")
+		stats.CompletedTrades, _ = h.tradeService.CountTrades(ctx, "completed")
+		stats.DisputedTrades, _ = h.tradeService.CountTrades(ctx, "disputed")
+		stats.CancelledTrades, _ = h.tradeService.CountTrades(ctx, "cancelled")
+	}
+	if h.disputeService != nil {
+		stats.TotalDisputes, _ = h.disputeService.CountDisputes(ctx, "")
+		stats.PendingDisputes, _ = h.disputeService.CountDisputes(ctx, "pending")
+	}
+
+	c.JSON(http.StatusOK, stats)
 }

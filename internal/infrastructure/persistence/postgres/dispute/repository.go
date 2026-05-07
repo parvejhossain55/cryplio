@@ -121,3 +121,21 @@ func (r *disputeRepository) List(ctx context.Context) ([]*dispute.Dispute, error
 	}
 	return disputes, nil
 }
+
+func (r *disputeRepository) CountDisputes(ctx context.Context, status string) (int, error) {
+	var count int
+	query := `SELECT COUNT(*) FROM disputes`
+	if status != "" && status != "all" {
+		query = `SELECT COUNT(*) FROM disputes WHERE status = $1`
+		err := r.db.QueryRowContext(ctx, query, status).Scan(&count)
+		if err != nil {
+			return 0, fmt.Errorf("count disputes: %w", err)
+		}
+		return count, nil
+	}
+	err := r.db.QueryRowContext(ctx, query).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("count disputes: %w", err)
+	}
+	return count, nil
+}

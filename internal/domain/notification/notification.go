@@ -13,6 +13,7 @@ const (
 	NotificationTypeTradeStarted        NotificationType = "trade_started"
 	NotificationTypeTradePaid           NotificationType = "trade_paid"
 	NotificationTypeTradeReleased       NotificationType = "trade_released"
+	NotificationTypeTradeCompleted      NotificationType = "trade_completed"
 	NotificationTypeTradeCancelled      NotificationType = "trade_cancelled"
 	NotificationTypeTradeDisputed       NotificationType = "trade_disputed"
 	NotificationTypeDisputeResolved     NotificationType = "dispute_resolved"

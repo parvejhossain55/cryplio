@@ -16,7 +16,8 @@ import {
     Check,
     X,
     FileText,
-    ExternalLink
+    ExternalLink,
+    Star
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -24,6 +25,7 @@ import { authService } from "@/services/authService";
 import Navbar from "@/components/layout/Navbar";
 import { useAuth } from "@/context/AuthContext";
 import DisputeModal from "@/components/trade/DisputeModal";
+import FeedbackModal from "@/components/trade/FeedbackModal";
 
 const TradeDetailPage = () => {
     const { id } = useParams();
@@ -35,6 +37,7 @@ const TradeDetailPage = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isUpdating, setIsUpdating] = useState(false);
     const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
+    const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
     const chatEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -80,6 +83,15 @@ const TradeDetailPage = () => {
     const handleRaiseDispute = async (reasonCode: string, reasonText: string) => {
         try {
             await authService.disputeTrade(id as string, reasonCode, reasonText);
+            fetchTradeDetails();
+        } catch (err: any) {
+            throw err;
+        }
+    };
+
+    const handleLeaveFeedback = async (rating: string, comment: string) => {
+        try {
+            await authService.leaveFeedback(id as string, rating, comment);
             fetchTradeDetails();
         } catch (err: any) {
             throw err;
@@ -223,6 +235,16 @@ const TradeDetailPage = () => {
                                         RAISE DISPUTE
                                     </button>
                                 )}
+
+                                {trade.status === 'completed' && (
+                                    <button
+                                        onClick={() => setIsFeedbackModalOpen(true)}
+                                        className="w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-primary/20 flex items-center justify-center gap-2"
+                                    >
+                                        <CheckCircle2 className="w-3.5 h-3.5" />
+                                        LEAVE FEEDBACK
+                                    </button>
+                                )}
                             </div>
 
                             <div className="pt-4 border-t border-white/5 flex items-center gap-2 text-[8px] font-black text-text-dim uppercase tracking-widest justify-center">
@@ -319,6 +341,12 @@ const TradeDetailPage = () => {
                     isOpen={isDisputeModalOpen}
                     onClose={() => setIsDisputeModalOpen(false)}
                     onConfirm={handleRaiseDispute}
+                />
+
+                <FeedbackModal
+                    isOpen={isFeedbackModalOpen}
+                    onClose={() => setIsFeedbackModalOpen(false)}
+                    onConfirm={handleLeaveFeedback}
                 />
             </div>
         </main>

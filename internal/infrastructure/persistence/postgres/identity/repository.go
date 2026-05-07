@@ -314,7 +314,7 @@ func (r *userRepository) IncrementFailedAttempts(ctx context.Context, userID uui
 		UPDATE users
 		SET failed_login_attempts = failed_login_attempts + 1,
 		    locked_until = CASE
-		        WHEN failed_login_attempts >= 5 THEN NOW() + INTERVAL '15 minutes'
+		        WHEN failed_login_attempts >= 4 THEN NOW() + INTERVAL '15 minutes'
 		        ELSE locked_until
 		    END,
 		    updated_at = NOW()
@@ -330,6 +330,16 @@ func (r *userRepository) IncrementFailedAttempts(ctx context.Context, userID uui
 }
 
 // GetStats returns user statistics
+func (r *userRepository) CountUsers(ctx context.Context) (int, error) {
+	var count int
+	query := `SELECT COUNT(*) FROM users WHERE deleted_at IS NULL`
+	err := r.db.QueryRowContext(ctx, query).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("count users: %w", err)
+	}
+	return count, nil
+}
+
 func (r *userRepository) GetStats(ctx context.Context, userID uuid.UUID) (*UserStats, error) {
 	query := `
 		SELECT user_id, total_trades, successful_trades, dispute_rate, avg_rating,
@@ -948,7 +958,7 @@ func (r *userRepository) GetUserPaymentMethod(ctx context.Context, id uuid.UUID)
 	return &pm, err
 }
 
-func (r *userRepository) GetUserPaymentMethodsByUserID(ctx context.Context, userID uuid.UUID) ([]UserPaymentMethod, error) {
+func (r *userRepository) GetUserPaymentMethods(ctx context.Context, userID uuid.UUID) ([]UserPaymentMethod, error) {
 	query := `
 		SELECT id, user_id, payment_method_code, display_name, account_name,
 		       account_number, bank_name, is_active, is_default,
@@ -977,6 +987,10 @@ func (r *userRepository) GetUserPaymentMethodsByUserID(ctx context.Context, user
 		methods = append(methods, pm)
 	}
 	return methods, nil
+}
+
+func (r *userRepository) GetUserPaymentMethodsByUserID(ctx context.Context, userID uuid.UUID) ([]UserPaymentMethod, error) {
+	return r.GetUserPaymentMethods(ctx, userID)
 }
 
 func (r *userRepository) UpdateUserPaymentMethod(ctx context.Context, pm *UserPaymentMethod) error {

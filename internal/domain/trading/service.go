@@ -4,8 +4,10 @@ import (
 	"context"
 	"cryplio/internal/domain/dispute"
 	"cryplio/internal/domain/identity"
+	"cryplio/internal/domain/notification"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,10 +18,14 @@ type TradeService interface {
 	ListActiveAds(ctx context.Context, filter AdFilter) ([]TradeAd, int, error)
 	GetAd(ctx context.Context, id uuid.UUID) (*TradeAd, error)
 	CreateAd(ctx context.Context, ad *TradeAd) error
+	UpdateAd(ctx context.Context, adID, userID uuid.UUID, updates *TradeAd) error
+	DeleteAd(ctx context.Context, adID, userID uuid.UUID) error
 
 	// Trades
 	InitiateTrade(ctx context.Context, adID, buyerID uuid.UUID, amount float64) (*Trade, error)
 	ListTrades(ctx context.Context, userID uuid.UUID, role string) ([]Trade, error)
+	ListAllTrades(ctx context.Context, status string) ([]Trade, error)
+	CountTrades(ctx context.Context, status string) (int, error)
 	GetTrade(ctx context.Context, id uuid.UUID) (*Trade, error)
 	MarkAsPaid(ctx context.Context, tradeID, userID uuid.UUID) error
 	ReleaseEscrow(ctx context.Context, tradeID, userID uuid.UUID) error
@@ -30,7 +36,11 @@ type TradeService interface {
 
 	// Messages
 	SendMessage(ctx context.Context, tradeID, senderID uuid.UUID, content string) (*TradeMessage, error)
+	SendFileMessage(ctx context.Context, tradeID, senderID uuid.UUID, fileURL, mimeType string, fileSize int) (*TradeMessage, error)
 	GetChatHistory(ctx context.Context, tradeID, userID uuid.UUID) ([]TradeMessage, error)
+
+	// Feedback
+	LeaveFeedback(ctx context.Context, tradeID, userID uuid.UUID, rating FeedbackRating, comment string) error
 
 	// Merchant Management
 	ListUserAds(ctx context.Context, userID uuid.UUID) ([]TradeAd, int, error)
@@ -38,18 +48,20 @@ type TradeService interface {
 }
 
 type tradeService struct {
-	tradeRepo    TradeRepository
-	identityRepo identity.UserRepository
-	disputeRepo  dispute.Repository
-	escrowClient EscrowContractClient
+	tradeRepo           TradeRepository
+	identityRepo        identity.UserRepository
+	disputeRepo         dispute.Repository
+	escrowClient        EscrowContractClient
+	notificationService notification.Service
 }
 
-func NewTradeService(tradeRepo TradeRepository, identityRepo identity.UserRepository, disputeRepo dispute.Repository, escrowClient EscrowContractClient) TradeService {
+func NewTradeService(tradeRepo TradeRepository, identityRepo identity.UserRepository, disputeRepo dispute.Repository, escrowClient EscrowContractClient, notificationService notification.Service) TradeService {
 	return &tradeService{
-		tradeRepo:    tradeRepo,
-		identityRepo: identityRepo,
-		disputeRepo:  disputeRepo,
-		escrowClient: escrowClient,
+		tradeRepo:           tradeRepo,
+		identityRepo:        identityRepo,
+		disputeRepo:         disputeRepo,
+		escrowClient:        escrowClient,
+		notificationService: notificationService,
 	}
 }
 
@@ -68,6 +80,72 @@ func (s *tradeService) CreateAd(ctx context.Context, ad *TradeAd) error {
 		ad.AdID = uuid.New()
 	}
 	return s.tradeRepo.CreateAd(ctx, ad)
+}
+
+func (s *tradeService) UpdateAd(ctx context.Context, adID, userID uuid.UUID, updates *TradeAd) error {
+	ad, err := s.tradeRepo.GetAdByID(ctx, adID)
+	if err != nil {
+		return err
+	}
+	if ad == nil {
+		return errors.New("ad not found")
+	}
+	if ad.UserID != userID {
+		return errors.New("unauthorized")
+	}
+
+	if updates.Type != "" {
+		ad.Type = updates.Type
+	}
+	if updates.CryptoID != 0 {
+		ad.CryptoID = updates.CryptoID
+	}
+	if updates.FiatID != 0 {
+		ad.FiatID = updates.FiatID
+	}
+	if updates.PriceType != "" {
+		ad.PriceType = updates.PriceType
+	}
+	if updates.Price > 0 {
+		ad.Price = updates.Price
+	}
+	if updates.FloatingMarkup != nil {
+		ad.FloatingMarkup = updates.FloatingMarkup
+	}
+	if updates.MinAmount > 0 {
+		ad.MinAmount = updates.MinAmount
+	}
+	if updates.MaxAmount > 0 {
+		ad.MaxAmount = updates.MaxAmount
+	}
+	if len(updates.PaymentMethods) > 0 {
+		ad.PaymentMethods = updates.PaymentMethods
+	}
+	if updates.TradeTerms != nil {
+		ad.TradeTerms = updates.TradeTerms
+	}
+	if updates.PaymentWindowMinutes > 0 {
+		ad.PaymentWindowMinutes = updates.PaymentWindowMinutes
+	}
+	if updates.Timezone != "" {
+		ad.Timezone = updates.Timezone
+	}
+
+	return s.tradeRepo.UpdateAd(ctx, ad)
+}
+
+func (s *tradeService) DeleteAd(ctx context.Context, adID, userID uuid.UUID) error {
+	ad, err := s.tradeRepo.GetAdByID(ctx, adID)
+	if err != nil {
+		return err
+	}
+	if ad == nil {
+		return errors.New("ad not found")
+	}
+	if ad.UserID != userID {
+		return errors.New("unauthorized")
+	}
+	return s.tradeRepo.DeleteAd(ctx, adID)
 }
 
 func (s *tradeService) InitiateTrade(ctx context.Context, adID, buyerID uuid.UUID, amount float64) (*Trade, error) {
@@ -129,13 +207,29 @@ func (s *tradeService) InitiateTrade(ctx context.Context, adID, buyerID uuid.UUI
 	if err != nil {
 		return nil, fmt.Errorf("blockchain escrow lock failed: %w", err)
 	}
+	now := time.Now()
 	trade.EscrowTxnHash = &txHash
 	trade.EscrowContractAddress = &contractAddr
 	trade.Status = TradeStatusActive // Active once locked
+	trade.StartedAt = &now
 
 	err = s.tradeRepo.CreateTrade(ctx, trade)
 	if err != nil {
 		return nil, fmt.Errorf("save trade: %w", err)
+	}
+
+	// Notify both parties
+	if s.notificationService != nil {
+		seller, _ := s.identityRepo.GetByID(ctx, ad.UserID)
+		if seller != nil {
+			msg := fmt.Sprintf("New trade initiated for your ad. Trade ID: %s", trade.TradeID.String())
+			_ = s.notificationService.Notify(ctx, ad.UserID, notification.NotificationTypeTradeStarted, "New Trade Started", msg, nil)
+		}
+		buyer, _ := s.identityRepo.GetByID(ctx, buyerID)
+		if buyer != nil {
+			msg := fmt.Sprintf("You have started a new trade. Trade ID: %s", trade.TradeID.String())
+			_ = s.notificationService.Notify(ctx, buyerID, notification.NotificationTypeTradeStarted, "Trade Started", msg, nil)
+		}
 	}
 
 	return trade, nil
@@ -169,6 +263,14 @@ func (s *tradeService) ListTrades(ctx context.Context, userID uuid.UUID, role st
 	return s.tradeRepo.ListTrades(ctx, userID, role)
 }
 
+func (s *tradeService) ListAllTrades(ctx context.Context, status string) ([]Trade, error) {
+	return s.tradeRepo.ListAllTrades(ctx, status)
+}
+
+func (s *tradeService) CountTrades(ctx context.Context, status string) (int, error) {
+	return s.tradeRepo.CountTrades(ctx, status)
+}
+
 func (s *tradeService) GetTrade(ctx context.Context, id uuid.UUID) (*Trade, error) {
 	return s.tradeRepo.GetTradeByID(ctx, id)
 }
@@ -189,7 +291,15 @@ func (s *tradeService) MarkAsPaid(ctx context.Context, tradeID, userID uuid.UUID
 	}
 
 	trade.MarkAsPaid()
-	return s.tradeRepo.UpdateTrade(ctx, trade)
+	if err := s.tradeRepo.UpdateTrade(ctx, trade); err != nil {
+		return err
+	}
+	// Notify seller that buyer marked as paid
+	if s.notificationService != nil {
+		msg := fmt.Sprintf("Buyer marked trade %s as paid. Please verify and release escrow.", trade.TradeID.String())
+		_ = s.notificationService.Notify(ctx, trade.SellerID, notification.NotificationTypeTradePaid, "Trade Marked as Paid", msg, nil)
+	}
+	return nil
 }
 
 func (s *tradeService) ReleaseEscrow(ctx context.Context, tradeID, userID uuid.UUID) error {
@@ -216,7 +326,19 @@ func (s *tradeService) ReleaseEscrow(ctx context.Context, tradeID, userID uuid.U
 	}
 	trade.EscrowTxnHash = &txHash
 
-	return s.tradeRepo.UpdateTrade(ctx, trade)
+	// 3. Auto-complete trade after escrow release
+	trade.Complete()
+
+	if err := s.tradeRepo.UpdateTrade(ctx, trade); err != nil {
+		return err
+	}
+	// Notify both parties that trade is completed
+	if s.notificationService != nil {
+		msg := fmt.Sprintf("Trade %s completed successfully. Escrow has been released.", trade.TradeID.String())
+		_ = s.notificationService.Notify(ctx, trade.BuyerID, notification.NotificationTypeTradeCompleted, "Trade Completed", msg, nil)
+		_ = s.notificationService.Notify(ctx, trade.SellerID, notification.NotificationTypeTradeCompleted, "Trade Completed", msg, nil)
+	}
+	return nil
 }
 
 func (s *tradeService) CancelTrade(ctx context.Context, tradeID, userID uuid.UUID, reason string) error {
@@ -235,7 +357,19 @@ func (s *tradeService) CancelTrade(ctx context.Context, tradeID, userID uuid.UUI
 	}
 
 	trade.Cancel(reason)
-	return s.tradeRepo.UpdateTrade(ctx, trade)
+	if err := s.tradeRepo.UpdateTrade(ctx, trade); err != nil {
+		return err
+	}
+	// Notify the other party
+	if s.notificationService != nil {
+		msg := fmt.Sprintf("Trade %s has been cancelled. Reason: %s", trade.TradeID.String(), reason)
+		otherID := trade.SellerID
+		if trade.SellerID == userID {
+			otherID = trade.BuyerID
+		}
+		_ = s.notificationService.Notify(ctx, otherID, notification.NotificationTypeTradeCancelled, "Trade Cancelled", msg, nil)
+	}
+	return nil
 }
 
 func (s *tradeService) DisputeTrade(ctx context.Context, tradeID, userID uuid.UUID, reasonCode string, reasonText string) (*Trade, error) {
@@ -276,6 +410,17 @@ func (s *tradeService) DisputeTrade(ctx context.Context, tradeID, userID uuid.UU
 		return nil, fmt.Errorf("update trade status: %w", err)
 	}
 
+	// Notify both parties
+	if s.notificationService != nil {
+		msg := fmt.Sprintf("A dispute has been raised on trade %s. Reason: %s", trade.TradeID.String(), reasonText)
+		otherID := trade.SellerID
+		if trade.SellerID == userID {
+			otherID = trade.BuyerID
+		}
+		_ = s.notificationService.Notify(ctx, userID, notification.NotificationTypeTradeDisputed, "Trade Disputed", msg, nil)
+		_ = s.notificationService.Notify(ctx, otherID, notification.NotificationTypeTradeDisputed, "Trade Disputed", msg, nil)
+	}
+
 	return trade, nil
 }
 
@@ -306,6 +451,40 @@ func (s *tradeService) SendMessage(ctx context.Context, tradeID, senderID uuid.U
 	return msg, nil
 }
 
+func (s *tradeService) SendFileMessage(ctx context.Context, tradeID, senderID uuid.UUID, fileURL, mimeType string, fileSize int) (*TradeMessage, error) {
+	trade, err := s.tradeRepo.GetTradeByID(ctx, tradeID)
+	if err != nil {
+		return nil, err
+	}
+	if trade == nil {
+		return nil, errors.New("trade not found")
+	}
+	if trade.BuyerID != senderID && trade.SellerID != senderID {
+		return nil, errors.New("unauthorized")
+	}
+
+	messageType := TradeMessageTypeFile
+	if strings.HasPrefix(mimeType, "image/") {
+		messageType = TradeMessageTypeImage
+	}
+
+	msg := &TradeMessage{
+		MessageID:    uuid.New(),
+		TradeID:      tradeID,
+		SenderID:     senderID,
+		MessageType:  messageType,
+		FileURL:      &fileURL,
+		FileMimeType: &mimeType,
+		FileSize:     &fileSize,
+	}
+
+	err = s.tradeRepo.CreateTradeMessage(ctx, msg)
+	if err != nil {
+		return nil, err
+	}
+	return msg, nil
+}
+
 func (s *tradeService) GetChatHistory(ctx context.Context, tradeID, userID uuid.UUID) ([]TradeMessage, error) {
 	trade, err := s.tradeRepo.GetTradeByID(ctx, tradeID)
 	if err != nil {
@@ -319,6 +498,60 @@ func (s *tradeService) GetChatHistory(ctx context.Context, tradeID, userID uuid.
 	}
 
 	return s.tradeRepo.ListTradeMessages(ctx, tradeID)
+}
+
+func (s *tradeService) LeaveFeedback(ctx context.Context, tradeID, userID uuid.UUID, rating FeedbackRating, comment string) error {
+	// Get trade
+	trade, err := s.tradeRepo.GetTradeByID(ctx, tradeID)
+	if err != nil {
+		return err
+	}
+	if trade == nil {
+		return errors.New("trade not found")
+	}
+
+	// Check if trade is completed
+	if trade.Status != TradeStatusCompleted {
+		return errors.New("can only leave feedback on completed trades")
+	}
+
+	// Check if user participated in trade
+	if trade.BuyerID != userID && trade.SellerID != userID {
+		return errors.New("unauthorized")
+	}
+
+	// Check if feedback already exists
+	existing, err := s.tradeRepo.GetFeedbackByTrade(ctx, tradeID)
+	if err != nil {
+		return err
+	}
+	if existing != nil {
+		return errors.New("feedback already exists for this trade")
+	}
+
+	// Determine recipient
+	var recipientID uuid.UUID
+	if trade.BuyerID == userID {
+		recipientID = trade.SellerID
+	} else {
+		recipientID = trade.BuyerID
+	}
+
+	// Create feedback
+	feedback := &TradeFeedback{
+		FeedbackID: uuid.New(),
+		TradeID:    tradeID,
+		FromUserID: userID,
+		ToUserID:   recipientID,
+		Rating:     rating,
+		Comment:    &comment,
+	}
+
+	if err := s.tradeRepo.CreateFeedback(ctx, feedback); err != nil {
+		return fmt.Errorf("create feedback: %w", err)
+	}
+
+	return nil
 }
 
 func (s *tradeService) ReconcileExpiredTrades(ctx context.Context) (int, error) {

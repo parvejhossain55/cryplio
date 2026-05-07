@@ -188,3 +188,99 @@ func (r *walletRepository) ListTransactionsByUser(ctx context.Context, userID uu
 
 	return transactions, total, nil
 }
+
+func (r *walletRepository) GetDailyWithdrawalTotal(ctx context.Context, userID uuid.UUID) (float64, error) {
+	query := `
+		SELECT COALESCE(SUM(amount), 0)
+		FROM wallet_transactions
+		WHERE user_id = $1
+		  AND type = 'withdrawal'
+		  AND status IN ('pending', 'confirmed', 'completed')
+		  AND DATE(created_at) = CURRENT_DATE
+	`
+	var total float64
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(&total)
+	if err != nil {
+		return 0, fmt.Errorf("get daily withdrawal total: %w", err)
+	}
+	return total, nil
+}
+
+func (r *walletRepository) ListPendingWithdrawals(ctx context.Context, limit, offset int) ([]domainwallet.WalletTransaction, int, error) {
+	countQuery := `SELECT COUNT(*) FROM wallet_transactions WHERE type = 'withdrawal' AND status = 'pending' AND requires_approval = true`
+	var total int
+	if err := r.db.QueryRowContext(ctx, countQuery).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count pending withdrawals: %w", err)
+	}
+
+	query := `
+		SELECT txn_id, wallet_id, user_id, type, status, amount, fee,
+		       (amount - fee) AS net_amount, 0::numeric AS balance_after,
+		       reference_id, tx_hash, confirmations, to_address, requires_approval, approved_by, approved_at, created_at
+		FROM wallet_transactions
+		WHERE type = 'withdrawal' AND status = 'pending' AND requires_approval = true
+		ORDER BY created_at DESC
+		LIMIT $1 OFFSET $2
+	`
+	rows, err := r.db.QueryContext(ctx, query, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list pending withdrawals: %w", err)
+	}
+	defer rows.Close()
+
+	transactions := make([]domainwallet.WalletTransaction, 0)
+	for rows.Next() {
+		var tx domainwallet.WalletTransaction
+		if err := rows.Scan(
+			&tx.TxID, &tx.WalletID, &tx.UserID, &tx.Type, &tx.Status, &tx.Amount, &tx.Fee,
+			&tx.NetAmount, &tx.BalanceAfter, &tx.ReferenceID, &tx.TxHash, &tx.Confirmations, &tx.Memo,
+			&tx.RequiresApproval, &tx.ApprovedBy, &tx.ApprovedAt, &tx.CreatedAt,
+		); err != nil {
+			return nil, 0, fmt.Errorf("scan pending withdrawal: %w", err)
+		}
+		tx.UpdatedAt = tx.CreatedAt
+		transactions = append(transactions, tx)
+	}
+	return transactions, total, nil
+}
+
+func (r *walletRepository) ApproveWithdrawal(ctx context.Context, txID uuid.UUID, adminID uuid.UUID, txHash string) error {
+	query := `
+		UPDATE wallet_transactions
+		SET status = 'completed', tx_hash = $1, approved_by = $2, approved_at = NOW(), updated_at = NOW()
+		WHERE txn_id = $3 AND type = 'withdrawal' AND status = 'pending' AND requires_approval = true
+	`
+	res, err := r.db.ExecContext(ctx, query, txHash, adminID, txID)
+	if err != nil {
+		return fmt.Errorf("approve withdrawal: %w", err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("approve withdrawal rows affected: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("withdrawal not found or already processed")
+	}
+	return nil
+}
+
+func (r *walletRepository) RejectWithdrawal(ctx context.Context, txID uuid.UUID, adminID uuid.UUID, reason string) error {
+	query := `
+		UPDATE wallet_transactions
+		SET status = 'cancelled', approved_by = $1, approved_at = NOW(), updated_at = NOW(),
+		    metadata = COALESCE(metadata, '{}') || jsonb_build_object('rejection_reason', $2)
+		WHERE txn_id = $3 AND type = 'withdrawal' AND status = 'pending' AND requires_approval = true
+	`
+	res, err := r.db.ExecContext(ctx, query, adminID, reason, txID)
+	if err != nil {
+		return fmt.Errorf("reject withdrawal: %w", err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("reject withdrawal rows affected: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("withdrawal not found or already processed")
+	}
+	return nil
+}

@@ -1,8 +1,10 @@
 package httpapi
 
 import (
+	"context"
 	"cryplio/internal/domain/dispute"
 	"cryplio/internal/domain/identity"
+	"cryplio/internal/domain/market"
 	"cryplio/internal/domain/notification"
 	"cryplio/internal/domain/platform"
 	"cryplio/internal/domain/trading"
@@ -10,6 +12,7 @@ import (
 	"cryplio/internal/infrastructure/storage"
 	"cryplio/internal/interfaces/http/handler"
 	"cryplio/internal/interfaces/http/middleware"
+	"cryplio/internal/interfaces/websocket"
 	"cryplio/pkg/config"
 
 	"github.com/gin-gonic/gin"
@@ -25,6 +28,8 @@ func SetupRouter(
 	disputeService dispute.Service,
 	notificationService notification.Service,
 	storage storage.ObjectStorage,
+	rateService market.RateService,
+	wsService websocket.Service,
 ) *gin.Engine {
 	// Set Gin mode
 	if cfg.AppEnv == "development" {
@@ -57,12 +62,12 @@ func SetupRouter(
 			FrontendURL:        cfg.FrontendURL,
 			RefreshTokenExpiry: cfg.RefreshTokenExpiry,
 			JWTSecret:          cfg.JWTSecret,
-		}, storage)
+		}, storage).WithTradeService(tradeService).WithDisputeService(disputeService)
 
-		tradeHandler := handler.NewTradeHandler(tradeService)
+		tradeHandler := handler.NewTradeHandler(tradeService, storage, wsService)
 		platformHandler := handler.NewPlatformHandler(platformService)
-		walletHandler := handler.NewWalletHandler(walletService)
-		disputeHandler := handler.NewDisputeHandler(disputeService)
+		walletHandler := handler.NewWalletHandler(walletService, authService)
+		disputeHandler := handler.NewDisputeHandler(disputeService, storage)
 		notificationHandler := handler.NewNotificationHandler(notificationService)
 
 		// Public routes
@@ -83,6 +88,12 @@ func SetupRouter(
 		v1.GET("/marketplace/ads", tradeHandler.ListAdsHandler)
 
 		// Authenticated Routes
+		// Market Rates (Public)
+		marketHandler := handler.NewMarketHandler(rateService)
+		v1.GET("/market/rates", marketHandler.GetAllRatesHandler)
+		v1.GET("/market/rates/:crypto", marketHandler.GetRatesHandler)
+		v1.GET("/market/rates/:crypto/:fiat", marketHandler.GetRateHandler)
+
 		auth := v1.Group("/")
 		auth.Use(middleware.AuthMiddleware(cfg.JWTSecret))
 		{
@@ -109,12 +120,16 @@ func SetupRouter(
 			// Trading (Authenticated)
 			auth.POST("/marketplace/ads", tradeHandler.CreateAdHandler)
 			auth.GET("/marketplace/my-ads", tradeHandler.ListMyAdsHandler)
+			auth.PUT("/marketplace/ads/:id", tradeHandler.UpdateAdHandler)
+			auth.DELETE("/marketplace/ads/:id", tradeHandler.DeleteAdHandler)
 			auth.PATCH("/marketplace/ads/:id/status", tradeHandler.ToggleAdStatusHandler)
 			auth.POST("/marketplace/ads/:id/trades", tradeHandler.InitiateTradeHandler)
 			auth.GET("/marketplace/trades", tradeHandler.ListTradesHandler)
 			auth.GET("/marketplace/trades/:id", tradeHandler.GetTradeHandler)
 			auth.PATCH("/marketplace/trades/:id/status", tradeHandler.UpdateTradeStatusHandler)
 			auth.POST("/marketplace/trades/:id/dispute", tradeHandler.DisputeTradeHandler)
+			auth.POST("/marketplace/trades/:id/feedback", tradeHandler.LeaveFeedbackHandler)
+			auth.POST("/disputes/:id/evidence", disputeHandler.UploadEvidenceHandler)
 			auth.GET("/marketplace/trades/:id/messages", tradeHandler.GetChatHistoryHandler)
 			auth.POST("/marketplace/trades/:id/messages", tradeHandler.SendMessageHandler)
 
@@ -128,10 +143,27 @@ func SetupRouter(
 			auth.GET("/notifications", notificationHandler.GetNotificationsHandler)
 			auth.PATCH("/notifications/:id/read", notificationHandler.MarkReadHandler)
 
+			// Chat
+			auth.POST("/trades/:id/messages", tradeHandler.SendMessageHandler)
+			auth.GET("/trades/:id/messages", tradeHandler.GetChatHistoryHandler)
+
 			// Admin Routes
 			admin := auth.Group("/admin")
 			admin.Use(middleware.AdminRoleMiddleware())
 			{
+				// Dashboard Stats
+				admin.GET("/dashboard/stats", authHandler.GetDashboardStatsHandler)
+
+				// User Management
+				admin.GET("/users", authHandler.ListUsersHandler)
+				admin.POST("/users/:id/suspend", authHandler.SuspendUserHandler)
+				admin.POST("/users/:id/unsuspend", authHandler.UnsuspendUserHandler)
+				admin.POST("/users/:id/ban", authHandler.BanUserHandler)
+				admin.POST("/users/:id/unban", authHandler.UnbanUserHandler)
+
+				// Trade Monitoring
+				admin.GET("/trades", tradeHandler.ListAllTradesHandler)
+
 				// Crypto Assets
 				admin.POST("/crypto-assets", platformHandler.CreateCryptoAssetHandler)
 				admin.GET("/crypto-assets", platformHandler.GetCryptoAssetsHandler)
@@ -153,6 +185,11 @@ func SetupRouter(
 				admin.PUT("/payment-methods/:id", platformHandler.UpdatePaymentMethodHandler)
 				admin.DELETE("/payment-methods/:id", platformHandler.DeletePaymentMethodHandler)
 
+				// Withdrawal Approval
+				admin.GET("/withdrawals/pending", walletHandler.ListPendingWithdrawalsHandler)
+				admin.POST("/withdrawals/:id/approve", walletHandler.ApproveWithdrawalHandler)
+				admin.POST("/withdrawals/:id/reject", walletHandler.RejectWithdrawalHandler)
+
 				// Disputes management
 				admin.GET("/disputes", disputeHandler.ListDisputesHandler)
 				admin.GET("/disputes/:id", disputeHandler.GetDisputeHandler)
@@ -161,6 +198,13 @@ func SetupRouter(
 			}
 		}
 	}
+
+	// Start WebSocket server in a separate goroutine
+	go func() {
+		if err := wsService.Start(context.Background()); err != nil {
+			panic("Failed to start WebSocket server: " + err.Error())
+		}
+	}()
 
 	return r
 }

@@ -5,7 +5,7 @@ const API_BASE_URL = process.env.API_GATEWAY_URL || "http://localhost:8080";
 export async function GET(request: NextRequest) {
     try {
         const cookieHeader = request.headers.get("cookie") || "";
-        const response = await fetch(`${API_BASE_URL}/api/v1/wallet/balance`, {
+        const response = await fetch(`${API_BASE_URL}/wallet/balances`, {
             method: "GET",
             headers: {
                 cookie: cookieHeader,

@@ -20,6 +20,8 @@ type TradeRepository interface {
 	CreateTrade(ctx context.Context, trade *Trade) error
 	GetTradeByID(ctx context.Context, id uuid.UUID) (*Trade, error)
 	ListTrades(ctx context.Context, userID uuid.UUID, role string) ([]Trade, error)
+	ListAllTrades(ctx context.Context, status string) ([]Trade, error)
+	CountTrades(ctx context.Context, status string) (int, error)
 	ListExpiredPendingTrades(ctx context.Context, now time.Time) ([]Trade, error)
 	ListPaidTradesPastGrace(ctx context.Context, threshold time.Time) ([]Trade, error)
 	UpdateTrade(ctx context.Context, trade *Trade) error
@@ -27,6 +29,10 @@ type TradeRepository interface {
 	// Messages
 	CreateTradeMessage(ctx context.Context, msg *TradeMessage) error
 	ListTradeMessages(ctx context.Context, tradeID uuid.UUID) ([]TradeMessage, error)
+
+	// Feedback
+	CreateFeedback(ctx context.Context, feedback *TradeFeedback) error
+	GetFeedbackByTrade(ctx context.Context, tradeID uuid.UUID) (*TradeFeedback, error)
 }
 
 // AdFilter holds filtering options for trade ads

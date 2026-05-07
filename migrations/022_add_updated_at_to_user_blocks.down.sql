@@ -1,5 +1,0 @@
-BEGIN;
-
-ALTER TABLE user_blocks DROP COLUMN IF EXISTS updated_at;
-
-COMMIT;

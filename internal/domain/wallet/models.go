@@ -95,21 +95,25 @@ func (w *Wallet) Unlock(amount float64) {
 
 // WalletTransaction represents a wallet transaction ledger entry
 type WalletTransaction struct {
-	TxID          uuid.UUID         `db:"tx_id" json:"tx_id"`
-	WalletID      uuid.UUID         `db:"wallet_id" json:"wallet_id"`
-	UserID        uuid.UUID         `db:"user_id" json:"user_id"`
-	Type          TransactionType   `db:"type" json:"type"`
-	Status        TransactionStatus `db:"status" json:"status"`
-	Amount        float64           `db:"amount" json:"amount"`
-	Fee           float64           `db:"fee" json:"fee"`
-	NetAmount     float64           `db:"net_amount" json:"net_amount"`
-	BalanceAfter  float64           `db:"balance_after" json:"balance_after"`
-	ReferenceID   *uuid.UUID        `db:"reference_id" json:"reference_id,omitempty"` // Links to trade, withdrawal, etc.
-	TxHash        *string           `db:"tx_hash" json:"tx_hash,omitempty"`           // Blockchain transaction hash
-	Confirmations int               `db:"confirmations" json:"confirmations"`
-	Memo          *string           `db:"memo" json:"memo,omitempty"`
-	CreatedAt     time.Time         `db:"created_at" json:"created_at"`
-	UpdatedAt     time.Time         `db:"updated_at" json:"updated_at"`
+	TxID               uuid.UUID         `db:"tx_id" json:"tx_id"`
+	WalletID           uuid.UUID         `db:"wallet_id" json:"wallet_id"`
+	UserID             uuid.UUID         `db:"user_id" json:"user_id"`
+	Type               TransactionType   `db:"type" json:"type"`
+	Status             TransactionStatus `db:"status" json:"status"`
+	Amount             float64           `db:"amount" json:"amount"`
+	Fee                float64           `db:"fee" json:"fee"`
+	NetAmount          float64           `db:"net_amount" json:"net_amount"`
+	BalanceAfter       float64           `db:"balance_after" json:"balance_after"`
+	ReferenceID        *uuid.UUID        `db:"reference_id" json:"reference_id,omitempty"` // Links to trade, withdrawal, etc.
+	TxHash             *string           `db:"tx_hash" json:"tx_hash,omitempty"`           // Blockchain transaction hash
+	Confirmations      int               `db:"confirmations" json:"confirmations"`
+	Memo               *string           `db:"memo" json:"memo,omitempty"`
+	RequiresApproval   bool              `db:"requires_approval" json:"requires_approval"`
+	ApprovedBy         *uuid.UUID        `db:"approved_by" json:"approved_by,omitempty"`
+	ApprovedAt         *time.Time        `db:"approved_at" json:"approved_at,omitempty"`
+	DestinationAddress *string           `db:"destination_address" json:"destination_address,omitempty"`
+	CreatedAt          time.Time         `db:"created_at" json:"created_at"`
+	UpdatedAt          time.Time         `db:"updated_at" json:"updated_at"`
 }
 
 // IsCompleted checks if the transaction is completed

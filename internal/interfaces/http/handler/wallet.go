@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"cryplio/internal/domain/identity"
 	"cryplio/internal/domain/wallet"
 
 	"github.com/gin-gonic/gin"
@@ -13,10 +14,11 @@ import (
 
 type WalletHandler struct {
 	walletService wallet.Service
+	authService   identity.AuthService
 }
 
-func NewWalletHandler(walletService wallet.Service) *WalletHandler {
-	return &WalletHandler{walletService: walletService}
+func NewWalletHandler(walletService wallet.Service, authService identity.AuthService) *WalletHandler {
+	return &WalletHandler{walletService: walletService, authService: authService}
 }
 
 func (h *WalletHandler) GetBalancesHandler(c *gin.Context) {
@@ -65,6 +67,17 @@ type withdrawRequest struct {
 func (h *WalletHandler) WithdrawHandler(c *gin.Context) {
 	userID, ok := getUserIDFromContext(c)
 	if !ok {
+		return
+	}
+
+	// Check if 2FA is enabled for withdrawals
+	user, err := h.authService.GetUserByID(c.Request.Context(), userID)
+	if err != nil {
+		handleError(c, err)
+		return
+	}
+	if !h.authService.Is2FAEnabled(user) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "2FA is required for withdrawals"})
 		return
 	}
 
@@ -139,4 +152,84 @@ func getUserIDFromContext(c *gin.Context) (uuid.UUID, bool) {
 		return uuid.Nil, false
 	}
 	return userID, true
+}
+
+// ListPendingWithdrawalsHandler returns pending withdrawals requiring admin approval
+func (h *WalletHandler) ListPendingWithdrawalsHandler(c *gin.Context) {
+	limit := 50
+	offset := 0
+	if v := c.Query("limit"); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil {
+			limit = parsed
+		}
+	}
+	if v := c.Query("offset"); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil {
+			offset = parsed
+		}
+	}
+
+	transactions, total, err := h.walletService.ListPendingWithdrawals(c.Request.Context(), limit, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"withdrawals": transactions,
+		"total":       total,
+		"limit":       limit,
+		"offset":      offset,
+	})
+}
+
+// ApproveWithdrawalHandler approves a pending withdrawal
+func (h *WalletHandler) ApproveWithdrawalHandler(c *gin.Context) {
+	txID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid transaction id"})
+		return
+	}
+
+	adminIDStr, _ := c.Get("user_id")
+	adminID, _ := uuid.Parse(adminIDStr.(string))
+
+	var req struct {
+		TxHash string `json:"tx_hash" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.walletService.ApproveWithdrawal(c.Request.Context(), txID, adminID, req.TxHash); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "withdrawal approved successfully"})
+}
+
+// RejectWithdrawalHandler rejects a pending withdrawal
+func (h *WalletHandler) RejectWithdrawalHandler(c *gin.Context) {
+	txID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid transaction id"})
+		return
+	}
+
+	adminIDStr, _ := c.Get("user_id")
+	adminID, _ := uuid.Parse(adminIDStr.(string))
+
+	var req struct {
+		Reason string `json:"reason" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.walletService.RejectWithdrawal(c.Request.Context(), txID, adminID, req.Reason); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "withdrawal rejected successfully"})
 }

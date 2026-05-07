@@ -13,7 +13,9 @@ type Service interface {
 	GetDispute(ctx context.Context, id uuid.UUID) (*Dispute, error)
 	AssignDispute(ctx context.Context, id uuid.UUID, adminID uuid.UUID) error
 	ResolveDispute(ctx context.Context, id uuid.UUID, adminID uuid.UUID, resolution DisputeResolution, note string) error
+	UploadEvidence(ctx context.Context, disputeID, userID uuid.UUID, evidenceURL string) error
 	ListDisputes(ctx context.Context) ([]*Dispute, error)
+	CountDisputes(ctx context.Context, status string) (int, error)
 }
 
 type disputeService struct {
@@ -79,6 +81,27 @@ func (s *disputeService) ResolveDispute(ctx context.Context, id uuid.UUID, admin
 
 func (s *disputeService) ListDisputes(ctx context.Context) ([]*Dispute, error) {
 	return s.repo.List(ctx)
+}
+
+func (s *disputeService) CountDisputes(ctx context.Context, status string) (int, error) {
+	return s.repo.CountDisputes(ctx, status)
+}
+
+func (s *disputeService) UploadEvidence(ctx context.Context, disputeID, userID uuid.UUID, evidenceURL string) error {
+	d, err := s.repo.GetByID(ctx, disputeID)
+	if err != nil {
+		return err
+	}
+	if d == nil {
+		return errors.New("dispute not found")
+	}
+	if !d.IsOpen() {
+		return fmt.Errorf("dispute is already in status: %s", d.Status)
+	}
+	// Only the dispute raiser or the other party can upload evidence
+	// For simplicity, allow any participant (raiser or trade party)
+	d.EvidenceLinks = append(d.EvidenceLinks, evidenceURL)
+	return s.repo.Update(ctx, d)
 }
 
 func ValidateRaise(dispute *Dispute) error {

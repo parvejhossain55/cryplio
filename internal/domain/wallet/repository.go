@@ -14,4 +14,8 @@ type Repository interface {
 	CreateTransaction(ctx context.Context, tx *WalletTransaction) error
 	GetTransactionByID(ctx context.Context, txID uuid.UUID) (*WalletTransaction, error)
 	ListTransactionsByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]WalletTransaction, int, error)
+	GetDailyWithdrawalTotal(ctx context.Context, userID uuid.UUID) (float64, error)
+	ListPendingWithdrawals(ctx context.Context, limit, offset int) ([]WalletTransaction, int, error)
+	ApproveWithdrawal(ctx context.Context, txID uuid.UUID, adminID uuid.UUID, txHash string) error
+	RejectWithdrawal(ctx context.Context, txID uuid.UUID, adminID uuid.UUID, reason string) error
 }

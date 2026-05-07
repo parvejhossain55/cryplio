@@ -38,6 +38,26 @@ type CreateAdRequest struct {
 	PaymentWindowMinutes int      `json:"payment_window_minutes" binding:"required,min=5,max=60"`
 }
 
+type UpdateAdRequest struct {
+	Type                 string   `json:"type" binding:"omitempty,oneof=buy sell"`
+	CryptoID             int      `json:"crypto_id"`
+	FiatID               int      `json:"fiat_id"`
+	PriceType            string   `json:"price_type" binding:"omitempty,oneof=fixed floating"`
+	Price                float64  `json:"price" binding:"omitempty,gt=0"`
+	FloatingMarkup       *float64 `json:"floating_markup"`
+	MinAmount            float64  `json:"min_amount" binding:"omitempty,gt=0"`
+	MaxAmount            float64  `json:"max_amount" binding:"omitempty,gt=0"`
+	PaymentMethods       []string `json:"payment_methods"`
+	TradeTerms           string   `json:"trade_terms"`
+	PaymentWindowMinutes int      `json:"payment_window_minutes" binding:"omitempty,min=5,max=60"`
+	Timezone             string   `json:"timezone"`
+}
+
 type InitiateTradeRequest struct {
 	Amount float64 `json:"amount" binding:"required,gt=0"`
+}
+
+type LeaveFeedbackRequest struct {
+	Rating  string `json:"rating" binding:"required,oneof=positive neutral negative"`
+	Comment string `json:"comment"`
 }
