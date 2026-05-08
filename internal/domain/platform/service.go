@@ -5,27 +5,84 @@ import (
 	"fmt"
 )
 
+// CreateCryptoAssetInput holds the parameters for creating a cryptocurrency asset.
+type CreateCryptoAssetInput struct {
+	Symbol          string
+	Name            string
+	Blockchain      string
+	ContractAddress *string
+	Decimals        int
+	MinConfirmation int
+}
+
+// UpdateCryptoAssetInput holds the parameters for updating a cryptocurrency asset.
+type UpdateCryptoAssetInput struct {
+	Symbol          string
+	Name            string
+	Blockchain      string
+	ContractAddress *string
+	Decimals        int
+	MinConfirmation int
+	IsActive        bool
+}
+
+// CreateFiatCurrencyInput holds the parameters for creating a fiat currency.
+type CreateFiatCurrencyInput struct {
+	Code   string
+	Name   string
+	Symbol string
+}
+
+// UpdateFiatCurrencyInput holds the parameters for updating a fiat currency.
+type UpdateFiatCurrencyInput struct {
+	Code     string
+	Name     string
+	Symbol   string
+	IsActive bool
+}
+
+// CreatePaymentMethodInput holds the parameters for creating a payment method.
+type CreatePaymentMethodInput struct {
+	Code        string
+	Name        string
+	Category    PaymentCategory
+	IconURL     *string
+	Description *string
+	SortOrder   int
+}
+
+// UpdatePaymentMethodInput holds the parameters for updating a payment method.
+type UpdatePaymentMethodInput struct {
+	Code        string
+	Name        string
+	Category    PaymentCategory
+	IconURL     *string
+	Description *string
+	IsActive    bool
+	SortOrder   int
+}
+
 // PlatformService defines business logic for platform management
 type PlatformService interface {
 	// Crypto Assets
-	CreateCryptoAsset(ctx context.Context, symbol, name, blockchain string, contractAddress *string, decimals, minConfirmation int) (*CryptoAsset, error)
+	CreateCryptoAsset(ctx context.Context, input CreateCryptoAssetInput) (*CryptoAsset, error)
 	GetCryptoAsset(ctx context.Context, id int) (*CryptoAsset, error)
 	GetCryptoAssets(ctx context.Context, activeOnly bool, page, limit int) ([]*CryptoAsset, int, error)
-	UpdateCryptoAsset(ctx context.Context, id int, symbol, name, blockchain string, contractAddress *string, decimals, minConfirmation int, isActive bool) (*CryptoAsset, error)
+	UpdateCryptoAsset(ctx context.Context, id int, input UpdateCryptoAssetInput) (*CryptoAsset, error)
 	DeleteCryptoAsset(ctx context.Context, id int) error
 
 	// Fiat Currencies
-	CreateFiatCurrency(ctx context.Context, code, name, symbol string) (*FiatCurrency, error)
+	CreateFiatCurrency(ctx context.Context, input CreateFiatCurrencyInput) (*FiatCurrency, error)
 	GetFiatCurrency(ctx context.Context, id int) (*FiatCurrency, error)
 	GetFiatCurrencies(ctx context.Context, activeOnly bool, page, limit int) ([]*FiatCurrency, int, error)
-	UpdateFiatCurrency(ctx context.Context, id int, code, name, symbol string, isActive bool) (*FiatCurrency, error)
+	UpdateFiatCurrency(ctx context.Context, id int, input UpdateFiatCurrencyInput) (*FiatCurrency, error)
 	DeleteFiatCurrency(ctx context.Context, id int) error
 
 	// Payment Methods
-	CreatePaymentMethod(ctx context.Context, code, name string, category PaymentCategory, iconURL, description *string, sortOrder int) (*PaymentMethod, error)
+	CreatePaymentMethod(ctx context.Context, input CreatePaymentMethodInput) (*PaymentMethod, error)
 	GetPaymentMethod(ctx context.Context, id int) (*PaymentMethod, error)
 	GetPaymentMethods(ctx context.Context, activeOnly bool, page, limit int) ([]*PaymentMethod, int, error)
-	UpdatePaymentMethod(ctx context.Context, id int, code, name string, category PaymentCategory, iconURL, description *string, isActive bool, sortOrder int) (*PaymentMethod, error)
+	UpdatePaymentMethod(ctx context.Context, id int, input UpdatePaymentMethodInput) (*PaymentMethod, error)
 	DeletePaymentMethod(ctx context.Context, id int) error
 }
 
@@ -40,30 +97,28 @@ func NewPlatformService(repo PlatformRepository) PlatformService {
 }
 
 // Crypto Assets
-func (s *platformService) CreateCryptoAsset(ctx context.Context, symbol, name, blockchain string, contractAddress *string, decimals, minConfirmation int) (*CryptoAsset, error) {
-	if symbol == "" || name == "" || blockchain == "" {
+
+func (s *platformService) CreateCryptoAsset(ctx context.Context, input CreateCryptoAssetInput) (*CryptoAsset, error) {
+	if input.Symbol == "" || input.Name == "" || input.Blockchain == "" {
 		return nil, fmt.Errorf("symbol, name, and blockchain are required")
 	}
-
-	if decimals < 0 || minConfirmation < 0 {
+	if input.Decimals < 0 || input.MinConfirmation < 0 {
 		return nil, fmt.Errorf("decimals and minConfirmation must be non-negative")
 	}
 
 	asset := &CryptoAsset{
-		Symbol:          symbol,
-		Name:            name,
-		Blockchain:      blockchain,
-		ContractAddress: contractAddress,
-		Decimals:        decimals,
-		MinConfirmation: minConfirmation,
+		Symbol:          input.Symbol,
+		Name:            input.Name,
+		Blockchain:      input.Blockchain,
+		ContractAddress: input.ContractAddress,
+		Decimals:        input.Decimals,
+		MinConfirmation: input.MinConfirmation,
 		IsActive:        true,
 	}
 
-	err := s.repo.CreateCryptoAsset(ctx, asset)
-	if err != nil {
+	if err := s.repo.CreateCryptoAsset(ctx, asset); err != nil {
 		return nil, fmt.Errorf("create crypto asset: %w", err)
 	}
-
 	return asset, nil
 }
 
@@ -76,31 +131,28 @@ func (s *platformService) GetCryptoAssets(ctx context.Context, activeOnly bool, 
 	return s.repo.GetCryptoAssets(ctx, activeOnly, limit, offset)
 }
 
-func (s *platformService) UpdateCryptoAsset(ctx context.Context, id int, symbol, name, blockchain string, contractAddress *string, decimals, minConfirmation int, isActive bool) (*CryptoAsset, error) {
-	if symbol == "" || name == "" || blockchain == "" {
+func (s *platformService) UpdateCryptoAsset(ctx context.Context, id int, input UpdateCryptoAssetInput) (*CryptoAsset, error) {
+	if input.Symbol == "" || input.Name == "" || input.Blockchain == "" {
 		return nil, fmt.Errorf("symbol, name, and blockchain are required")
 	}
-
-	if decimals < 0 || minConfirmation < 0 {
+	if input.Decimals < 0 || input.MinConfirmation < 0 {
 		return nil, fmt.Errorf("decimals and minConfirmation must be non-negative")
 	}
 
 	asset := &CryptoAsset{
 		ID:              id,
-		Symbol:          symbol,
-		Name:            name,
-		Blockchain:      blockchain,
-		ContractAddress: contractAddress,
-		Decimals:        decimals,
-		MinConfirmation: minConfirmation,
-		IsActive:        isActive,
+		Symbol:          input.Symbol,
+		Name:            input.Name,
+		Blockchain:      input.Blockchain,
+		ContractAddress: input.ContractAddress,
+		Decimals:        input.Decimals,
+		MinConfirmation: input.MinConfirmation,
+		IsActive:        input.IsActive,
 	}
 
-	err := s.repo.UpdateCryptoAsset(ctx, asset)
-	if err != nil {
+	if err := s.repo.UpdateCryptoAsset(ctx, asset); err != nil {
 		return nil, fmt.Errorf("update crypto asset: %w", err)
 	}
-
 	return asset, nil
 }
 
@@ -109,23 +161,22 @@ func (s *platformService) DeleteCryptoAsset(ctx context.Context, id int) error {
 }
 
 // Fiat Currencies
-func (s *platformService) CreateFiatCurrency(ctx context.Context, code, name, symbol string) (*FiatCurrency, error) {
-	if code == "" || name == "" || symbol == "" {
+
+func (s *platformService) CreateFiatCurrency(ctx context.Context, input CreateFiatCurrencyInput) (*FiatCurrency, error) {
+	if input.Code == "" || input.Name == "" || input.Symbol == "" {
 		return nil, fmt.Errorf("code, name, and symbol are required")
 	}
 
 	currency := &FiatCurrency{
-		Code:     code,
-		Name:     name,
-		Symbol:   symbol,
+		Code:     input.Code,
+		Name:     input.Name,
+		Symbol:   input.Symbol,
 		IsActive: true,
 	}
 
-	err := s.repo.CreateFiatCurrency(ctx, currency)
-	if err != nil {
+	if err := s.repo.CreateFiatCurrency(ctx, currency); err != nil {
 		return nil, fmt.Errorf("create fiat currency: %w", err)
 	}
-
 	return currency, nil
 }
 
@@ -138,24 +189,22 @@ func (s *platformService) GetFiatCurrencies(ctx context.Context, activeOnly bool
 	return s.repo.GetFiatCurrencies(ctx, activeOnly, limit, offset)
 }
 
-func (s *platformService) UpdateFiatCurrency(ctx context.Context, id int, code, name, symbol string, isActive bool) (*FiatCurrency, error) {
-	if code == "" || name == "" || symbol == "" {
+func (s *platformService) UpdateFiatCurrency(ctx context.Context, id int, input UpdateFiatCurrencyInput) (*FiatCurrency, error) {
+	if input.Code == "" || input.Name == "" || input.Symbol == "" {
 		return nil, fmt.Errorf("code, name, and symbol are required")
 	}
 
 	currency := &FiatCurrency{
 		ID:       id,
-		Code:     code,
-		Name:     name,
-		Symbol:   symbol,
-		IsActive: isActive,
+		Code:     input.Code,
+		Name:     input.Name,
+		Symbol:   input.Symbol,
+		IsActive: input.IsActive,
 	}
 
-	err := s.repo.UpdateFiatCurrency(ctx, currency)
-	if err != nil {
+	if err := s.repo.UpdateFiatCurrency(ctx, currency); err != nil {
 		return nil, fmt.Errorf("update fiat currency: %w", err)
 	}
-
 	return currency, nil
 }
 
@@ -164,26 +213,25 @@ func (s *platformService) DeleteFiatCurrency(ctx context.Context, id int) error 
 }
 
 // Payment Methods
-func (s *platformService) CreatePaymentMethod(ctx context.Context, code, name string, category PaymentCategory, iconURL, description *string, sortOrder int) (*PaymentMethod, error) {
-	if code == "" || name == "" {
+
+func (s *platformService) CreatePaymentMethod(ctx context.Context, input CreatePaymentMethodInput) (*PaymentMethod, error) {
+	if input.Code == "" || input.Name == "" {
 		return nil, fmt.Errorf("code and name are required")
 	}
 
 	method := &PaymentMethod{
-		Code:        code,
-		Name:        name,
-		Category:    category,
-		IconURL:     iconURL,
-		Description: description,
+		Code:        input.Code,
+		Name:        input.Name,
+		Category:    input.Category,
+		IconURL:     input.IconURL,
+		Description: input.Description,
 		IsActive:    true,
-		SortOrder:   sortOrder,
+		SortOrder:   input.SortOrder,
 	}
 
-	err := s.repo.CreatePaymentMethod(ctx, method)
-	if err != nil {
+	if err := s.repo.CreatePaymentMethod(ctx, method); err != nil {
 		return nil, fmt.Errorf("create payment method: %w", err)
 	}
-
 	return method, nil
 }
 
@@ -196,27 +244,25 @@ func (s *platformService) GetPaymentMethods(ctx context.Context, activeOnly bool
 	return s.repo.GetPaymentMethods(ctx, activeOnly, limit, offset)
 }
 
-func (s *platformService) UpdatePaymentMethod(ctx context.Context, id int, code, name string, category PaymentCategory, iconURL, description *string, isActive bool, sortOrder int) (*PaymentMethod, error) {
-	if code == "" || name == "" {
+func (s *platformService) UpdatePaymentMethod(ctx context.Context, id int, input UpdatePaymentMethodInput) (*PaymentMethod, error) {
+	if input.Code == "" || input.Name == "" {
 		return nil, fmt.Errorf("code and name are required")
 	}
 
 	method := &PaymentMethod{
 		ID:          id,
-		Code:        code,
-		Name:        name,
-		Category:    category,
-		IconURL:     iconURL,
-		Description: description,
-		IsActive:    isActive,
-		SortOrder:   sortOrder,
+		Code:        input.Code,
+		Name:        input.Name,
+		Category:    input.Category,
+		IconURL:     input.IconURL,
+		Description: input.Description,
+		IsActive:    input.IsActive,
+		SortOrder:   input.SortOrder,
 	}
 
-	err := s.repo.UpdatePaymentMethod(ctx, method)
-	if err != nil {
+	if err := s.repo.UpdatePaymentMethod(ctx, method); err != nil {
 		return nil, fmt.Errorf("update payment method: %w", err)
 	}
-
 	return method, nil
 }
 

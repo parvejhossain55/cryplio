@@ -28,7 +28,7 @@ type MockEscrow struct {
 	Token        string    `json:"token"`
 	Status       string    `json:"status"` // "created", "locked", "released", "refunded"
 	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at";` // Added semicolon here
+	UpdatedAt    time.Time `json:"updated_at"`
 	ReleasedTo   string    `json:"released_to,omitempty"`
 	RefundReason string    `json:"refund_reason,omitempty"`
 }

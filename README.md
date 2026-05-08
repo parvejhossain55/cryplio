@@ -2,7 +2,7 @@
 
 > **Trade Crypto. Trust the Process.**
 
-P2P cryptocurrency exchange platform — Built with Clean Architecture and Domain-Driven Design.
+P2P cryptocurrency exchange platform — built with Clean Architecture and Domain-Driven Design in Go.
 
 ---
 
@@ -16,55 +16,56 @@ P2P cryptocurrency exchange platform — Built with Clean Architecture and Domai
 - [Environment Variables](#environment-variables)
 - [Running the App](#running-the-app)
 - [Database Migrations](#database-migrations)
-- [Smart Contracts](#smart-contracts)
 - [API Reference](#api-reference)
-- [Testing](#testing)
+- [WebSocket](#websocket)
 - [Domain Guide](#domain-guide)
-- [Kubernetes Deployment](#kubernetes-deployment)
+- [Smart Contracts](#smart-contracts)
 - [Contributing](#contributing)
 
 ---
 
 ## Overview
 
-Cryplio is a global P2P crypto exchange where buyers and sellers trade directly with each other using an escrow-based system. No platform custody of funds — trades are secured by a smart contract escrow on EVM-compatible chains.
+Cryplio is a global P2P crypto exchange where buyers and sellers trade directly with each other using a blockchain escrow system. The platform holds no custody of funds — every trade is secured by a smart contract escrow deployed on EVM-compatible chains.
 
-Key capabilities:
-- Escrow-backed P2P trades (USDT,USDC)
-- Multi-payment method support — Bkash, Nagad, Bank Transfer, Wise, PayPal, UPI
-- Real-time trade chat via WebSocket
-- Admin dispute resolution system
-- Referral program with commission tracking
+**Key capabilities**
+
+- Escrow-backed P2P trades (USDT, USDC, ETH, BTC)
+- Multi-payment method support — bKash, Nagad, Bank Transfer, Wise, PayPal, UPI
+- Real-time trade chat and notifications via WebSocket
+- Google OAuth 2.0 login alongside email/password
+- TOTP two-factor authentication
+- Admin dispute resolution with evidence upload
 - Merchant portal for high-volume traders
+- Referral programme with commission tracking
+- Rate-limited, session-based API with HttpOnly cookie + Bearer token support
 
 ---
 
 ## Architecture
 
-The codebase follows **Clean Architecture** with **Domain-Driven Design**. Dependencies flow strictly inward — outer layers depend on inner layers, never the reverse.
+The codebase follows **Clean Architecture** with **Domain-Driven Design**. Dependencies flow strictly inward — outer layers may depend on inner layers, never the reverse.
 
 ```
-┌─────────────────────────────────────────────────┐
-│  interfaces/       HTTP handlers, WebSocket     │
-│  ┌───────────────────────────────────────────┐  │
-│  │  application/  Use cases & orchestration  │  │
-│  │  ┌─────────────────────────────────────┐  │  │
-│  │  │  domain/   Entities, rules, ports   │  │  │
-│  │  └─────────────────────────────────────┘  │  │
-│  └───────────────────────────────────────────┘  │
-│  infrastructure/   DB, blockchain, 3rd-party    │
-└─────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────┐
+│  interfaces/        HTTP handlers · WebSocket          │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  application/   Use cases · orchestration        │  │
+│  │  ┌────────────────────────────────────────────┐  │  │
+│  │  │  domain/    Entities · rules · interfaces  │  │  │
+│  │  └────────────────────────────────────────────┘  │  │
+│  └──────────────────────────────────────────────────┘  │
+│  infrastructure/    Postgres · Redis · blockchain      │
+└────────────────────────────────────────────────────────┘
 ```
 
-**Layer responsibilities:**
-
-| Layer | Package | Rule |
+| Layer | Package | Responsibility |
 |---|---|---|
-| Domain | `internal/domain/` | Pure business logic. Zero external imports. |
-| Application | `internal/application/` | One file per use case. Orchestrates domain services. |
-| Interfaces | `internal/interfaces/` | HTTP handlers, DTOs, middleware, WebSocket hub. |
-| Infrastructure | `internal/infrastructure/` | Postgres repos, Redis, blockchain client, Sumsub, payment gateways. |
-| Shared | `pkg/` | JWT, crypto, logger, config. No domain imports allowed. |
+| **Domain** | `internal/domain/` | Pure business logic. No external imports. Defines entities, domain services, and repository interfaces. |
+| **Application** | `internal/application/` | Use-case orchestration. Delegates to domain services. |
+| **Interfaces** | `internal/interfaces/` | HTTP handlers grouped by domain, DTOs, middleware, WebSocket hub. |
+| **Infrastructure** | `internal/infrastructure/` | Postgres repositories, Redis, blockchain clients, email, object storage. |
+| **Shared** | `pkg/` | JWT, crypto helpers, structured logger, config, pagination. No domain imports. |
 
 ---
 
@@ -72,103 +73,138 @@ The codebase follows **Clean Architecture** with **Domain-Driven Design**. Depen
 
 | Concern | Technology |
 |---|---|
-| Language | Go 1.22+ |
+| Language | Go 1.25 |
 | HTTP Framework | Gin |
 | Database | PostgreSQL 17 |
-| Cache / Sessions | Redis 7 |
-| ORM / Query | sqlx + raw SQL |
+| Cache / Rate Limiting | Redis 7 (go-redis/v9) |
+| Job Queue | Asynq |
 | Migrations | golang-migrate |
-| Auth | JWT (golang-jwt) + TOTP (pquerna/otp) |
+| Auth | JWT (golang-jwt/v5) + TOTP (pquerna/otp) |
+| OAuth | Google OAuth 2.0 |
 | WebSocket | gorilla/websocket |
-| Blockchain | go-ethereum (geth) |
+| Object Storage | MinIO (S3-compatible) |
+| Blockchain | go-ethereum |
 | Smart Contracts | Solidity + Foundry |
-| Email | SendGrid |
-| SMS | Twilio |
-| Push Notifications | Firebase Cloud Messaging |
-| File Storage | AWS S3 |
-| Config | Viper |
+| Email | SMTP (configurable provider) |
 | Logging | Zerolog |
-| Containerization | Docker + Kubernetes (K8s) |
+| Hot Reload | Air |
+| Containerisation | Docker Compose (local dev) |
 
 ---
 
 ## Project Structure
 
 ```
-cryplio-backend/
+cryplio/
 ├── cmd/
 │   ├── api/            # HTTP server entrypoint
-│   ├── worker/         # Background job runner
-│   └── migrate/        # Migration CLI entrypoint
+│   ├── migrate/        # Migration CLI (apply / rollback / status)
+│   └── seed/           # Database seeder
 │
 ├── internal/
-│   ├── domain/         # Layer 1 — pure business logic
-│   │   ├── user/       # entity, repository interface, service, value objects
-│   │   ├── trade/      # TradeAd, Trade, matching logic, fee calc
-│   │   ├── escrow/     # EscrowLock state machine
-│   │   ├── wallet/     # Balance, locked_balance, transactions
-│   │   ├── dispute/    # Dispute lifecycle, evidence rules
-│   │   ├── merchant/   # Merchant subscription & tier rules
-│   │   ├── notification/
-│   │   ├── referral/
-│   │   └── market/     # Rate feed aggregation
 │   │
-│   ├── application/    # Layer 2 — use cases
-│   │   ├── user/       # register, login, session
-│   │   ├── trade/      # create_ad, initiate, mark_paid, release, cancel
-│   │   ├── dispute/    # raise, assign, resolve
-│   │   ├── wallet/     # deposit, withdraw, balance
-│   │   ├── merchant/   # apply, verify, dashboard
-│   │   └── referral/   # track, payout
+│   ├── domain/                     # Layer 1 — pure business logic
+│   │   ├── identity/               # User, Auth, Sessions, OAuth, 2FA, Payment methods
+│   │   │   ├── service.go          # AuthService interface + constructor
+│   │   │   ├── auth.go             # Register, Login, Logout, Refresh, Complete2FA
+│   │   │   ├── oauth.go            # Google OAuth flow
+│   │   │   ├── profile.go          # Profile CRUD + stats
+│   │   │   ├── email.go            # Email verification + password reset
+│   │   │   ├── twofactor.go        # TOTP setup / verify / disable
+│   │   │   ├── session.go          # Session CRUD
+│   │   │   ├── payment.go          # User payment method profiles
+│   │   │   ├── admin.go            # Admin user management
+│   │   │   ├── user.go             # User entity + value objects
+│   │   │   ├── repository.go       # Segregated repository interfaces
+│   │   │   └── helpers.go          # hashToken, validatePasswordComplexity
+│   │   │
+│   │   ├── trading/                # Trade advertisements + Trade lifecycle
+│   │   │   ├── service.go          # TradeService interface + constructor
+│   │   │   ├── ad.go               # Ad management (create, update, list, toggle)
+│   │   │   ├── trade.go            # Trade lifecycle (initiate → pay → release → dispute)
+│   │   │   ├── chat.go             # Trade chat messages + feedback
+│   │   │   ├── models.go           # TradeAd, Trade, TradeMessage entities
+│   │   │   ├── feedback.go         # TradeFeedback entity
+│   │   │   ├── blockchain.go       # EscrowContractClient interface
+│   │   │   └── repository.go       # TradeRepository interface
+│   │   │
+│   │   ├── wallet/                 # Wallets + transactions
+│   │   ├── dispute/                # Dispute lifecycle + evidence
+│   │   ├── notification/           # In-app notifications + preferences
+│   │   ├── platform/               # CryptoAsset, FiatCurrency, PaymentMethod catalogue
+│   │   ├── market/                 # Exchange rate feed
+│   │   ├── referral/               # Referral tracking + payouts
+│   │   └── events/                 # Domain event types + dispatcher interface
 │   │
-│   ├── interfaces/         # Layer 3 — delivery
+│   ├── application/                # Layer 2 — use cases
+│   │   ├── bootstrap.go            # App wiring (DI root)
+│   │   ├── user/                   # login, register, session use cases
+│   │   ├── trade/                  # initiate_trade, create_ad, mark_paid, release_escrow, cancel_trade
+│   │   ├── dispute/                # raise, assign, resolve
+│   │   ├── wallet/                 # deposit, withdraw, balance
+│   │   ├── merchant/               # apply, verify (scaffolded)
+│   │   ├── referral/               # track, payout
+│   │   └── identity/               # (reserved)
+│   │
+│   ├── interfaces/                 # Layer 3 — delivery
 │   │   ├── http/
-│   │   │   ├── handler/    # one file per domain
-│   │   │   ├── middleware/ # jwt_auth, rate_limit, cors
-│   │   │   ├── dto/        # request + response structs
-│   │   │   ├── validator/
-│   │   │   └── router.go
-│   │   └── ws/             # WebSocket hub (trade chat, notifications)
+│   │   │   ├── handler/            # Handlers grouped by domain
+│   │   │   │   ├── auth/           # AuthHandler (login, register, OAuth, 2FA, sessions, payment methods)
+│   │   │   │   │                   # AdminHandler (user management, dashboard stats)
+│   │   │   │   ├── trade/          # TradeHandler (ads, lifecycle, chat, feedback)
+│   │   │   │   ├── wallet/         # WalletHandler
+│   │   │   │   ├── dispute/        # DisputeHandler
+│   │   │   │   ├── notification/   # NotificationHandler
+│   │   │   │   ├── platform/       # PlatformHandler (crypto assets, fiat currencies, payment methods)
+│   │   │   │   ├── market/         # MarketHandler
+│   │   │   │   ├── helper.go       # Shared: handleError, getUserIDFromContext
+│   │   │   │   └── health.go       # Health + readiness probes
+│   │   │   ├── middleware/         # AuthMiddleware, CORSMiddleware, RateLimitMiddleware
+│   │   │   ├── dto/                # Request / response structs
+│   │   │   ├── validator/          # Input normalization
+│   │   │   └── router.go           # Route registration
+│   │   └── websocket/              # WebSocket hub (trade chat, notifications)
 │   │
-│   └── infrastructure/     # Layer 4 — external adapters
+│   └── infrastructure/             # Layer 4 — external adapters
+│       ├── blockchain/             # EVM escrow client, USDT wallet client, mock escrow
+│       ├── email/                  # Template-based email queue (DB-backed)
+│       ├── market/                 # Mock market data provider (rate feed placeholder)
+│       ├── notification/           # SMTP email client, WebSocket notifier
+│       ├── payment/                # bKash, Nagad, Wise, PayPal stubs
 │       ├── persistence/
-│       │   ├── postgres/   # repository implementations
-│       │   └── redis/      # session store, rate limiter, cache
-│       ├── blockchain/     # go-ethereum escrow contract client
-│       ├── payment/        # bkash, nagad, wise, paypal adapters
-│       ├── notification/   # sendgrid, twilio, firebase
-│       ├── market/         # coingecko / binance rate feed
-│       └── storage/        # AWS S3 — dispute evidence, user uploads
+│       │   ├── postgres/           # Repository implementations per domain
+│       │   │   ├── identity/       # user, oauth, email_verification, password_reset,
+│       │   │   │                   # session, twofactor, payment_method
+│       │   │   ├── trading/        # ad, trade, message, feedback
+│       │   │   ├── wallet/         # wallet, transaction
+│       │   │   ├── platform/       # crypto_asset, fiat_currency, payment_method
+│       │   │   ├── dispute/        # dispute
+│       │   │   └── notification/   # notification
+│       │   └── redis/              # Redis client, rate limiter, session store, cache
+│       ├── storage/                # MinIO / S3 object storage
+│       └── worker/                 # Asynq worker + scheduler (trade reconciliation)
 │
-├── pkg/                # Shared utilities — no domain imports
-│   ├── jwt/
-│   ├── crypto/         # bcrypt, TOTP
-│   ├── pagination/
-│   ├── apperrors/      # typed error codes + HTTP status mapping
-│   ├── logger/
-│   └── config/
+├── pkg/                            # Shared utilities — no domain imports
+│   ├── apperrors/                  # Typed error codes + HTTP status mapping
+│   ├── config/                     # Environment-based config loader
+│   ├── crypto/                     # bcrypt password hashing
+│   ├── database/                   # sql.DB factory + migrator
+│   ├── jwt/                        # JWT issue + parse helpers
+│   ├── logger/                     # Zerolog wrapper
+│   └── pagination/                 # Generic pagination types
 │
-├── migrations/         # Numbered SQL files (golang-migrate)
-├── contracts/
-│   ├── src/            # Escrow.sol, EscrowFactory.sol
-│   ├── test/           # Foundry tests (*.t.sol)
-│   ├── script/         # Foundry deploy scripts (*.s.sol)
-│   └── abi/            # Compiled ABI consumed by Go blockchain client
+├── migrations/                     # 25 numbered SQL migrations (000–025)
+├── seeder/                         # Development data seeder
+├── contracts/                      # Solidity escrow contracts (Foundry)
+├── apps/
+│   ├── web/                        # Next.js frontend
+│   └── mobile/                     # Mobile app
 ├── tests/
 │   ├── unit/
-│   ├── integration/    # testcontainers — real Postgres + Redis
+│   ├── integration/
 │   └── e2e/
-│
-├── k8s/
-│   ├── base/           # Deployments, Services, ConfigMaps
-│   │   ├── api-deployment.yaml
-│   │   ├── worker-deployment.yaml
-│   │   ├── postgres-statefulset.yaml
-│   │   └── redis-statefulset.yaml
-│   └── overlays/
-│       ├── staging/    # Kustomize patches for staging
-│       └── production/ # Kustomize patches for production
-├── docker compose.yml  # Local development only
+├── .air.toml                       # Air hot-reload config
+├── docker-compose.yml              # Local dev: Postgres + Redis + MinIO
 ├── Makefile
 └── go.mod
 ```
@@ -179,87 +215,131 @@ cryplio-backend/
 
 ### Prerequisites
 
-- Go 1.22+
-- Docker & Docker Compose (local dev)
-- Foundry (`foundryup`) — for smart contract development
-- `kubectl` + access to a Kubernetes cluster (staging/production)
-- `make`
+| Tool | Version | Purpose |
+|---|---|---|
+| Go | 1.25+ | Backend |
+| Docker & Compose | Latest | Local infrastructure |
+| Make | Any | Task runner |
+| Air | Latest | Hot reload (`go install github.com/air-verse/air@latest`) |
+| Foundry | Latest | Smart contract dev |
 
-### Clone and install
+### 1 — Clone and install dependencies
 
 ```bash
-git clone https://github.com/your-org/cryplio-backend.git
-cd cryplio-backend
+git clone https://github.com/parvejhossain55/cryplio.git
+cd cryplio
 go mod download
 ```
 
-### Start infrastructure services
+### 2 — Start infrastructure services
 
 ```bash
-docker compose up -d postgres redis
+make env-up
+# Starts: PostgreSQL 17, Redis 7, MinIO
 ```
 
-### Copy and configure environment
+### 3 — Configure environment
 
 ```bash
 cp .env.example .env
-# Edit .env with your credentials — see Environment Variables below
+# Edit .env — see Environment Variables section below
 ```
 
-### Run database migrations
+### 4 — Run database migrations
 
 ```bash
 make migrate-up
 ```
 
-### Start the API server
+### 5 — Seed development data (optional)
 
 ```bash
+make seed
+# Creates: 1 admin, 2 merchants, 5 traders, wallets, ads, trades, disputes
+```
+
+### 6 — Start the API server
+
+```bash
+# Development (with hot reload)
+make dev-backend
+
+# Or plain Go run
 make run
 ```
 
-The API will be available at `http://localhost:8080`.
+API available at: `http://localhost:8080`  
+MinIO console: `http://localhost:9001` (cryplio / cryplio123)
 
 ---
 
 ## Environment Variables
 
-```env
-# Server
-APP_ENV=development
-APP_PORT=8080
-APP_SECRET=your-32-char-secret-key
+Copy `.env.example` to `.env` and fill in the values. Required fields are marked *.
 
-# Database
+```env
+# ── App ──────────────────────────────────────────────────
+APP_ENV=development          # development | production
+SERVER_PORT=8080
+FRONTEND_URL=http://localhost:3000
+
+# ── JWT / Auth * ─────────────────────────────────────────
+JWT_SECRET=your-32-char-secret       # * Required; must be set in production
+JWT_EXPIRY=24h
+REFRESH_TOKEN_EXPIRY=168h            # 7 days
+
+# Cookie settings
+COOKIE_NAME=auth_token
+COOKIE_SECURE=false                  # Set true in production (HTTPS)
+COOKIE_SAME_SITE=strict
+ISSUER_NAME=Cryplio                  # Shown in TOTP authenticator apps
+
+# ── Database * ───────────────────────────────────────────
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=cryplio
-DB_USER=cryplio
-DB_PASSWORD=secret
-DB_MAX_CONNS=25
+DB_USER=postgres
+DB_PASSWORD=parvej
+DB_NAME=cryplio_db
 
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
+# ── Redis ────────────────────────────────────────────────
+REDIS_ADDR=localhost:6379
 REDIS_PASSWORD=
+REDIS_DB=0
 
-# JWT
-JWT_SECRET=your-jwt-secret
-JWT_EXPIRY_HOURS=24
+# ── Object Storage (MinIO / S3) * ────────────────────────
+S3_ENDPOINT=localhost:9000
+S3_ACCESS_KEY_ID=cryplio
+S3_SECRET_ACCESS_KEY=cryplio123
+S3_USE_SSL=false
+S3_BUCKET_NAME=cryplio-storage
+S3_PUBLIC_BASE_URL=
 
-# Blockchain
-ETH_RPC_URL=https://mainnet.infura.io/v3/YOUR_KEY
-ESCROW_CONTRACT_ADDRESS=0x...
-PLATFORM_WALLET_PRIVATE_KEY=0x...
-
-# Email — SendGrid
-SENDGRID_API_KEY=SG.xxx
+# ── Email (SMTP) ─────────────────────────────────────────
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USERNAME=
+SMTP_PASSWORD=
 EMAIL_FROM=noreply@cryplio.io
 
+# ── Google OAuth (optional) ──────────────────────────────
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+OAUTH_REDIRECT_URL=http://localhost:8080/api/v1/auth/oauth/google/callback
 
-# Rate limiting
-RATE_LIMIT_RPS=100
-RATE_LIMIT_BURST=20
+# ── Blockchain (optional) ────────────────────────────────
+ETH_RPC_URL=http://localhost:8545
+ETH_PRIVATE_KEY=                     # Platform wallet private key
+ESCROW_CONTRACT_ADDRESS=             # Deployed escrow contract address
+
+# ── Rate Limiting ────────────────────────────────────────
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_REQUESTS=100
+RATE_LIMIT_WINDOW=1m
+# When REDIS_ADDR is reachable, a distributed Redis sliding-window limiter
+# is used automatically. Falls back to in-process limiter otherwise.
+
+# ── CORS ─────────────────────────────────────────────────
+CORS_ALLOWED_ORIGINS=http://localhost:3000
 ```
 
 ---
@@ -267,223 +347,217 @@ RATE_LIMIT_BURST=20
 ## Running the App
 
 ```bash
-# Development backend + frontend
-make dev
-
-# Production build
-make build
-./bin/api
-
-# Run all linters
-make lint
-
-# Format code
-make fmt
+make run            # Start API server (go run)
+make dev            # Start backend (Air) + frontend (npm) in parallel
+make dev-backend    # Backend only with hot reload
+make dev-frontend   # Frontend only (Next.js)
+make build          # Compile binary → ./bin/api
+make prod           # Run with APP_ENV=production
+make fmt            # Format all Go code
+make lint           # Run golangci-lint
+make test           # Run all tests
+make seed           # Seed development data
+make env-up         # docker compose up -d
+make env-down       # docker compose down
 ```
-
-### Makefile targets
-
-| Target | Description |
-|---|---|
-| `make run` | Start API server |
-| `make dev` | Start backend and frontend in development mode |
-| `make build` | Compile binary to `./bin/api` |
-| `make test` | Run all tests |
-| `make test-unit` | Unit tests only |
-| `make lint` | Run golangci-lint |
-| `make migrate-up` | Apply all pending migrations |
-| `make migrate-down` | Roll back last migration |
-| `make migrate-create name=xxx` | Create a new migration file |
 
 ---
 
 ## Database Migrations
 
-Migrations live in `migrations/` and are numbered sequentially.
+Migrations live in `migrations/` and are applied with `golang-migrate`. There are currently **25 migration pairs** (000–025).
 
 ```bash
-# Apply all
+# Apply all pending migrations
 make migrate-up
 
-# Roll back one step
+# Roll back the most recent migration
 make migrate-down
 
-# Create a new migration
+# Show current migration status
+make migrate-status
+
+# Create a new migration pair
 make migrate-create name=add_merchant_tier_column
-# creates: migrations/00X_add_merchant_tier_column.up.sql
-#          migrations/00X_add_merchant_tier_column.down.sql
+# → migrations/026_add_merchant_tier_column.up.sql
+# → migrations/026_add_merchant_tier_column.down.sql
 ```
 
-Migration files follow the pattern: `{version}_{description}.{up|down}.sql`
+### Schema overview
 
----
-
-## Smart Contracts
-
-Contracts are written in Solidity and developed with [Foundry](https://book.getfoundry.sh). The compiled ABI is consumed by the Go blockchain client in `internal/infrastructure/blockchain/`.
-
-### Install Foundry
-
-```bash
-curl -L https://foundry.paradigm.xyz | bash
-foundryup
-```
-
-### Workflow
-
-```bash
-cd contracts
-
-# Build contracts
-forge build
-
-# Run all tests (with gas report)
-forge test --gas-report
-
-# Run a specific test file
-forge test --match-path test/Escrow.t.sol -vvv
-
-# Check test coverage
-forge coverage
-
-# Format Solidity files
-forge fmt
-
-# Deploy to Sepolia testnet
-forge script script/DeployEscrow.s.sol \
-  --rpc-url $SEPOLIA_RPC_URL \
-  --private-key $DEPLOYER_PRIVATE_KEY \
-  --broadcast \
-  --verify
-
-# Export ABI to Go-consumable path
-cp out/Escrow.sol/Escrow.json ../contracts/abi/
-```
-
-### Foundry project layout
-
-```
-contracts/
-├── src/
-│   ├── Escrow.sol          # Core escrow logic
-│   └── EscrowFactory.sol   # Factory for per-trade escrow instances
-├── test/
-│   ├── Escrow.t.sol        # Unit tests (forge test)
-│   └── EscrowFactory.t.sol
-├── script/
-│   └── DeployEscrow.s.sol  # Deployment script (forge script)
-├── abi/                    # Exported ABI JSON for Go abigen
-├── foundry.toml            # Foundry config
-└── remappings.txt
-```
-
-After any contract change, regenerate the Go bindings:
-
-```bash
-abigen --abi contracts/abi/Escrow.json \
-       --pkg blockchain \
-       --out internal/infrastructure/blockchain/escrow_binding.go
-```
+| Migration | Tables created |
+|---|---|
+| 000 | PostgreSQL enum types |
+| 001 | `users`, `user_stats`, `user_sessions`, token tables |
+| 002 | `crypto_assets`, `fiat_currencies`, `payment_methods`, `fee_tiers` |
+| 003 | `trade_status_log`, `email_templates`, `email_queue` |
+| 004 | `trade_ads` |
+| 005 | `trades`, `trade_messages`, `trade_attachments` |
+| 006 | `trade_feedback` |
+| 007 | `disputes`, `dispute_messages` |
+| 008 | `wallets`, `wallet_transactions` |
+| 009 | `notifications`, `notification_preferences` |
+| 010 | `referrals` |
+| 011 | `merchant_applications`, `merchant_analytics` |
+| 012 | `audit_logs`, `admin_actions`, `platform_config`, `announcements` |
+| 013 | `rate_limit_counts`, `login_attempts`, `api_request_logs` |
+| 014 | Database views (`active_trade_ads`, `completed_trades`, etc.) |
+| 015 | Auto-update triggers for `updated_at` columns |
+| 016 | Seed data (crypto assets, fiat currencies, payment methods, config) |
+| 017–025 | OAuth, 2FA, user payment methods, withdrawal approvals, notification type fix |
 
 ---
 
 ## API Reference
 
-Base URL: `https://cryplio.io/api/v1`
+**Base URL:** `http://localhost:8080/api/v1`
 
-All authenticated endpoints require:
-```
-Authorization: Bearer <jwt_token>
-```
+Authenticated endpoints accept the JWT either as:
+- HttpOnly cookie `auth_token`
+- `Authorization: Bearer <token>` header
 
-### Auth
-
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| `POST` | `/auth/register` | Public | Register new user |
-| `POST` | `/auth/login` | Public | Login, receive JWT |
-| `POST` | `/auth/logout` | Required | Invalidate session |
-| `POST` | `/auth/refresh` | Required | Refresh JWT |
-| `POST` | `/auth/2fa/enable` | Required | Enable TOTP 2FA |
-| `POST` | `/auth/2fa/verify` | Required | Verify TOTP code |
-| `POST` | `/auth/password/reset` | Public | Request password reset |
-
-### Users
+### Authentication
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| `GET` | `/users/me` | Required | Get own profile |
-| `PUT` | `/users/me` | Required | Update profile |
-| `GET` | `/users/me/devices` | Required | List active sessions |
-| `DELETE` | `/users/me/devices/:id` | Required | Revoke a session |
+| `POST` | `/auth/register` | Public | Register and auto-login |
+| `POST` | `/auth/login` | Public | Login (returns tokens; 2FA challenge if enabled) |
+| `POST` | `/auth/logout` | Public | Invalidate session |
+| `POST` | `/auth/refresh` | Cookie | Rotate refresh token |
+| `GET` | `/auth/oauth/google` | Public | Redirect to Google OAuth |
+| `GET` | `/auth/oauth/google/callback` | Public | OAuth callback |
+| `POST` | `/auth/email/request` | Public | Send email verification link |
+| `POST` | `/auth/email/verify` | Public | Verify email with token |
+| `POST` | `/auth/password/reset-request` | Public | Send password reset link |
+| `POST` | `/auth/password/reset` | Public | Reset password with token |
+| `POST` | `/auth/2fa/complete-login` | Public | Complete 2FA challenge |
 
-### Trade Ads
-
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| `GET` | `/ads` | Public | List ads (filters: crypto, fiat, payment, type) |
-| `POST` | `/ads` | Required | Create ad |
-| `GET` | `/ads/:id` | Public | Get single ad |
-| `PUT` | `/ads/:id` | Required | Update own ad |
-| `DELETE` | `/ads/:id` | Required | Delete own ad |
-
-### Trades
+### User Profile
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| `POST` | `/trades` | Required | Initiate trade from ad |
-| `GET` | `/trades/:id` | Required | Get trade details |
-| `POST` | `/trades/:id/paid` | Required (buyer) | Mark as paid |
-| `POST` | `/trades/:id/release` | Required (seller) | Release escrow |
-| `POST` | `/trades/:id/cancel` | Required | Cancel trade |
-| `POST` | `/trades/:id/dispute` | Required | Raise dispute |
-| `GET` | `/trades/:id/messages` | Required | Get trade chat messages |
+| `GET` | `/users/me` | ✅ | Get own profile + trade stats |
+| `PUT` | `/users/me` | ✅ | Update username / bio |
+| `POST` | `/users/me/avatar` | ✅ | Upload avatar (JPEG/PNG ≤ 2 MB) |
+| `GET` | `/users/username/:username` | Public | Public user profile |
+| `POST` | `/auth/2fa/setup` | ✅ | Generate TOTP secret + QR URI |
+| `POST` | `/auth/2fa/verify` | ✅ | Confirm TOTP setup |
+| `POST` | `/auth/2fa/disable` | ✅ | Disable 2FA (password required) |
+| `GET` | `/sessions` | ✅ | List active sessions |
+| `DELETE` | `/sessions/:tokenId` | ✅ | Revoke a session (force sign-out) |
+| `GET` | `/users/me/payment-methods` | ✅ | List saved payment methods |
+| `POST` | `/users/me/payment-methods` | ✅ | Add payment method profile |
+| `PUT` | `/users/me/payment-methods/:id` | ✅ | Update payment method |
+| `DELETE` | `/users/me/payment-methods/:id` | ✅ | Remove payment method |
+| `PATCH` | `/users/me/payment-methods/:id/default` | ✅ | Set default payment method |
+
+### Marketplace — Trade Advertisements
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/marketplace/ads` | Public | List active ads (filter by crypto, fiat, payment, type) |
+| `POST` | `/marketplace/ads` | ✅ | Create ad |
+| `GET` | `/marketplace/my-ads` | ✅ | List own ads |
+| `PUT` | `/marketplace/ads/:id` | ✅ | Update own ad |
+| `DELETE` | `/marketplace/ads/:id` | ✅ | Soft-delete own ad |
+| `PATCH` | `/marketplace/ads/:id/status` | ✅ | Pause / resume ad |
+
+### Marketplace — Trades
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/marketplace/ads/:id/trades` | ✅ | Initiate trade from ad |
+| `GET` | `/marketplace/trades` | ✅ | List own trades |
+| `GET` | `/marketplace/trades/:id` | ✅ | Trade detail |
+| `PATCH` | `/marketplace/trades/:id/status` | ✅ | `pay` / `release` / `cancel` |
+| `POST` | `/marketplace/trades/:id/dispute` | ✅ | Raise dispute |
+| `POST` | `/marketplace/trades/:id/feedback` | ✅ | Leave post-trade feedback |
+| `GET` | `/marketplace/trades/:id/messages` | ✅ | Fetch chat history |
+| `POST` | `/marketplace/trades/:id/messages` | ✅ | Send text or file message |
 
 ### Wallet
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| `GET` | `/wallet/balance` | Required | Get all balances |
-| `GET` | `/wallet/deposit/:crypto` | Required | Get deposit address |
-| `POST` | `/wallet/withdraw` | Required (2FA) | Request withdrawal |
-| `GET` | `/wallet/transactions` | Required | Transaction history |
+| `POST` | `/wallet` | ✅ | Create wallet for a crypto asset |
+| `GET` | `/wallet/balance` | ✅ | All wallet balances |
+| `GET` | `/wallet/deposit/:crypto` | ✅ | Get deposit address |
+| `POST` | `/wallet/withdraw` | ✅ (2FA required) | Request withdrawal |
+| `GET` | `/wallet/transactions` | ✅ | Transaction history |
 
-### Market
-
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| `GET` | `/market/rates` | Public | Live crypto-fiat rates |
-
-### Dispute (Admin)
+### Notifications
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| `GET` | `/admin/disputes` | Admin | List open disputes |
-| `GET` | `/admin/disputes/:id` | Admin | Get dispute detail |
-| `POST` | `/admin/disputes/:id/assign` | Admin | Assign to self |
-| `POST` | `/admin/disputes/:id/resolve` | Admin | Resolve with decision |
+| `GET` | `/notifications` | ✅ | List notifications |
+| `PATCH` | `/notifications/:id/read` | ✅ | Mark as read |
+| `GET` | `/notifications/preferences` | ✅ | Get notification preferences |
+| `POST` | `/notifications/preferences` | ✅ | Save notification preferences |
+
+### Market Rates
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/market/rates` | Public | All rates (all crypto × all fiat) |
+| `GET` | `/market/rates/:crypto` | Public | All fiat rates for one crypto |
+| `GET` | `/market/rates/:crypto/:fiat` | Public | Single crypto/fiat rate |
+
+### Dispute Evidence
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/disputes/:id/evidence` | ✅ | Upload evidence file (≤ 10 MB) |
+
+### Admin (role: `admin` required)
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/admin/dashboard/stats` | Aggregated platform stats |
+| `GET` | `/admin/users` | Paginated user list |
+| `POST` | `/admin/users/:id/suspend` | Suspend user |
+| `POST` | `/admin/users/:id/unsuspend` | Lift suspension |
+| `POST` | `/admin/users/:id/ban` | Permanent ban |
+| `POST` | `/admin/users/:id/unban` | Lift ban |
+| `GET` | `/admin/trades` | All trades (admin view) |
+| `POST/GET/PUT/DELETE` | `/admin/crypto-assets[/:id]` | Crypto asset catalogue |
+| `POST/GET/PUT/DELETE` | `/admin/fiat-currencies[/:id]` | Fiat currency catalogue |
+| `POST/GET/PUT/DELETE` | `/admin/payment-methods[/:id]` | Platform payment method catalogue |
+| `GET` | `/admin/withdrawals/pending` | Pending withdrawal approvals |
+| `POST` | `/admin/withdrawals/:id/approve` | Approve withdrawal |
+| `POST` | `/admin/withdrawals/:id/reject` | Reject withdrawal |
+| `GET` | `/admin/disputes` | All disputes |
+| `GET` | `/admin/disputes/:id` | Dispute detail |
+| `POST` | `/admin/disputes/:id/assign` | Assign dispute to admin |
+| `POST` | `/admin/disputes/:id/resolve` | Resolve dispute |
+
+### Health
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/health` | Liveness check |
+| `GET` | `/live` | Liveness probe |
+| `GET` | `/ready` | Readiness probe (pings database) |
 
 ---
 
-## Testing
+## WebSocket
 
-```bash
-# All tests
-make test
+Connect to `/ws` for real-time trade chat and push notifications.
 
-# Unit tests only (no Docker needed)
-make test-unit
-
-# With coverage report
-go test ./... -coverprofile=coverage.out
-go tool cover -html=coverage.out
+```
+ws://localhost:8080/ws
 ```
 
-### Testing conventions
+**Message types** pushed from server:
 
-- **Unit tests** live alongside the code they test: `domain/trade/service_test.go`
-- **Integration tests** can live in `tests/integration/` when database or adapter coverage is added
-- **Repository interfaces** in `domain/` make every use case fully mockable without a database
+| Type | Payload | When |
+|---|---|---|
+| `chat_message` | `ChatMessage` | A new trade message is sent |
+| `trade_update` | `TradeUpdate` | Trade status changes |
+| `notification` | `NotificationEvent` | Any in-app notification |
+| `market_update` | `MarketUpdate` | Rate feed update |
+
+Authentication: pass the JWT as query param `?token=<jwt>` or as a cookie on the upgrade request.
 
 ---
 
@@ -493,95 +567,79 @@ go tool cover -html=coverage.out
 
 ```
 AD_ACTIVE
-    └─▶ TRADE_CREATED   (escrow locked)
-            ├─▶ PAID            (buyer marks paid → 1h seller window opens)
-            │       ├─▶ COMPLETED   (seller releases escrow)
-            │       └─▶ DISPUTED    (buyer/seller raises dispute)
-            │               └─▶ RESOLVED  (admin decides)
-            └─▶ CANCELLED       (before payment, by either party)
+  └─▶ TRADE_PENDING    (escrow locked on-chain)
+        └─▶ TRADE_ACTIVE
+                ├─▶ PAID             (buyer marks paid)
+                │     ├─▶ COMPLETED  (seller releases escrow → crypto sent to buyer)
+                │     └─▶ DISPUTED   (buyer or seller raises dispute)
+                │               └─▶ RESOLVED  (admin resolves)
+                ├─▶ CANCELLED        (either party, before payment)
+                └─▶ EXPIRED          (payment window elapsed, auto-cancelled)
 ```
 
 ### Escrow flow
 
-1. Seller creates ad → `escrow.Lock(amount)` called immediately
-2. Trade initiated → escrow remains locked
-3. Buyer marks paid → 1-hour release window starts for seller
-4. Seller releases → `escrow.Release(buyerAddress)` — smart contract sends USDT to buyer
-5. If seller doesn't release within 1h → auto-dispute triggered
-6. Admin resolves dispute → calls either `escrow.Release` or `escrow.Return`
+1. Buyer initiates trade → `escrowClient.Lock(trade)` — seller's crypto is locked in the smart contract
+2. Buyer sends fiat via the agreed payment method and marks the trade as **paid**
+3. Seller verifies receipt and calls **release** → `escrowClient.Release(trade)` — crypto is sent to buyer's wallet
+4. If the seller does not release within the payment window, an auto-dispute is flagged by the background worker
+5. Admin reviews evidence and resolves: **release to buyer** or **return to seller**
+
+### Payment window auto-cancellation
+
+A background Asynq worker (`worker/`) runs every 5 minutes to:
+- Expire `pending`/`active` trades whose payment window has elapsed → `EXPIRED`
+- Flag `paid` trades past the grace period for auto-dispute
 
 ---
 
-## Kubernetes Deployment
+## Smart Contracts
 
-Kubernetes manifests live in `k8s/` and are managed with [Kustomize](https://kustomize.io) (built into `kubectl`).
-
-### Structure
-
-```
-k8s/
-├── base/                   # Shared base resources
-│   ├── api-deployment.yaml
-│   ├── worker-deployment.yaml
-│   ├── postgres-statefulset.yaml
-│   └── redis-statefulset.yaml
-└── overlays/
-    ├── staging/            # Patches: replica count, image tags, env refs
-    └── production/         # Patches: HPA, resource limits, PDB
-```
-
-### Deploy
+Contracts are written in Solidity and developed with [Foundry](https://book.getfoundry.sh). The compiled ABI is consumed by the Go blockchain client in `internal/infrastructure/blockchain/`.
 
 ```bash
-# Staging
-kubectl apply -k k8s/overlays/staging
+cd contracts
 
-# Production
-kubectl apply -k k8s/overlays/production
+# Build
+forge build
 
-# Check rollout status
-kubectl rollout status deployment/cryplio-api -n cryplio
+# Test (with gas report)
+forge test --gas-report
 
-# Roll back one revision
-kubectl rollout undo deployment/cryplio-api -n cryplio
+# Deploy to Sepolia testnet
+forge script script/DeployEscrow.s.sol \
+  --rpc-url $SEPOLIA_RPC_URL \
+  --private-key $DEPLOYER_PRIVATE_KEY \
+  --broadcast --verify
+
+# Regenerate Go bindings after ABI changes
+abigen --abi contracts/abi/Escrow.json \
+       --pkg blockchain \
+       --out internal/infrastructure/blockchain/escrow_binding.go
 ```
 
-### Secrets
-
-Never commit secrets to the repo. Inject them as Kubernetes Secrets sourced from your secrets manager (AWS Secrets Manager, Vault, or Sealed Secrets):
-
-```bash
-kubectl create secret generic cryplio-secrets \
-  --from-literal=DB_PASSWORD=... \
-  --from-literal=JWT_SECRET=... \
-  --from-literal=ETH_RPC_URL=... \
-  -n cryplio
-```
-
-Reference in your deployment manifest:
-
-```yaml
-envFrom:
-  - secretRef:
-      name: cryplio-secrets
-```
+When `ESCROW_CONTRACT_ADDRESS` or `ETH_RPC_URL` are not set, the application falls back to a **mock escrow client** that simulates blockchain calls in memory — safe for local development without a running node.
 
 ---
 
 ## Contributing
 
 1. Branch from `main`: `git checkout -b feat/your-feature`
-2. Follow the layer rules — domain code must never import infrastructure
-3. Write tests for any new use case
-4. Run `make lint` and `make test` before opening a PR
+2. Follow the layer rules — domain code must never import infrastructure packages
+3. Add tests for any new use case or service method
+4. Run `make fmt && make lint && make test` before opening a PR
 5. PRs require at least one reviewer approval
 
 ### Commit convention
 
 ```
-feat(trade): add 30-minute payment timer auto-cancel
-fix(escrow): handle reorg on release tx confirmation
-chore(deps): upgrade go-ethereum to v1.13
+feat(trade):    add 30-minute payment timer auto-cancel
+fix(wallet):    handle insufficient balance on withdrawal
+refactor(auth): split authService into focused domain files
+chore(deps):    upgrade go-ethereum to v1.17
+test(identity): add unit tests for password complexity validation
 ```
 
 ---
+
+*Built by ❤️ Parvej Hossain*

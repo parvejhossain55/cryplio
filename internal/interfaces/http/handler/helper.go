@@ -2,90 +2,61 @@ package handler
 
 import (
 	"net/http"
-	"time"
 
-	"cryplio/internal/domain/identity"
-	"cryplio/internal/interfaces/http/dto"
 	"cryplio/pkg/apperrors"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
-// handleError maps domain errors to HTTP responses.
+// handleError maps domain AppErrors to appropriate HTTP status codes and
+// writes a JSON error response. Internal errors return a generic message to
+// avoid leaking implementation details.
 func handleError(c *gin.Context, err error) {
 	status := http.StatusInternalServerError
+	message := err.Error()
+
 	if apperrors.IsAppError(err) {
 		appErr, _ := apperrors.GetAppError(err)
 		switch appErr.Code {
-		case apperrors.ErrCodeNotFound, apperrors.ErrCodeInvalidInput:
+		case apperrors.ErrCodeNotFound:
+			status = http.StatusNotFound
+		case apperrors.ErrCodeInvalidInput, apperrors.ErrCodeValidation:
 			status = http.StatusBadRequest
 		case apperrors.ErrCodeUnauthorized:
 			status = http.StatusUnauthorized
 		case apperrors.ErrCodeConflict:
 			status = http.StatusConflict
-		case apperrors.ErrCodeForbidden:
+		case apperrors.ErrCodeForbidden, apperrors.ErrCodePermissionDenied:
 			status = http.StatusForbidden
 		case apperrors.ErrCodeRateLimited:
 			status = http.StatusTooManyRequests
+		case apperrors.ErrCodeInternal:
+			message = "an internal server error occurred"
 		default:
-			status = http.StatusInternalServerError
+			message = "an internal server error occurred"
+		}
+		if appErr.Code != apperrors.ErrCodeInternal {
+			message = appErr.Message
 		}
 	}
-	c.JSON(status, gin.H{"error": err.Error()})
+
+	c.JSON(status, gin.H{"error": message})
 }
 
-// mapUserStats converts UserStats to DTO
-func mapUserStats(s *identity.UserStats) dto.UserStatsDTO {
-	if s == nil {
-		return dto.UserStatsDTO{}
+// getUserIDFromContext extracts and parses the authenticated user ID from the
+// Gin context (set by AuthMiddleware). Returns (uuid.Nil, false) and writes a
+// 401 response if the ID is missing or malformed.
+func getUserIDFromContext(c *gin.Context) (uuid.UUID, bool) {
+	userIDRaw, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return uuid.Nil, false
 	}
-	var lastTradeAt string
-	if s.LastTradeAt != nil {
-		lastTradeAt = s.LastTradeAt.Format(time.RFC3339)
+	userID, err := uuid.Parse(userIDRaw.(string))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token user"})
+		return uuid.Nil, false
 	}
-	return dto.UserStatsDTO{
-		TotalTrades:           s.TotalTrades,
-		SuccessfulTrades:      s.SuccessfulTrades,
-		DisputeRate:           s.DisputeRate,
-		AvgRating:             s.AvgRating,
-		PositiveFeedbackCount: s.PositiveFeedbackCount,
-		NeutralFeedbackCount:  s.NeutralFeedbackCount,
-		NegativeFeedbackCount: s.NegativeFeedbackCount,
-		TotalVolumeUSD:        s.TotalVolumeUSD,
-		LastTradeAt:           lastTradeAt,
-	}
-}
-
-// mapUser converts a domain User to a DTO UserResponse.
-func mapUser(u *identity.User) dto.UserResponse {
-	if u == nil {
-		return dto.UserResponse{}
-	}
-	var lastSeenAt string
-	if u.LastSeenAt != nil {
-		lastSeenAt = u.LastSeenAt.Format(time.RFC3339)
-	}
-	return dto.UserResponse{
-		ID:            u.UserID.String(),
-		Email:         u.Email,
-		Username:      u.Username,
-		EmailVerified: u.EmailVerified,
-		IsMerchant:    u.IsMerchant,
-		TwoFAEnabled:  u.TwoFASecret != nil,
-		AvatarURL:     u.AvatarURL,
-		Bio:           u.Bio,
-		LastSeenAt:    lastSeenAt,
-		IsOnline:      u.IsOnline(),
-		Stats:         dto.UserStatsDTO{},
-	}
-}
-
-// setAuthCookie sets the authentication cookie.
-func setAuthCookie(c *gin.Context, cfg *Config, token string) {
-	c.SetCookie(cfg.CookieName, token, 86400, "/", "", cfg.CookieSecure, true)
-}
-
-// clearAuthCookie removes the authentication cookie.
-func clearAuthCookie(c *gin.Context, cfg *Config) {
-	c.SetCookie(cfg.CookieName, "", -1, "/", "", cfg.CookieSecure, true)
+	return userID, true
 }

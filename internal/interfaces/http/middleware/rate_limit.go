@@ -1,40 +1,56 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"sync"
 	"time"
 
+	redisstore "cryplio/internal/infrastructure/persistence/redis"
+
 	"github.com/gin-gonic/gin"
 )
 
-// endpointRateLimiter implements sliding window rate limiting per key
-type endpointRateLimiter struct {
-	mu      sync.RWMutex
+// NOTE: The in-memory limiter (defaultLimiters) is process-local and will NOT
+// work correctly in horizontally-scaled deployments. Pass a RedisRateLimiter to
+// RateLimitMiddleware() for distributed, accurate rate limiting.
+
+// ─── In-Memory Fallback ──────────────────────────────────────────────────────
+
+type slidingWindowLimiter struct {
+	mu      sync.Mutex
 	records map[string][]time.Time
 	max     int
 	window  time.Duration
 }
 
-func newEndpointRateLimiter(max int, window time.Duration) *endpointRateLimiter {
-	rl := &endpointRateLimiter{
+type rateLimiters struct {
+	global   *slidingWindowLimiter
+	twoFA    *slidingWindowLimiter
+	login    *slidingWindowLimiter
+	register *slidingWindowLimiter
+	password *slidingWindowLimiter
+	email    *slidingWindowLimiter
+	session  *slidingWindowLimiter
+}
+
+func newSlidingWindowLimiter(max int, window time.Duration) *slidingWindowLimiter {
+	return &slidingWindowLimiter{
 		records: make(map[string][]time.Time),
 		max:     max,
 		window:  window,
 	}
-	go rl.cleanupLoop()
-	return rl
 }
 
-func (rl *endpointRateLimiter) allow(key string) bool {
+func (rl *slidingWindowLimiter) allow(key string) bool {
 	now := time.Now()
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
 
-	attempts := rl.records[key]
 	cutoff := now.Add(-rl.window)
-	valid := make([]time.Time, 0, rl.max)
-	for _, t := range attempts {
+	prev := rl.records[key]
+	valid := prev[:0]
+	for _, t := range prev {
 		if t.After(cutoff) {
 			valid = append(valid, t)
 		}
@@ -43,112 +59,171 @@ func (rl *endpointRateLimiter) allow(key string) bool {
 		rl.records[key] = valid
 		return false
 	}
-	valid = append(valid, now)
-	rl.records[key] = valid
+	rl.records[key] = append(valid, now)
 	return true
 }
 
-func (rl *endpointRateLimiter) cleanupLoop() {
-	ticker := time.NewTicker(time.Minute)
-	defer ticker.Stop()
-	for range ticker.C {
-		rl.mu.Lock()
-		cutoff := time.Now().Add(-rl.window)
-		for key, attempts := range rl.records {
-			valid := make([]time.Time, 0, len(attempts))
-			for _, t := range attempts {
-				if t.After(cutoff) {
-					valid = append(valid, t)
-				}
-			}
-			if len(valid) == 0 {
-				delete(rl.records, key)
-			} else {
-				rl.records[key] = valid
+func (rl *slidingWindowLimiter) cleanup(cutoff time.Time) {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	for key, attempts := range rl.records {
+		valid := attempts[:0]
+		for _, t := range attempts {
+			if t.After(cutoff) {
+				valid = append(valid, t)
 			}
 		}
-		rl.mu.Unlock()
+		if len(valid) == 0 {
+			delete(rl.records, key)
+		} else {
+			rl.records[key] = valid
+		}
 	}
 }
 
-// Global limiters per endpoint
-var (
-	globalLimiter   *endpointRateLimiter
-	twoFALimiter    *endpointRateLimiter
-	loginLimiter    *endpointRateLimiter
-	registerLimiter *endpointRateLimiter
-	passwordLimiter *endpointRateLimiter
-	emailLimiter    *endpointRateLimiter
-	sessionLimiter  *endpointRateLimiter
-)
+var defaultLimiters = func() *rateLimiters {
+	rl := &rateLimiters{
+		global:   newSlidingWindowLimiter(100, time.Second),
+		twoFA:    newSlidingWindowLimiter(5, 5*time.Minute),
+		login:    newSlidingWindowLimiter(10, 5*time.Minute),
+		register: newSlidingWindowLimiter(5, 10*time.Minute),
+		password: newSlidingWindowLimiter(3, 15*time.Minute),
+		email:    newSlidingWindowLimiter(5, 30*time.Minute),
+		session:  newSlidingWindowLimiter(50, time.Minute),
+	}
+	go func() {
+		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			cutoff := time.Now().Add(-30 * time.Minute)
+			rl.global.cleanup(cutoff)
+			rl.twoFA.cleanup(cutoff)
+			rl.login.cleanup(cutoff)
+			rl.register.cleanup(cutoff)
+			rl.password.cleanup(cutoff)
+			rl.email.cleanup(cutoff)
+			rl.session.cleanup(cutoff)
+		}
+	}()
+	return rl
+}()
 
-func init() {
-	globalLimiter = newEndpointRateLimiter(100, time.Second)
-	twoFALimiter = newEndpointRateLimiter(5, 5*time.Minute)
-	loginLimiter = newEndpointRateLimiter(10, 5*time.Minute)
-	registerLimiter = newEndpointRateLimiter(5, 10*time.Minute)
-	passwordLimiter = newEndpointRateLimiter(3, 15*time.Minute)
-	emailLimiter = newEndpointRateLimiter(5, 30*time.Minute)
-	sessionLimiter = newEndpointRateLimiter(50, time.Minute)
+// ─── Endpoint config ─────────────────────────────────────────────────────────
+
+type endpointRule struct {
+	max    int
+	window time.Duration
+	key    func(c *gin.Context) string
 }
 
-func getIP(c *gin.Context) string {
-	return c.ClientIP()
+var endpointRules = []struct {
+	path   string
+	method string
+	endpointRule
+}{
+	{"/api/v1/auth/2fa/complete-login", "POST", endpointRule{5, 5 * time.Minute, func(c *gin.Context) string { return "2fa:" + getIP(c) }}},
+	{"/api/v1/auth/login", "POST", endpointRule{10, 5 * time.Minute, func(c *gin.Context) string { return "login:" + getIP(c) }}},
+	{"/api/v1/auth/register", "POST", endpointRule{5, 10 * time.Minute, func(c *gin.Context) string { return "register:" + getIP(c) }}},
+	{"/api/v1/auth/password/reset-request", "POST", endpointRule{3, 15 * time.Minute, func(c *gin.Context) string { return "pwdreset:" + getIP(c) }}},
+	{"/api/v1/auth/email/request", "POST", endpointRule{5, 30 * time.Minute, func(c *gin.Context) string { return "email:" + getIP(c) }}},
+	{"/api/v1/sessions", "GET", endpointRule{50, time.Minute, func(c *gin.Context) string { return "sessions:" + getUserID(c) }}},
 }
 
+// getInMemoryLimiterAndKey looks up the in-memory limiter and rate-limit key
+// for the current request path+method.
+func getInMemoryLimiterAndKey(c *gin.Context) (*slidingWindowLimiter, string) {
+	path := c.Request.URL.Path
+	method := c.Request.Method
+	for _, rule := range endpointRules {
+		if rule.path == path && rule.method == method {
+			// map back to the per-endpoint in-memory limiter
+			switch rule.path {
+			case "/api/v1/auth/2fa/complete-login":
+				return defaultLimiters.twoFA, rule.endpointRule.key(c)
+			case "/api/v1/auth/login":
+				return defaultLimiters.login, rule.endpointRule.key(c)
+			case "/api/v1/auth/register":
+				return defaultLimiters.register, rule.endpointRule.key(c)
+			case "/api/v1/auth/password/reset-request":
+				return defaultLimiters.password, rule.endpointRule.key(c)
+			case "/api/v1/auth/email/request":
+				return defaultLimiters.email, rule.endpointRule.key(c)
+			case "/api/v1/sessions":
+				return defaultLimiters.session, rule.endpointRule.key(c)
+			}
+		}
+	}
+	return defaultLimiters.global, "global:" + getIP(c) + ":" + path
+}
+
+func getIP(c *gin.Context) string { return c.ClientIP() }
 func getUserID(c *gin.Context) string {
-	uid, exists := c.Get("user_id")
-	if exists {
+	if uid, exists := c.Get("user_id"); exists {
 		return uid.(string)
 	}
 	return ""
 }
 
-// RateLimitMiddleware applies rate limiting based on endpoint
-func RateLimitMiddleware() gin.HandlerFunc {
+// ─── Middleware constructors ──────────────────────────────────────────────────
+
+// RateLimitMiddleware returns an endpoint-aware rate limiting handler.
+// If limiter is non-nil (e.g. a RedisRateLimiter), it is used for all checks
+// and is safe for horizontally-scaled deployments.
+// If limiter is nil, the process-local in-memory sliding-window limiter is used.
+func RateLimitMiddleware(limiter ...redisstore.RateLimiter) gin.HandlerFunc {
+	var rl redisstore.RateLimiter
+	if len(limiter) > 0 && limiter[0] != nil {
+		rl = limiter[0]
+	}
+
 	return func(c *gin.Context) {
 		path := c.Request.URL.Path
 		method := c.Request.Method
 
-		var limiter *endpointRateLimiter
-		var key string
+		if rl != nil {
+			// ── Redis-backed path ────────────────────────────────────────────
+			var rule *endpointRule
+			for i := range endpointRules {
+				if endpointRules[i].path == path && endpointRules[i].method == method {
+					rule = &endpointRules[i].endpointRule
+					break
+				}
+			}
+			var key string
+			var max int
+			var window time.Duration
+			if rule != nil {
+				key = rule.key(c)
+				max = rule.max
+				window = rule.window
+			} else {
+				key = "global:" + getIP(c) + ":" + path
+				max = 100
+				window = time.Second
+			}
 
-		switch {
-		case path == "/api/v1/auth/2fa/complete-login" && method == "POST":
-			limiter = twoFALimiter
-			key = "2fa:" + getIP(c)
-		case path == "/api/v1/auth/login" && method == "POST":
-			limiter = loginLimiter
-			key = "login:" + getIP(c)
-		case path == "/api/v1/auth/register" && method == "POST":
-			limiter = registerLimiter
-			key = "register:" + getIP(c)
-		case path == "/api/v1/auth/password/reset-request" && method == "POST":
-			limiter = passwordLimiter
-			key = "pwdreset:" + getIP(c)
-		case path == "/api/v1/auth/email/request" && method == "POST":
-			limiter = emailLimiter
-			key = "email:" + getIP(c)
-		case path == "/api/v1/sessions" && method == "GET":
-			limiter = sessionLimiter
-			key = "sessions:" + getUserID(c)
-		default:
-			limiter = globalLimiter
-			key = "global:" + getIP(c) + ":" + path
+			allowed, err := rl.Allow(context.Background(), key, max, window)
+			if err != nil {
+				// Log but fail open on Redis errors
+				c.Next()
+				return
+			}
+			if !allowed {
+				c.JSON(http.StatusTooManyRequests, gin.H{"error": "Too many attempts. Please try again later."})
+				c.Abort()
+				return
+			}
+		} else {
+			// ── In-memory fallback path ──────────────────────────────────────
+			inMemLimiter, key := getInMemoryLimiterAndKey(c)
+			if !inMemLimiter.allow(key) {
+				c.JSON(http.StatusTooManyRequests, gin.H{"error": "Too many attempts. Please try again later."})
+				c.Abort()
+				return
+			}
 		}
 
-		if key == "" {
-			key = getIP(c)
-		}
-
-		if !limiter.allow(key) {
-			c.JSON(http.StatusTooManyRequests, gin.H{
-				"error": "Too many attempts. Please try again later.",
-			})
-			c.Abort()
-			return
-		}
-
+		_ = method // suppress unused variable if only path is used above
 		c.Next()
 	}
 }

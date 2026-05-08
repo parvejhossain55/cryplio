@@ -259,5 +259,9 @@ type TradeAttachment struct {
 
 // IsImage checks if the attachment is an image
 func (a *TradeAttachment) IsImage() bool {
-	return a.MimeType == "image/jpeg" || a.MimeType == "image/png" || a.MimeType == "image/gif"
+	switch a.MimeType {
+	case "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml":
+		return true
+	}
+	return false
 }

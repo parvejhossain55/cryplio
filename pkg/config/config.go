@@ -31,15 +31,6 @@ type Config struct {
 	// Database
 	Database *database.Config
 
-	// Service URLs (kept for compatibility but not used in monolith)
-	AuthServiceURL     string
-	UserServiceURL     string
-	WalletServiceURL   string
-	TradeEngineURL     string
-	NotificationURL    string
-	DisputeServiceURL  string
-	MerchantServiceURL string
-
 	// OAuth Configuration
 	GoogleClientID     string
 	GoogleClientSecret string
@@ -116,17 +107,9 @@ func Load() (*Config, error) {
 		CookieMaxAge:   parseJWTExpiryToSeconds(jwtExpiry),
 		CookieHTTPOnly: true,
 		CookieSecure:   getEnvCompat("COOKIE_SECURE", "false") == "true",
-		CookieSameSite: getEnvCompat("COOKIE_SAME_SITE", "lax"),
+		CookieSameSite: getEnvCompat("COOKIE_SAME_SITE", "strict"),
 
 		Database: dbCfg,
-
-		AuthServiceURL:     getEnvCompat("AUTH_SERVICE_URL", "http://localhost:8080"),
-		UserServiceURL:     getEnvCompat("USER_SERVICE_URL", "http://localhost:8080"),
-		WalletServiceURL:   getEnvCompat("WALLET_SERVICE_URL", "http://localhost:8081"),
-		TradeEngineURL:     getEnvCompat("TRADE_ENGINE_URL", "http://localhost:8082"),
-		NotificationURL:    getEnvCompat("NOTIFICATION_URL", "http://localhost:8084"),
-		DisputeServiceURL:  getEnvCompat("DISPUTE_SERVICE_URL", "http://localhost:8085"),
-		MerchantServiceURL: getEnvCompat("MERCHANT_SERVICE_URL", "http://localhost:8082"),
 
 		// OAuth
 		GoogleClientID:     getEnvCompat("GOOGLE_CLIENT_ID", ""),
@@ -173,6 +156,10 @@ func Load() (*Config, error) {
 		EthRPCURL:             getEnvCompat("ETH_RPC_URL", "http://localhost:8545"),
 		EthPrivateKey:         getEnvCompat("ETH_PRIVATE_KEY", ""),
 		EscrowContractAddress: getEnvCompat("ESCROW_CONTRACT_ADDRESS", ""),
+	}
+
+	if strings.ToLower(cfg.AppEnv) == "production" && cfg.JWTSecret == "your-secret-key-change-this" {
+		return nil, errors.New("JWT_SECRET must be set to a secure value in production")
 	}
 
 	return cfg, nil

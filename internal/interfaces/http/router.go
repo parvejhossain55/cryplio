@@ -9,8 +9,16 @@ import (
 	"cryplio/internal/domain/platform"
 	"cryplio/internal/domain/trading"
 	"cryplio/internal/domain/wallet"
+	"cryplio/internal/infrastructure/persistence/redis"
 	"cryplio/internal/infrastructure/storage"
 	"cryplio/internal/interfaces/http/handler"
+	authh "cryplio/internal/interfaces/http/handler/auth"
+	disputeh "cryplio/internal/interfaces/http/handler/dispute"
+	marketh "cryplio/internal/interfaces/http/handler/market"
+	notificationh "cryplio/internal/interfaces/http/handler/notification"
+	platformh "cryplio/internal/interfaces/http/handler/platform"
+	tradeh "cryplio/internal/interfaces/http/handler/trade"
+	walleth "cryplio/internal/interfaces/http/handler/wallet"
 	"cryplio/internal/interfaces/http/middleware"
 	"cryplio/internal/interfaces/websocket"
 	"cryplio/pkg/config"
@@ -18,7 +26,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// SetupRouter configures and returns the gin engine
+// SetupRouter configures and returns the gin engine.
+// rateLimiter is optional: pass a non-nil redis.RateLimiter for distributed
+// rate limiting (recommended in production). If nil, an in-memory limiter is used.
 func SetupRouter(
 	cfg *config.Config,
 	authService identity.AuthService,
@@ -30,6 +40,8 @@ func SetupRouter(
 	storage storage.ObjectStorage,
 	rateService market.RateService,
 	wsService websocket.Service,
+	rateLimiter redis.RateLimiter,
+	pingFn handler.PingFunc,
 ) *gin.Engine {
 	// Set Gin mode
 	if cfg.AppEnv == "development" {
@@ -40,14 +52,14 @@ func SetupRouter(
 
 	r := gin.New()
 	r.Use(middleware.RecoveryMiddleware())
-	r.Use(middleware.CORSMiddleware())
+	r.Use(middleware.CORSMiddleware(cfg.CorsAllowedOrigins))
 	r.Use(middleware.LoggingMiddleware())
 	if cfg.RateLimitEnabled {
-		r.Use(middleware.RateLimitMiddleware())
+		r.Use(middleware.RateLimitMiddleware(rateLimiter))
 	}
 
 	// Health endpoints
-	healthHandler := handler.NewHealthHandler()
+	healthHandler := handler.NewHealthHandler(pingFn)
 	r.GET("/health", healthHandler.HealthCheck)
 	r.GET("/live", healthHandler.Liveness)
 	r.GET("/ready", healthHandler.Readiness)
@@ -55,20 +67,21 @@ func SetupRouter(
 	// API v1
 	v1 := r.Group("/api/v1")
 	{
-		authHandler := handler.NewAuthHandler(authService, &handler.Config{
+		authHandler := authh.NewAuthHandler(authService, &authh.Config{
 			CookieName:         cfg.CookieName,
 			CookieSecure:       cfg.CookieSecure,
 			CookieSameSite:     cfg.CookieSameSite,
 			FrontendURL:        cfg.FrontendURL,
 			RefreshTokenExpiry: cfg.RefreshTokenExpiry,
 			JWTSecret:          cfg.JWTSecret,
-		}, storage).WithTradeService(tradeService).WithDisputeService(disputeService)
+		}, storage)
+		adminHandler := authh.NewAdminHandler(authService, tradeService, disputeService)
 
-		tradeHandler := handler.NewTradeHandler(tradeService, storage, wsService)
-		platformHandler := handler.NewPlatformHandler(platformService)
-		walletHandler := handler.NewWalletHandler(walletService, authService)
-		disputeHandler := handler.NewDisputeHandler(disputeService, storage)
-		notificationHandler := handler.NewNotificationHandler(notificationService)
+		tradeHandler := tradeh.NewTradeHandler(tradeService, storage, wsService)
+		platformHandler := platformh.NewPlatformHandler(platformService)
+		walletHandler := walleth.NewWalletHandler(walletService, authService)
+		disputeHandler := disputeh.NewDisputeHandler(disputeService, storage)
+		notificationHandler := notificationh.NewNotificationHandler(notificationService)
 
 		// Public routes
 		v1.POST("/auth/register", authHandler.RegisterHandler)
@@ -89,7 +102,7 @@ func SetupRouter(
 
 		// Authenticated Routes
 		// Market Rates (Public)
-		marketHandler := handler.NewMarketHandler(rateService)
+		marketHandler := marketh.NewMarketHandler(rateService)
 		v1.GET("/market/rates", marketHandler.GetAllRatesHandler)
 		v1.GET("/market/rates/:crypto", marketHandler.GetRatesHandler)
 		v1.GET("/market/rates/:crypto/:fiat", marketHandler.GetRateHandler)
@@ -146,23 +159,19 @@ func SetupRouter(
 			auth.GET("/notifications/preferences", notificationHandler.GetPreferencesHandler)
 			auth.POST("/notifications/preferences", notificationHandler.SavePreferencesHandler)
 
-			// Chat
-			auth.POST("/trades/:id/messages", tradeHandler.SendMessageHandler)
-			auth.GET("/trades/:id/messages", tradeHandler.GetChatHistoryHandler)
-
 			// Admin Routes
 			admin := auth.Group("/admin")
 			admin.Use(middleware.AdminRoleMiddleware())
 			{
 				// Dashboard Stats
-				admin.GET("/dashboard/stats", authHandler.GetDashboardStatsHandler)
+				admin.GET("/dashboard/stats", adminHandler.GetDashboardStatsHandler)
 
 				// User Management
-				admin.GET("/users", authHandler.ListUsersHandler)
-				admin.POST("/users/:id/suspend", authHandler.SuspendUserHandler)
-				admin.POST("/users/:id/unsuspend", authHandler.UnsuspendUserHandler)
-				admin.POST("/users/:id/ban", authHandler.BanUserHandler)
-				admin.POST("/users/:id/unban", authHandler.UnbanUserHandler)
+				admin.GET("/users", adminHandler.ListUsersHandler)
+				admin.POST("/users/:id/suspend", adminHandler.SuspendUserHandler)
+				admin.POST("/users/:id/unsuspend", adminHandler.UnsuspendUserHandler)
+				admin.POST("/users/:id/ban", adminHandler.BanUserHandler)
+				admin.POST("/users/:id/unban", adminHandler.UnbanUserHandler)
 
 				// Trade Monitoring
 				admin.GET("/trades", tradeHandler.ListAllTradesHandler)

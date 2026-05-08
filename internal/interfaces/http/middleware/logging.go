@@ -1,9 +1,12 @@
 package middleware
 
 import (
+	"fmt"
+	"net/http"
 	"time"
 
 	"cryplio/pkg/logger"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -47,9 +50,12 @@ func LoggingMiddleware() gin.HandlerFunc {
 
 func RecoveryMiddleware() gin.HandlerFunc {
 	return gin.CustomRecovery(func(c *gin.Context, recovered interface{}) {
-		if err, ok := recovered.(string); ok {
-			c.JSON(500, gin.H{"error": err})
-		}
-		c.AbortWithStatus(500)
+		logger.Error("panic recovered", logger.Fields{
+			"recovered": fmt.Sprintf("%v", recovered),
+			"path":      c.Request.URL.Path,
+			"method":    c.Request.Method,
+		})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "an unexpected error occurred"})
+		c.Abort()
 	})
 }

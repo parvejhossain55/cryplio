@@ -1,3 +1,4 @@
 package wallet
 
-type Transaction = WalletTransaction
+// Wallet domain entities are defined in models.go.
+// WalletTransaction is the primary transaction entity type.

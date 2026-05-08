@@ -1,3 +1,7 @@
+// Package merchant contains use cases for merchant-specific operations.
+// Merchant functionality (applications, verification, analytics) is planned
+// for a future milestone. The use cases below are scaffolded and ready for
+// implementation once the merchant domain service is available.
 package merchant
 
 import (
@@ -5,47 +9,51 @@ import (
 	"errors"
 )
 
-// ApplyUseCase coordinates merchant application flows.
+// ErrNotImplemented is returned by merchant use cases that are not yet implemented.
+var ErrNotImplemented = errors.New("merchant feature not yet implemented")
+
+// ApplyUseCase handles a user applying to become a verified merchant.
 type ApplyUseCase struct{}
 
-func NewApplyUseCase() *ApplyUseCase {
-	return &ApplyUseCase{}
-}
+func NewApplyUseCase() *ApplyUseCase { return &ApplyUseCase{} }
 
 type ApplyInput struct {
-	UserID string
+	UserID       string
+	BusinessName string
+	// TODO: add KYC fields, business documents, etc.
 }
 
-func (uc *ApplyUseCase) Execute(context.Context, ApplyInput) error {
-	return errors.New("merchant apply use case not implemented")
+func (uc *ApplyUseCase) Execute(ctx context.Context, input ApplyInput) error {
+	// TODO: implement when MerchantService is available
+	return ErrNotImplemented
 }
 
-// VerifyUseCase coordinates merchant verification flows.
+// VerifyUseCase handles admin verification of a merchant application.
 type VerifyUseCase struct{}
 
-func NewVerifyUseCase() *VerifyUseCase {
-	return &VerifyUseCase{}
-}
+func NewVerifyUseCase() *VerifyUseCase { return &VerifyUseCase{} }
 
 type VerifyInput struct {
-	UserID string
+	UserID  string
+	Approve bool
+	Reason  string
 }
 
-func (uc *VerifyUseCase) Execute(context.Context, VerifyInput) error {
-	return errors.New("merchant verify use case not implemented")
+func (uc *VerifyUseCase) Execute(ctx context.Context, input VerifyInput) error {
+	// TODO: implement when MerchantService is available
+	return ErrNotImplemented
 }
 
-// DashboardUseCase coordinates merchant dashboard reads.
+// DashboardUseCase fetches merchant dashboard statistics.
 type DashboardUseCase struct{}
 
-func NewDashboardUseCase() *DashboardUseCase {
-	return &DashboardUseCase{}
-}
+func NewDashboardUseCase() *DashboardUseCase { return &DashboardUseCase{} }
 
 type DashboardInput struct {
 	UserID string
 }
 
-func (uc *DashboardUseCase) Execute(context.Context, DashboardInput) error {
-	return errors.New("merchant dashboard use case not implemented")
+func (uc *DashboardUseCase) Execute(ctx context.Context, input DashboardInput) error {
+	// TODO: implement when MerchantService is available
+	return ErrNotImplemented
 }

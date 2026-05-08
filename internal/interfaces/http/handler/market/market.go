@@ -1,20 +1,21 @@
-package handler
+package market
 
 import (
 	"net/http"
+	"strings"
 
-	"cryplio/internal/domain/market"
+	marketdomain "cryplio/internal/domain/market"
 
 	"github.com/gin-gonic/gin"
 )
 
 // MarketHandler handles market rate endpoints
 type MarketHandler struct {
-	rateService market.RateService
+	rateService marketdomain.RateService
 }
 
 // NewMarketHandler creates a new market handler
-func NewMarketHandler(rateService market.RateService) *MarketHandler {
+func NewMarketHandler(rateService marketdomain.RateService) *MarketHandler {
 	return &MarketHandler{rateService: rateService}
 }
 
@@ -57,10 +58,10 @@ func (h *MarketHandler) GetRateHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, rate)
 }
 
-// GetAllRatesHandler returns all market rates
+// GetAllRatesHandler returns all market rates, optionally filtered by crypto or fiat.
 func (h *MarketHandler) GetAllRatesHandler(c *gin.Context) {
-	cryptoSymbol := c.Query("crypto")
-	fiatCode := c.Query("fiat")
+	cryptoFilter := strings.ToUpper(strings.TrimSpace(c.Query("crypto")))
+	fiatFilter := strings.ToUpper(strings.TrimSpace(c.Query("fiat")))
 
 	rates, err := h.rateService.GetAllRates(c.Request.Context())
 	if err != nil {
@@ -68,17 +69,20 @@ func (h *MarketHandler) GetAllRatesHandler(c *gin.Context) {
 		return
 	}
 
-	// Filter by crypto or fiat if specified
-	if cryptoSymbol != "" || fiatCode != "" {
-		filteredRates := make([]interface{}, 0)
-		for _, rate := range rates {
-			// This would need to be adapted based on the actual rate structure
-			// For now, return all rates
-			filteredRates = append(filteredRates, rate)
-		}
-		c.JSON(http.StatusOK, gin.H{"rates": filteredRates})
+	if cryptoFilter == "" && fiatFilter == "" {
+		c.JSON(http.StatusOK, gin.H{"rates": rates})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"rates": rates})
+	filtered := make([]marketdomain.Rate, 0, len(rates))
+	for _, r := range rates {
+		if cryptoFilter != "" && strings.ToUpper(r.CryptoSymbol) != cryptoFilter {
+			continue
+		}
+		if fiatFilter != "" && strings.ToUpper(r.FiatSymbol) != fiatFilter {
+			continue
+		}
+		filtered = append(filtered, r)
+	}
+	c.JSON(http.StatusOK, gin.H{"rates": filtered})
 }

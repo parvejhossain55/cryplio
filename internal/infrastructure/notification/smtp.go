@@ -174,7 +174,7 @@ func (c *SMTPClient) SendEmail(ctx context.Context, to, subject, body string) er
 		To:      to,
 		Subject: subject,
 		Text:    body,
-		HTML:    fmt.Sprintf("<html>" + body + "</html>"),
+		HTML:    "<html>" + body + "</html>",
 	})
 }
 

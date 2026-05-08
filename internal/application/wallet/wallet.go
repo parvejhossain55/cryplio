@@ -2,56 +2,65 @@ package wallet
 
 import (
 	"context"
-	"errors"
 
 	domain "cryplio/internal/domain/wallet"
+
 	"github.com/google/uuid"
 )
 
-// DepositUseCase coordinates deposit workflows.
-type DepositUseCase struct{}
+// DepositUseCase fetches the deposit address for a user's wallet.
+type DepositUseCase struct {
+	walletService domain.Service
+}
 
-func NewDepositUseCase() *DepositUseCase {
-	return &DepositUseCase{}
+func NewDepositUseCase(svc domain.Service) *DepositUseCase {
+	return &DepositUseCase{walletService: svc}
 }
 
 type DepositInput struct {
-	WalletID uuid.UUID
-	Amount   float64
+	UserID       uuid.UUID
+	CryptoSymbol string
 }
 
-func (uc *DepositUseCase) Execute(context.Context, DepositInput) (*domain.WalletTransaction, error) {
-	return nil, errors.New("deposit use case not implemented")
+func (uc *DepositUseCase) Execute(ctx context.Context, input DepositInput) (*domain.Wallet, error) {
+	return uc.walletService.GetDepositAddress(ctx, input.UserID, input.CryptoSymbol)
 }
 
-// WithdrawUseCase coordinates withdrawal workflows.
-type WithdrawUseCase struct{}
+// WithdrawUseCase initiates a withdrawal from a user's wallet.
+type WithdrawUseCase struct {
+	walletService domain.Service
+}
 
-func NewWithdrawUseCase() *WithdrawUseCase {
-	return &WithdrawUseCase{}
+func NewWithdrawUseCase(svc domain.Service) *WithdrawUseCase {
+	return &WithdrawUseCase{walletService: svc}
 }
 
 type WithdrawInput struct {
-	WalletID    uuid.UUID
-	Amount      float64
-	Destination string
+	UserID       uuid.UUID
+	CryptoSymbol string
+	Destination  string
+	Amount       float64
+	Fee          float64
+	Memo         *string
 }
 
-func (uc *WithdrawUseCase) Execute(context.Context, WithdrawInput) (*domain.WalletTransaction, error) {
-	return nil, errors.New("withdraw use case not implemented")
+func (uc *WithdrawUseCase) Execute(ctx context.Context, input WithdrawInput) (*domain.WalletTransaction, error) {
+	return uc.walletService.Withdraw(ctx, input.UserID, input.CryptoSymbol, input.Destination, input.Amount, input.Fee, input.Memo)
 }
 
-// BalanceUseCase coordinates balance reads.
-type BalanceUseCase struct{}
+// BalanceUseCase fetches all wallet balances for a user.
+type BalanceUseCase struct {
+	walletService domain.Service
+}
 
-func NewBalanceUseCase() *BalanceUseCase {
-	return &BalanceUseCase{}
+func NewBalanceUseCase(svc domain.Service) *BalanceUseCase {
+	return &BalanceUseCase{walletService: svc}
 }
 
 type BalanceInput struct {
-	WalletID uuid.UUID
+	UserID uuid.UUID
 }
 
-func (uc *BalanceUseCase) Execute(context.Context, BalanceInput) (*domain.Wallet, error) {
-	return nil, errors.New("balance use case not implemented")
+func (uc *BalanceUseCase) Execute(ctx context.Context, input BalanceInput) ([]domain.Wallet, error) {
+	return uc.walletService.GetBalances(ctx, input.UserID)
 }

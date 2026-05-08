@@ -3,7 +3,6 @@ package notification
 import (
 	"context"
 	"encoding/json"
-	"errors"
 
 	"github.com/google/uuid"
 )
@@ -58,22 +57,6 @@ func (s *notificationService) Notify(ctx context.Context, userID uuid.UUID, nTyp
 		return err
 	}
 
-	// For MVP, send email for critical trade-related notifications
-	criticalTypes := map[NotificationType]bool{
-		NotificationTypeTradeStarted:        true,
-		NotificationTypeTradePaid:           true,
-		NotificationTypeTradeReleased:       true,
-		NotificationTypeTradeCompleted:      true,
-		NotificationTypeTradeCancelled:      true,
-		NotificationTypeTradeDisputed:       true,
-		NotificationTypeDisputeResolved:     true,
-		NotificationTypeDepositReceived:     true,
-		NotificationTypeWithdrawalCompleted: true,
-	}
-	if s.emailClient != nil && criticalTypes[nType] {
-		_ = s.emailClient.SendEmail(ctx, userID.String()+"@cryplio.local", title, message)
-	}
-
 	return nil
 }
 
@@ -113,11 +96,4 @@ func (s *notificationService) GetPreferences(ctx context.Context, userID uuid.UU
 func (s *notificationService) SavePreferences(ctx context.Context, userID uuid.UUID, prefs *NotificationPreference) error {
 	prefs.UserID = userID
 	return s.repo.SavePreferences(ctx, prefs)
-}
-
-func ValidateNotification(notification *Notification) error {
-	if notification == nil {
-		return errors.New("notification is required")
-	}
-	return nil
 }

@@ -61,7 +61,10 @@ func (s *service) CreateWallet(ctx context.Context, userID uuid.UUID, cryptoSymb
 	}
 
 	// Generate a blockchain address
-	address := fmt.Sprintf("0x%s%s%d", userID.String()[:8], symbol, time.Now().Unix())
+	address, err := s.walletClient.CreateDepositAddress(ctx, cryptoID, userID.String())
+	if err != nil {
+		return nil, fmt.Errorf("generate deposit address: %w", err)
+	}
 
 	wallet := &Wallet{
 		WalletID:      uuid.New(),

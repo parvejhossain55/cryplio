@@ -1,35 +1,37 @@
-package handler
+package wallet
 
 import (
 	"net/http"
 	"strconv"
 	"strings"
 
+	basehandler "cryplio/internal/interfaces/http/handler"
+
 	"cryplio/internal/domain/identity"
-	"cryplio/internal/domain/wallet"
+	walletdomain "cryplio/internal/domain/wallet"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
 type WalletHandler struct {
-	walletService wallet.Service
+	walletService walletdomain.Service
 	authService   identity.AuthService
 }
 
-func NewWalletHandler(walletService wallet.Service, authService identity.AuthService) *WalletHandler {
+func NewWalletHandler(walletService walletdomain.Service, authService identity.AuthService) *WalletHandler {
 	return &WalletHandler{walletService: walletService, authService: authService}
 }
 
 func (h *WalletHandler) GetBalancesHandler(c *gin.Context) {
-	userID, ok := getUserIDFromContext(c)
+	userID, ok := basehandler.GetUserIDFromContext(c)
 	if !ok {
 		return
 	}
 
 	balances, err := h.walletService.GetBalances(c.Request.Context(), userID)
 	if err != nil {
-		handleError(c, err)
+		basehandler.HandleError(c, err)
 		return
 	}
 
@@ -37,7 +39,7 @@ func (h *WalletHandler) GetBalancesHandler(c *gin.Context) {
 }
 
 func (h *WalletHandler) CreateWalletHandler(c *gin.Context) {
-	userID, ok := getUserIDFromContext(c)
+	userID, ok := basehandler.GetUserIDFromContext(c)
 	if !ok {
 		return
 	}
@@ -50,20 +52,20 @@ func (h *WalletHandler) CreateWalletHandler(c *gin.Context) {
 		return
 	}
 
-	wallet, err := h.walletService.CreateWallet(c.Request.Context(), userID, req.CryptoSymbol)
+	w, err := h.walletService.CreateWallet(c.Request.Context(), userID, req.CryptoSymbol)
 	if err != nil {
-		handleError(c, err)
+		basehandler.HandleError(c, err)
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"wallet":  wallet,
+		"wallet":  w,
 		"message": "wallet created successfully",
 	})
 }
 
 func (h *WalletHandler) GetDepositAddressHandler(c *gin.Context) {
-	userID, ok := getUserIDFromContext(c)
+	userID, ok := basehandler.GetUserIDFromContext(c)
 	if !ok {
 		return
 	}
@@ -71,7 +73,7 @@ func (h *WalletHandler) GetDepositAddressHandler(c *gin.Context) {
 	crypto := strings.TrimSpace(c.Param("crypto"))
 	w, err := h.walletService.GetDepositAddress(c.Request.Context(), userID, crypto)
 	if err != nil {
-		handleError(c, err)
+		basehandler.HandleError(c, err)
 		return
 	}
 
@@ -91,7 +93,7 @@ type withdrawRequest struct {
 }
 
 func (h *WalletHandler) WithdrawHandler(c *gin.Context) {
-	userID, ok := getUserIDFromContext(c)
+	userID, ok := basehandler.GetUserIDFromContext(c)
 	if !ok {
 		return
 	}
@@ -99,7 +101,7 @@ func (h *WalletHandler) WithdrawHandler(c *gin.Context) {
 	// Check if 2FA is enabled for withdrawals
 	user, err := h.authService.GetUserByID(c.Request.Context(), userID)
 	if err != nil {
-		handleError(c, err)
+		basehandler.HandleError(c, err)
 		return
 	}
 	if !h.authService.Is2FAEnabled(user) {
@@ -123,7 +125,7 @@ func (h *WalletHandler) WithdrawHandler(c *gin.Context) {
 		req.Memo,
 	)
 	if err != nil {
-		handleError(c, err)
+		basehandler.HandleError(c, err)
 		return
 	}
 
@@ -134,7 +136,7 @@ func (h *WalletHandler) WithdrawHandler(c *gin.Context) {
 }
 
 func (h *WalletHandler) GetTransactionsHandler(c *gin.Context) {
-	userID, ok := getUserIDFromContext(c)
+	userID, ok := basehandler.GetUserIDFromContext(c)
 	if !ok {
 		return
 	}
@@ -154,7 +156,7 @@ func (h *WalletHandler) GetTransactionsHandler(c *gin.Context) {
 
 	transactions, total, err := h.walletService.GetTransactions(c.Request.Context(), userID, limit, offset)
 	if err != nil {
-		handleError(c, err)
+		basehandler.HandleError(c, err)
 		return
 	}
 
@@ -164,20 +166,6 @@ func (h *WalletHandler) GetTransactionsHandler(c *gin.Context) {
 		"limit":        limit,
 		"offset":       offset,
 	})
-}
-
-func getUserIDFromContext(c *gin.Context) (uuid.UUID, bool) {
-	userIDRaw, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return uuid.Nil, false
-	}
-	userID, err := uuid.Parse(userIDRaw.(string))
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token user"})
-		return uuid.Nil, false
-	}
-	return userID, true
 }
 
 // ListPendingWithdrawalsHandler returns pending withdrawals requiring admin approval
@@ -216,8 +204,10 @@ func (h *WalletHandler) ApproveWithdrawalHandler(c *gin.Context) {
 		return
 	}
 
-	adminIDStr, _ := c.Get("user_id")
-	adminID, _ := uuid.Parse(adminIDStr.(string))
+	adminID, ok := basehandler.GetUserIDFromContext(c)
+	if !ok {
+		return
+	}
 
 	var req struct {
 		TxHash string `json:"tx_hash" binding:"required"`
@@ -242,8 +232,10 @@ func (h *WalletHandler) RejectWithdrawalHandler(c *gin.Context) {
 		return
 	}
 
-	adminIDStr, _ := c.Get("user_id")
-	adminID, _ := uuid.Parse(adminIDStr.(string))
+	adminID, ok := basehandler.GetUserIDFromContext(c)
+	if !ok {
+		return
+	}
 
 	var req struct {
 		Reason string `json:"reason" binding:"required"`

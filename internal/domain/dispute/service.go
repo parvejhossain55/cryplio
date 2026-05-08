@@ -14,7 +14,7 @@ type Service interface {
 	AssignDispute(ctx context.Context, id uuid.UUID, adminID uuid.UUID) error
 	ResolveDispute(ctx context.Context, id uuid.UUID, adminID uuid.UUID, resolution DisputeResolution, note string) error
 	UploadEvidence(ctx context.Context, disputeID, userID uuid.UUID, evidenceURL string) error
-	ListDisputes(ctx context.Context) ([]*Dispute, error)
+	ListDisputes(ctx context.Context, status string, limit, offset int) ([]*Dispute, int, error)
 	CountDisputes(ctx context.Context, status string) (int, error)
 }
 
@@ -79,8 +79,17 @@ func (s *disputeService) ResolveDispute(ctx context.Context, id uuid.UUID, admin
 	return s.repo.Update(ctx, d)
 }
 
-func (s *disputeService) ListDisputes(ctx context.Context) ([]*Dispute, error) {
-	return s.repo.List(ctx)
+func (s *disputeService) ListDisputes(ctx context.Context, status string, limit, offset int) ([]*Dispute, int, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	return s.repo.List(ctx, status, limit, offset)
 }
 
 func (s *disputeService) CountDisputes(ctx context.Context, status string) (int, error) {
@@ -102,11 +111,4 @@ func (s *disputeService) UploadEvidence(ctx context.Context, disputeID, userID u
 	// For simplicity, allow any participant (raiser or trade party)
 	d.EvidenceLinks = append(d.EvidenceLinks, evidenceURL)
 	return s.repo.Update(ctx, d)
-}
-
-func ValidateRaise(dispute *Dispute) error {
-	if dispute == nil {
-		return errors.New("dispute is required")
-	}
-	return nil
 }

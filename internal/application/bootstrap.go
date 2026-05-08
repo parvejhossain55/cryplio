@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
@@ -9,7 +10,7 @@ import (
 	"cryplio/internal/domain/market"
 	domainnotification "cryplio/internal/domain/notification"
 	"cryplio/internal/domain/platform"
-	domaintraing "cryplio/internal/domain/trading"
+	domaintrading "cryplio/internal/domain/trading"
 	domainwallet "cryplio/internal/domain/wallet"
 	"cryplio/internal/infrastructure/blockchain"
 	"cryplio/internal/infrastructure/notification"
@@ -19,12 +20,14 @@ import (
 	platformpostgres "cryplio/internal/infrastructure/persistence/postgres/platform"
 	tradingpostgres "cryplio/internal/infrastructure/persistence/postgres/trading"
 	walletpostgres "cryplio/internal/infrastructure/persistence/postgres/wallet"
+	"cryplio/internal/infrastructure/persistence/redis"
 	"cryplio/internal/infrastructure/storage"
 	"cryplio/internal/infrastructure/worker"
 	httpapi "cryplio/internal/interfaces/http"
 	"cryplio/internal/interfaces/websocket"
 	"cryplio/pkg/config"
 	"cryplio/pkg/database"
+	"cryplio/pkg/logger"
 
 	"github.com/gin-gonic/gin"
 )
@@ -47,6 +50,8 @@ func New() (*App, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
+
+	dbPingFn := func(ctx context.Context) error { return db.PingContext(ctx) }
 
 	userRepo := identitypostgres.NewUserRepository(db)
 	emailClient := notification.NewSMTPClient(
@@ -79,7 +84,7 @@ func New() (*App, error) {
 	disputeService := domaindispute.NewService(disputeRepo)
 
 	// Blockchain Clients
-	var escrowClient domaintraing.EscrowContractClient
+	var escrowClient domaintrading.EscrowContractClient
 	var walletClient domainwallet.WalletClient
 
 	if cfg.EscrowContractAddress != "" && cfg.EthRPCURL != "" {
@@ -87,7 +92,7 @@ func New() (*App, error) {
 		if err == nil {
 			escrowClient = evmEscrow
 		} else {
-			fmt.Printf("Warning: failed to init EVM Escrow Client: %v\n", err)
+			logger.Warn("failed to init EVM Escrow Client", logger.Fields{"error": err.Error()})
 			escrowClient = blockchain.NewMockEscrowContractClient()
 		}
 	} else {
@@ -100,7 +105,7 @@ func New() (*App, error) {
 		if err == nil {
 			walletClient = evmWallet
 		} else {
-			fmt.Printf("Warning: failed to init EVM Wallet Client: %v\n", err)
+			logger.Warn("failed to init EVM Wallet Client", logger.Fields{"error": err.Error()})
 			walletClient = blockchain.NewNoopWalletClient()
 		}
 	} else {
@@ -110,7 +115,7 @@ func New() (*App, error) {
 
 	tradeRepo := tradingpostgres.NewTradeRepository(db)
 	platformRepo := platformpostgres.NewPlatformRepository(db)
-	tradeService := domaintraing.NewTradeService(tradeRepo, userRepo, disputeRepo, escrowClient, notificationService, platformRepo)
+	tradeService := domaintrading.NewTradeService(tradeRepo, userRepo, disputeRepo, escrowClient, notificationService, platformRepo)
 	platformService := platform.NewPlatformService(platformRepo)
 	walletRepo := walletpostgres.NewWalletRepository(db)
 	walletService := domainwallet.NewService(walletRepo, walletClient)
@@ -132,7 +137,17 @@ func New() (*App, error) {
 	// Connect WebSocket notifier to notification service for real-time delivery
 	notificationService.SetWebSocketNotifier(wsNotifier)
 
-	router := httpapi.SetupRouter(cfg, authService, tradeService, platformService, walletService, disputeService, notificationService, storage, rateService, wsService)
+	// Redis rate limiter — falls back to in-memory if Redis is unavailable.
+	var rateLimiter redis.RateLimiter
+	redisClient, redisErr := redis.NewClient(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
+	if redisErr != nil {
+		logger.Warn("Redis unavailable; using in-memory rate limiter (not suitable for multi-instance deployments)", logger.Fields{"error": redisErr.Error()})
+	} else {
+		rateLimiter = redis.NewRedisRateLimiter(redisClient)
+		logger.Info("Redis rate limiter active", logger.Fields{"addr": cfg.RedisAddr})
+	}
+
+	router := httpapi.SetupRouter(cfg, authService, tradeService, platformService, walletService, disputeService, notificationService, storage, rateService, wsService, rateLimiter, dbPingFn)
 
 	asynqWorker := worker.NewWorker(cfg, tradeService)
 	asynqScheduler := worker.NewScheduler(cfg)

@@ -1,9 +1,10 @@
 package main
 
 import (
-	"log"
+	"os"
 
 	"cryplio/internal/application"
+	"cryplio/pkg/logger"
 
 	_ "github.com/lib/pq"
 )
@@ -11,28 +12,30 @@ import (
 func main() {
 	app, err := application.New()
 	if err != nil {
-		log.Fatalf("bootstrap failed: %v", err)
+		logger.Error("bootstrap failed", logger.Fields{"error": err.Error()})
+		os.Exit(1)
 	}
 	defer app.DB.Close()
 
 	// Start Background Worker
 	// go func() {
-	// 	log.Printf("starting background worker...")
+	// 	logger.Info("starting background worker", logger.Fields{})
 	// 	if err := app.Worker.Start(); err != nil {
-	// 		log.Printf("worker failed: %v", err)
+	// 		logger.Error("worker failed", logger.Fields{"error": err.Error()})
 	// 	}
 	// }()
 
 	// Start Task Scheduler
 	// go func() {
-	// 	log.Printf("starting task scheduler...")
+	// 	logger.Info("starting task scheduler", logger.Fields{})
 	// 	if err := app.Scheduler.Start(); err != nil {
-	// 		log.Printf("scheduler failed: %v", err)
+	// 		logger.Error("scheduler failed", logger.Fields{"error": err.Error()})
 	// 	}
 	// }()
 
-	log.Printf("HTTP server on port %s", app.Config.ServerPort)
+	logger.Info("starting HTTP server", logger.Fields{"port": app.Config.ServerPort})
 	if err := app.Router.Run(":" + app.Config.ServerPort); err != nil {
-		log.Fatalf("server failed: %v", err)
+		logger.Error("server failed", logger.Fields{"error": err.Error()})
+		os.Exit(1)
 	}
 }

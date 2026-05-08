@@ -1,33 +1,26 @@
 package market
 
-import "context"
+import (
+	"context"
 
-// Rate represents a crypto-fiat quote from a market data provider.
-type Rate struct {
-	CryptoSymbol string
-	FiatSymbol   string
-	Price        float64
-	Provider     string
-}
+	domainmarket "cryplio/internal/domain/market"
+)
 
-// RateFeed loads quotes from an external market data provider.
+// RateFeed is a source of live exchange rate data.
+// Implementations should connect to external price APIs (CoinGecko, Binance, etc.).
 type RateFeed interface {
-	GetRate(ctx context.Context, cryptoSymbol, fiatSymbol string) (*Rate, error)
+	GetRate(ctx context.Context, cryptoSymbol, fiatSymbol string) (*domainmarket.Rate, error)
 }
 
-// NoopRateFeed is a placeholder until a provider is integrated.
+// NoopRateFeed is a placeholder that returns nil for all rate queries.
+// Replace with a real implementation (CoinGeckoRateFeed, BinanceRateFeed) for production.
 type NoopRateFeed struct {
 	provider string
 }
 
-func NewCoinGeckoRateFeed() *NoopRateFeed {
-	return &NoopRateFeed{provider: "coingecko"}
-}
+func NewCoinGeckoRateFeed() *NoopRateFeed { return &NoopRateFeed{provider: "coingecko"} }
+func NewBinanceRateFeed() *NoopRateFeed   { return &NoopRateFeed{provider: "binance"} }
 
-func NewBinanceRateFeed() *NoopRateFeed {
-	return &NoopRateFeed{provider: "binance"}
-}
-
-func (f *NoopRateFeed) GetRate(context.Context, string, string) (*Rate, error) {
+func (f *NoopRateFeed) GetRate(context.Context, string, string) (*domainmarket.Rate, error) {
 	return nil, nil
 }

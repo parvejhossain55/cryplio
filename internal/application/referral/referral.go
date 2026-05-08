@@ -2,36 +2,44 @@ package referral
 
 import (
 	"context"
-	"errors"
+
+	domain "cryplio/internal/domain/referral"
+
+	"github.com/google/uuid"
 )
 
-// TrackUseCase coordinates referral attribution.
-type TrackUseCase struct{}
+// TrackUseCase records a referral when a new user registers with a referral code.
+type TrackUseCase struct {
+	referralService domain.Service
+}
 
-func NewTrackUseCase() *TrackUseCase {
-	return &TrackUseCase{}
+func NewTrackUseCase(svc domain.Service) *TrackUseCase {
+	return &TrackUseCase{referralService: svc}
 }
 
 type TrackInput struct {
-	UserID       string
-	ReferralCode string
+	ReferrerID uuid.UUID
+	RefereeID  uuid.UUID
+	Code       string
 }
 
-func (uc *TrackUseCase) Execute(context.Context, TrackInput) error {
-	return errors.New("referral track use case not implemented")
+func (uc *TrackUseCase) Execute(ctx context.Context, input TrackInput) (*domain.Referral, error) {
+	return uc.referralService.Track(ctx, input.ReferrerID, input.RefereeID, input.Code)
 }
 
-// PayoutUseCase coordinates referral payouts.
-type PayoutUseCase struct{}
+// PayoutUseCase marks a referral reward as paid after a qualifying trade completes.
+type PayoutUseCase struct {
+	referralService domain.Service
+}
 
-func NewPayoutUseCase() *PayoutUseCase {
-	return &PayoutUseCase{}
+func NewPayoutUseCase(svc domain.Service) *PayoutUseCase {
+	return &PayoutUseCase{referralService: svc}
 }
 
 type PayoutInput struct {
-	UserID string
+	ReferralID uuid.UUID
 }
 
-func (uc *PayoutUseCase) Execute(context.Context, PayoutInput) error {
-	return errors.New("referral payout use case not implemented")
+func (uc *PayoutUseCase) Execute(ctx context.Context, input PayoutInput) error {
+	return uc.referralService.MarkPaid(ctx, input.ReferralID)
 }

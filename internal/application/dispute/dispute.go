@@ -2,33 +2,50 @@ package dispute
 
 import (
 	"context"
-	"errors"
 
 	domain "cryplio/internal/domain/dispute"
+
 	"github.com/google/uuid"
 )
 
-// RaiseUseCase coordinates dispute creation.
-type RaiseUseCase struct{}
+// RaiseUseCase orchestrates raising a new dispute on an active trade.
+type RaiseUseCase struct {
+	disputeService domain.Service
+}
 
-func NewRaiseUseCase() *RaiseUseCase {
-	return &RaiseUseCase{}
+func NewRaiseUseCase(svc domain.Service) *RaiseUseCase {
+	return &RaiseUseCase{disputeService: svc}
 }
 
 type RaiseInput struct {
-	TradeID uuid.UUID
-	UserID  uuid.UUID
+	TradeID    uuid.UUID
+	UserID     uuid.UUID
+	ReasonCode string
+	ReasonText string
 }
 
-func (uc *RaiseUseCase) Execute(context.Context, RaiseInput) (*domain.Dispute, error) {
-	return nil, errors.New("raise dispute use case not implemented")
+func (uc *RaiseUseCase) Execute(ctx context.Context, input RaiseInput) (*domain.Dispute, error) {
+	d := &domain.Dispute{
+		DisputeID:  uuid.New(),
+		TradeID:    input.TradeID,
+		RaisedBy:   input.UserID,
+		ReasonCode: input.ReasonCode,
+		ReasonText: &input.ReasonText,
+		Status:     domain.DisputeStatusPending,
+	}
+	if err := uc.disputeService.CreateDispute(ctx, d); err != nil {
+		return nil, err
+	}
+	return d, nil
 }
 
-// AssignUseCase coordinates admin assignment.
-type AssignUseCase struct{}
+// AssignUseCase orchestrates assigning a dispute to an admin.
+type AssignUseCase struct {
+	disputeService domain.Service
+}
 
-func NewAssignUseCase() *AssignUseCase {
-	return &AssignUseCase{}
+func NewAssignUseCase(svc domain.Service) *AssignUseCase {
+	return &AssignUseCase{disputeService: svc}
 }
 
 type AssignInput struct {
@@ -36,23 +53,26 @@ type AssignInput struct {
 	AdminID   uuid.UUID
 }
 
-func (uc *AssignUseCase) Execute(context.Context, AssignInput) (*domain.Dispute, error) {
-	return nil, errors.New("assign dispute use case not implemented")
+func (uc *AssignUseCase) Execute(ctx context.Context, input AssignInput) error {
+	return uc.disputeService.AssignDispute(ctx, input.DisputeID, input.AdminID)
 }
 
-// ResolveUseCase coordinates resolution decisions.
-type ResolveUseCase struct{}
+// ResolveUseCase orchestrates resolving a dispute.
+type ResolveUseCase struct {
+	disputeService domain.Service
+}
 
-func NewResolveUseCase() *ResolveUseCase {
-	return &ResolveUseCase{}
+func NewResolveUseCase(svc domain.Service) *ResolveUseCase {
+	return &ResolveUseCase{disputeService: svc}
 }
 
 type ResolveInput struct {
 	DisputeID  uuid.UUID
 	AdminID    uuid.UUID
 	Resolution domain.DisputeResolution
+	Note       string
 }
 
-func (uc *ResolveUseCase) Execute(context.Context, ResolveInput) (*domain.Dispute, error) {
-	return nil, errors.New("resolve dispute use case not implemented")
+func (uc *ResolveUseCase) Execute(ctx context.Context, input ResolveInput) error {
+	return uc.disputeService.ResolveDispute(ctx, input.DisputeID, input.AdminID, input.Resolution, input.Note)
 }

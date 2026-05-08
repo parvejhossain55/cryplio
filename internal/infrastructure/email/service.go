@@ -363,7 +363,7 @@ func (s *EmailService) SendTradeCompletedEmail(ctx context.Context, buyerEmail, 
 	variables := map[string]interface{}{
 		"user_name":            buyerName,
 		"trade_id":             tradeID,
-		"crypto_amount":        fmt.Sprintf("%.6f", cryptoAmount),
+		"crypto_amount":        cryptoAmount,
 		"crypto_symbol":        cryptoSymbol,
 		"counterpart_username": sellerName,
 	}

@@ -2,9 +2,10 @@ package websocket
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"sync"
+
+	"cryplio/pkg/logger"
 
 	"github.com/google/uuid"
 )
@@ -33,7 +34,7 @@ func (ws *websocketService) Start(ctx context.Context) error {
 		ws.server.Start(ws.ctx)
 	}()
 
-	log.Println("WebSocket service started")
+	logger.Info("WebSocket service started", logger.Fields{})
 	return nil
 }
 
@@ -43,7 +44,7 @@ func (ws *websocketService) Stop() error {
 		ws.cancel()
 	}
 	ws.wg.Wait()
-	log.Println("WebSocket service stopped")
+	logger.Info("WebSocket service stopped", logger.Fields{})
 	return nil
 }
 

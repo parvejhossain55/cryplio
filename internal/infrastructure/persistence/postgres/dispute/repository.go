@@ -88,18 +88,38 @@ func (r *disputeRepository) GetByID(ctx context.Context, id uuid.UUID) (*dispute
 	d.EvidenceLinks = evidenceLinks
 	return &d, nil
 }
-func (r *disputeRepository) List(ctx context.Context) ([]*dispute.Dispute, error) {
-	query := `
+func (r *disputeRepository) List(ctx context.Context, status string, limit, offset int) ([]*dispute.Dispute, int, error) {
+	// Count query
+	countQuery := `SELECT COUNT(*) FROM disputes`
+	args := []interface{}{}
+	if status != "" && status != "all" {
+		countQuery += ` WHERE status = $1`
+		args = append(args, status)
+	}
+	var total int
+	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count disputes: %w", err)
+	}
+
+	// Data query
+	dataQuery := `
 		SELECT dispute_id, trade_id, raised_by, reason_code, reason_text,
 		       evidence_links, status, assigned_admin, assigned_at,
 		       resolution_type, resolution_note, resolved_by, resolved_at,
 		       created_at, updated_at
 		FROM disputes
-		ORDER BY created_at DESC
 	`
-	rows, err := r.db.QueryContext(ctx, query)
+	if status != "" && status != "all" {
+		dataQuery += ` WHERE status = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
+		args = append(args, limit, offset)
+	} else {
+		dataQuery += ` ORDER BY created_at DESC LIMIT $1 OFFSET $2`
+		args = []interface{}{limit, offset}
+	}
+
+	rows, err := r.db.QueryContext(ctx, dataQuery, args...)
 	if err != nil {
-		return nil, fmt.Errorf("list disputes: %w", err)
+		return nil, 0, fmt.Errorf("list disputes: %w", err)
 	}
 	defer rows.Close()
 
@@ -107,19 +127,18 @@ func (r *disputeRepository) List(ctx context.Context) ([]*dispute.Dispute, error
 	for rows.Next() {
 		var d dispute.Dispute
 		var evidenceLinks []string
-		err := rows.Scan(
+		if err := rows.Scan(
 			&d.DisputeID, &d.TradeID, &d.RaisedBy, &d.ReasonCode, &d.ReasonText,
 			pq.Array(&evidenceLinks), &d.Status, &d.AssignedAdmin, &d.AssignedAt,
 			&d.ResolutionType, &d.ResolutionNote, &d.ResolvedBy, &d.ResolvedAt,
 			&d.CreatedAt, &d.UpdatedAt,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("scan dispute: %w", err)
+		); err != nil {
+			return nil, 0, fmt.Errorf("scan dispute: %w", err)
 		}
 		d.EvidenceLinks = evidenceLinks
 		disputes = append(disputes, &d)
 	}
-	return disputes, nil
+	return disputes, total, nil
 }
 
 func (r *disputeRepository) CountDisputes(ctx context.Context, status string) (int, error) {

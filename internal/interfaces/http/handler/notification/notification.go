@@ -1,26 +1,30 @@
-package handler
+package notification
 
 import (
 	"net/http"
 	"strconv"
 
-	"cryplio/internal/domain/notification"
+	basehandler "cryplio/internal/interfaces/http/handler"
+
+	notificationdomain "cryplio/internal/domain/notification"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
 type NotificationHandler struct {
-	notificationService notification.Service
+	notificationService notificationdomain.Service
 }
 
-func NewNotificationHandler(service notification.Service) *NotificationHandler {
+func NewNotificationHandler(service notificationdomain.Service) *NotificationHandler {
 	return &NotificationHandler{notificationService: service}
 }
 
 func (h *NotificationHandler) GetNotificationsHandler(c *gin.Context) {
-	userIDStr, _ := c.Get("user_id")
-	userID, _ := uuid.Parse(userIDStr.(string))
+	userID, ok := basehandler.GetUserIDFromContext(c)
+	if !ok {
+		return
+	}
 
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
@@ -51,8 +55,10 @@ func (h *NotificationHandler) MarkReadHandler(c *gin.Context) {
 
 // GetPreferencesHandler gets user's notification preferences
 func (h *NotificationHandler) GetPreferencesHandler(c *gin.Context) {
-	userIDStr, _ := c.Get("user_id")
-	userID, _ := uuid.Parse(userIDStr.(string))
+	userID, ok := basehandler.GetUserIDFromContext(c)
+	if !ok {
+		return
+	}
 
 	prefs, err := h.notificationService.GetPreferences(c.Request.Context(), userID)
 	if err != nil {
@@ -65,14 +71,16 @@ func (h *NotificationHandler) GetPreferencesHandler(c *gin.Context) {
 
 // SavePreferencesHandler saves user's notification preferences
 type SavePreferencesRequest struct {
-	Email map[notification.NotificationType]bool `json:"email"`
-	Push  map[notification.NotificationType]bool `json:"push"`
-	SMS   map[notification.NotificationType]bool `json:"sms"`
+	Email map[notificationdomain.NotificationType]bool `json:"email"`
+	Push  map[notificationdomain.NotificationType]bool `json:"push"`
+	SMS   map[notificationdomain.NotificationType]bool `json:"sms"`
 }
 
 func (h *NotificationHandler) SavePreferencesHandler(c *gin.Context) {
-	userIDStr, _ := c.Get("user_id")
-	userID, _ := uuid.Parse(userIDStr.(string))
+	userID, ok := basehandler.GetUserIDFromContext(c)
+	if !ok {
+		return
+	}
 
 	var req SavePreferencesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -80,7 +88,7 @@ func (h *NotificationHandler) SavePreferencesHandler(c *gin.Context) {
 		return
 	}
 
-	prefs := &notification.NotificationPreference{
+	prefs := &notificationdomain.NotificationPreference{
 		Email: req.Email,
 		Push:  req.Push,
 		SMS:   req.SMS,

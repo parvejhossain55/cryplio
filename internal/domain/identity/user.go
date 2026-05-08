@@ -120,6 +120,7 @@ type User struct {
 	SuspensionReason    *string    `db:"suspension_reason" json:"suspension_reason,omitempty"`
 	SuspendedAt         *time.Time `db:"suspended_at" json:"suspended_at,omitempty"`
 	SuspendedUntil      *time.Time `db:"suspended_until" json:"suspended_until,omitempty"`
+	UnsuspendedAt       *time.Time `db:"unsuspended_at" json:"unsuspended_at,omitempty"`
 	LastLoginAt         *time.Time `db:"last_login_at" json:"last_login_at,omitempty"`
 	LastSeenAt          *time.Time `db:"last_seen_at" json:"last_seen_at,omitempty"`
 	LoginCount          int        `db:"login_count" json:"login_count"`
@@ -191,20 +192,23 @@ func (u *User) IsLocked() bool {
 
 // Suspend suspends the user account
 func (u *User) Suspend(reason string, until *time.Time) {
-	u.IsSuspended = true
-	u.SuspensionReason = &reason
 	now := time.Now()
+	u.IsSuspended = true
+	u.Status = UserStatusSuspended
+	u.SuspensionReason = &reason
 	u.SuspendedAt = &now
 	u.SuspendedUntil = until
+	u.UpdatedAt = now
 }
 
 // Unsuspend lifts the suspension on the user account
 func (u *User) Unsuspend() {
-	u.IsSuspended = false
-	u.SuspensionReason = nil
 	now := time.Now()
-	u.SuspendedAt = nil
+	u.IsSuspended = false
+	u.Status = UserStatusActive
+	u.SuspensionReason = nil
 	u.SuspendedUntil = nil
+	u.UnsuspendedAt = &now
 	u.UpdatedAt = now
 }
 
