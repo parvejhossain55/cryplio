@@ -48,7 +48,7 @@ const AdminUsersPage = () => {
 
     const fetchUsers = async () => {
         try {
-            const response = await fetch("/api/admin/users");
+            const response = await fetch("/api/v1/admin/users");
             const data = await response.json();
             
             if (!response.ok) {

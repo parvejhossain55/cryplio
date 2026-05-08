@@ -12,7 +12,11 @@ class WebSocketService {
         }
 
         this.isConnecting = true;
-        const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080/ws';
+        const baseUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080/ws';
+        
+        // Get user_id from authService or localStorage
+        const userId = this.getUserId();
+        const wsUrl = userId ? `${baseUrl}?user_id=${userId}` : baseUrl;
         
         try {
             this.ws = new WebSocket(wsUrl);
@@ -53,6 +57,13 @@ class WebSocketService {
             console.error('Failed to create WebSocket connection:', error);
             this.isConnecting = false;
         }
+    }
+
+    private getUserId(): string | null {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('user_id');
+        }
+        return null;
     }
 
     private scheduleReconnect() {

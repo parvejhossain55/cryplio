@@ -22,6 +22,29 @@ interface NotificationCategory {
     channels: NotificationChannel[];
 }
 
+// Helper function to get preference value from backend response
+function getPrefValue(prefs: any, channelId: string, defaultValue: boolean): boolean {
+    if (!prefs) return defaultValue;
+    
+    // Map channel IDs to preference keys
+    const keyMap: Record<string, { type: string; key: string }> = {
+        email_security: { type: "email", key: "email_security" },
+        email_transactions: { type: "email", key: "email_transactions" },
+        email_marketing: { type: "email", key: "email_marketing" },
+        push_security: { type: "push", key: "push_security" },
+        push_trades: { type: "push", key: "push_trades" },
+        sms_critical: { type: "sms", key: "sms_critical" },
+    };
+    
+    const mapping = keyMap[channelId];
+    if (!mapping) return defaultValue;
+    
+    const typePrefs = prefs[mapping.type];
+    if (!typePrefs) return defaultValue;
+    
+    return typePrefs[mapping.key] ?? defaultValue;
+}
+
 const AlertsSettings = () => {
     const [isSaving, setIsSaving] = useState(false);
 
@@ -37,16 +60,33 @@ const AlertsSettings = () => {
 
     const [channels, setChannels] = useState<NotificationChannel[]>(getInitialChannels());
 
+    // Load preferences from backend on mount
     useEffect(() => {
-        const saved = localStorage.getItem("cryplio_notification_preferences");
-        if (saved) {
+        const loadPreferences = async () => {
             try {
-                const parsed = JSON.parse(saved);
-                setChannels(prev => prev.map(ch => ({ ...ch, enabled: parsed[ch.id] ?? ch.enabled })));
+                const prefs = await authService.getNotificationPreferences();
+                if (prefs) {
+                    // Map backend preferences to channels
+                    setChannels(prev => prev.map(ch => ({
+                        ...ch,
+                        enabled: getPrefValue(prefs, ch.id, ch.enabled)
+                    })));
+                }
             } catch (e) {
-                console.error("Failed to load notifications prefs", e);
+                console.error("Failed to load preferences from backend", e);
+                // Fallback to localStorage
+                const saved = localStorage.getItem("cryplio_notification_preferences");
+                if (saved) {
+                    try {
+                        const parsed = JSON.parse(saved);
+                        setChannels(prev => prev.map(ch => ({ ...ch, enabled: parsed[ch.id] ?? ch.enabled })));
+                    } catch (e) {
+                        console.error("Failed to load notifications prefs from localStorage", e);
+                    }
+                }
             }
-        }
+        };
+        loadPreferences();
     }, []);
 
     const toggleChannel = (id: string) => {
@@ -58,10 +98,29 @@ const AlertsSettings = () => {
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            const prefs = channels.reduce((acc, ch) => ({ ...acc, [ch.id]: ch.enabled }), {});
-            localStorage.setItem("cryplio_notification_preferences", JSON.stringify(prefs));
-            // In future: POST to /api/users/notifications/preferences
-            await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API
+            // Convert channels to backend format
+            const prefs = {
+                email: {
+                    email_security: channels.find(c => c.id === "email_security")?.enabled ?? true,
+                    email_transactions: channels.find(c => c.id === "email_transactions")?.enabled ?? true,
+                    email_marketing: channels.find(c => c.id === "email_marketing")?.enabled ?? false,
+                },
+                push: {
+                    push_security: channels.find(c => c.id === "push_security")?.enabled ?? true,
+                    push_trades: channels.find(c => c.id === "push_trades")?.enabled ?? false,
+                },
+                sms: {
+                    sms_critical: channels.find(c => c.id === "sms_critical")?.enabled ?? false,
+                }
+            };
+            
+            // Save to backend
+            await authService.saveNotificationPreferences(prefs);
+            
+            // Also save to localStorage as backup
+            const localPrefs = channels.reduce((acc, ch) => ({ ...acc, [ch.id]: ch.enabled }), {});
+            localStorage.setItem("cryplio_notification_preferences", JSON.stringify(localPrefs));
+            
             toast.success("Notification preferences saved successfully");
         } catch (error: any) {
             toast.error(error.message || "Failed to save preferences");

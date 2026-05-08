@@ -36,6 +36,32 @@ func (h *WalletHandler) GetBalancesHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"wallets": balances})
 }
 
+func (h *WalletHandler) CreateWalletHandler(c *gin.Context) {
+	userID, ok := getUserIDFromContext(c)
+	if !ok {
+		return
+	}
+
+	var req struct {
+		CryptoSymbol string `json:"crypto_symbol" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request", "details": err.Error()})
+		return
+	}
+
+	wallet, err := h.walletService.CreateWallet(c.Request.Context(), userID, req.CryptoSymbol)
+	if err != nil {
+		handleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"wallet":  wallet,
+		"message": "wallet created successfully",
+	})
+}
+
 func (h *WalletHandler) GetDepositAddressHandler(c *gin.Context) {
 	userID, ok := getUserIDFromContext(c)
 	if !ok {

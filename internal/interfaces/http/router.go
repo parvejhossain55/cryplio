@@ -135,6 +135,7 @@ func SetupRouter(
 
 			// Wallet
 			auth.GET("/wallet/balance", walletHandler.GetBalancesHandler)
+			auth.POST("/wallet", walletHandler.CreateWalletHandler)
 			auth.GET("/wallet/deposit/:crypto", walletHandler.GetDepositAddressHandler)
 			auth.POST("/wallet/withdraw", walletHandler.WithdrawHandler)
 			auth.GET("/wallet/transactions", walletHandler.GetTransactionsHandler)
@@ -142,6 +143,8 @@ func SetupRouter(
 			// Notifications
 			auth.GET("/notifications", notificationHandler.GetNotificationsHandler)
 			auth.PATCH("/notifications/:id/read", notificationHandler.MarkReadHandler)
+			auth.GET("/notifications/preferences", notificationHandler.GetPreferencesHandler)
+			auth.POST("/notifications/preferences", notificationHandler.SavePreferencesHandler)
 
 			// Chat
 			auth.POST("/trades/:id/messages", tradeHandler.SendMessageHandler)
@@ -199,12 +202,11 @@ func SetupRouter(
 		}
 	}
 
-	// Start WebSocket server in a separate goroutine
-	go func() {
-		if err := wsService.Start(context.Background()); err != nil {
-			panic("Failed to start WebSocket server: " + err.Error())
-		}
-	}()
+	// Register WebSocket endpoint with Gin
+	wsService.Start(context.Background())
+	r.GET("/ws", func(c *gin.Context) {
+		wsService.HandleWebSocket(c.Writer, c.Request)
+	})
 
 	return r
 }

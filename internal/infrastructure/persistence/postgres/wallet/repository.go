@@ -39,6 +39,7 @@ func (r *walletRepository) GetByID(ctx context.Context, walletID uuid.UUID) (*do
 }
 
 func (r *walletRepository) GetByUserAndCrypto(ctx context.Context, userID uuid.UUID, cryptoSymbol string) (*domainwallet.Wallet, error) {
+	// First try with crypto_assets join for full info
 	query := `
 		SELECT w.wallet_id, w.user_id, w.crypto_id, w.address, w.balance, w.locked_balance,
 		       w.is_active, false AS is_primary, w.updated_at AS last_updated, w.created_at
@@ -61,13 +62,52 @@ func (r *walletRepository) GetByUserAndCrypto(ctx context.Context, userID uuid.U
 	return &w, nil
 }
 
-func (r *walletRepository) ListByUser(ctx context.Context, userID uuid.UUID) ([]domainwallet.Wallet, error) {
+func (r *walletRepository) GetByUserAndCryptoID(ctx context.Context, userID uuid.UUID, cryptoID int) (*domainwallet.Wallet, error) {
 	query := `
 		SELECT wallet_id, user_id, crypto_id, address, balance, locked_balance,
 		       is_active, false AS is_primary, updated_at AS last_updated, created_at
 		FROM wallets
-		WHERE user_id = $1
-		ORDER BY created_at DESC
+		WHERE user_id = $1 AND crypto_id = $2
+	`
+	var w domainwallet.Wallet
+	if err := r.db.QueryRowContext(ctx, query, userID, cryptoID).Scan(
+		&w.WalletID, &w.UserID, &w.CryptoID, &w.Address, &w.Balance, &w.LockedBalance,
+		&w.IsActive, &w.IsPrimary, &w.LastUpdated, &w.CreatedAt,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get wallet by user and crypto_id: %w", err)
+	}
+	return &w, nil
+}
+
+func (r *walletRepository) GetCryptoIDBySymbol(ctx context.Context, symbol string) (int, error) {
+	query := `
+		SELECT id FROM crypto_assets
+		WHERE UPPER(symbol) = UPPER($1) AND is_active = true
+		ORDER BY id ASC
+		LIMIT 1
+	`
+	var cryptoID int
+	if err := r.db.QueryRowContext(ctx, query, symbol).Scan(&cryptoID); err != nil {
+		if err == sql.ErrNoRows {
+			return 0, fmt.Errorf("cryptocurrency not found: %s", symbol)
+		}
+		return 0, fmt.Errorf("get crypto_id by symbol: %w", err)
+	}
+	return cryptoID, nil
+}
+
+func (r *walletRepository) ListByUser(ctx context.Context, userID uuid.UUID) ([]domainwallet.Wallet, error) {
+	query := `
+		SELECT w.wallet_id, w.user_id, w.crypto_id, w.address, w.balance, w.locked_balance,
+		       w.is_active, false AS is_primary, w.updated_at AS last_updated, w.created_at,
+		       COALESCE(ca.symbol, 'USDT') AS crypto_symbol
+		FROM wallets w
+		LEFT JOIN crypto_assets ca ON ca.id = w.crypto_id
+		WHERE w.user_id = $1
+		ORDER BY w.created_at DESC
 	`
 	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
@@ -80,13 +120,29 @@ func (r *walletRepository) ListByUser(ctx context.Context, userID uuid.UUID) ([]
 		var w domainwallet.Wallet
 		if err := rows.Scan(
 			&w.WalletID, &w.UserID, &w.CryptoID, &w.Address, &w.Balance, &w.LockedBalance,
-			&w.IsActive, &w.IsPrimary, &w.LastUpdated, &w.CreatedAt,
+			&w.IsActive, &w.IsPrimary, &w.LastUpdated, &w.CreatedAt, &w.CryptoSymbol,
 		); err != nil {
 			return nil, fmt.Errorf("scan wallet: %w", err)
 		}
 		wallets = append(wallets, w)
 	}
 	return wallets, nil
+}
+
+func (r *walletRepository) Create(ctx context.Context, wallet *domainwallet.Wallet) error {
+	query := `
+		INSERT INTO wallets (wallet_id, user_id, crypto_id, address, balance, locked_balance,
+		                     is_active, address_label, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+		RETURNING created_at, updated_at
+	`
+	if err := r.db.QueryRowContext(ctx, query,
+		wallet.WalletID, wallet.UserID, wallet.CryptoID, wallet.Address,
+		wallet.Balance, wallet.LockedBalance, wallet.IsActive, wallet.Address,
+	).Scan(&wallet.CreatedAt, &wallet.LastUpdated); err != nil {
+		return fmt.Errorf("create wallet: %w", err)
+	}
+	return nil
 }
 
 func (r *walletRepository) Update(ctx context.Context, wallet *domainwallet.Wallet) error {

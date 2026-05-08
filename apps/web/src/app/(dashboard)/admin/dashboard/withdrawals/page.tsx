@@ -48,7 +48,7 @@ const AdminWithdrawalsPage = () => {
 
     const fetchWithdrawals = async () => {
         try {
-            const response = await fetch("/api/admin/withdrawals/pending");
+            const response = await fetch("/api/v1/admin/withdrawals/pending");
             const data = await response.json();
             
             if (!response.ok) {

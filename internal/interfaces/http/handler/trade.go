@@ -29,12 +29,16 @@ func (h *TradeHandler) ListAdsHandler(c *gin.Context) {
 	adType := trading.AdType(c.Query("type"))
 	cryptoID, _ := strconv.Atoi(c.Query("crypto_id"))
 	fiatID, _ := strconv.Atoi(c.Query("fiat_id"))
+	fiatCurrency := c.Query("fiat_currency")
+	paymentMethodStr := c.Query("payment_method")
+	sortBy := c.DefaultQuery("sort_by", "newest")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
 	filter := trading.AdFilter{
 		Limit:  limit,
 		Offset: offset,
+		SortBy: sortBy,
 	}
 
 	if adType != "" {
@@ -45,6 +49,15 @@ func (h *TradeHandler) ListAdsHandler(c *gin.Context) {
 	}
 	if fiatID > 0 {
 		filter.FiatID = &fiatID
+	}
+	if fiatCurrency != "" && fiatCurrency != "all" {
+		filter.FiatCode = &fiatCurrency
+	}
+	if paymentMethodStr != "" && paymentMethodStr != "all" {
+		// Try to parse as int first, otherwise will need payment method lookup
+		if pmID, err := strconv.Atoi(paymentMethodStr); err == nil && pmID > 0 {
+			filter.PaymentMethods = []int{pmID}
+		}
 	}
 
 	ads, total, err := h.tradeService.ListActiveAds(c.Request.Context(), filter)
@@ -59,6 +72,7 @@ func (h *TradeHandler) ListAdsHandler(c *gin.Context) {
 	}
 
 	for i, ad := range ads {
+		isOnline := ad.UserLastSeen != nil && ad.UserLastSeen.After(time.Now().Add(-5*time.Minute))
 		response.Ads[i] = dto.AdResponse{
 			AdID:                 ad.AdID.String(),
 			UserID:               ad.UserID.String(),
@@ -67,12 +81,21 @@ func (h *TradeHandler) ListAdsHandler(c *gin.Context) {
 			UserRating:           ad.UserRating,
 			UserTrades:           ad.UserTrades,
 			Type:                 string(ad.Type),
+			CryptoSymbol:         ad.CryptoSymbol,
+			FiatSymbol:           ad.FiatSymbol,
 			PriceType:            string(ad.PriceType),
 			Price:                ad.Price,
 			MinAmount:            ad.MinAmount,
 			MaxAmount:            ad.MaxAmount,
+			PaymentMethods:       ad.PaymentMethodNames,
 			PaymentWindowMinutes: ad.PaymentWindowMinutes,
-			IsOnline:             ad.UserLastSeen != nil && ad.UserLastSeen.After(time.Now().Add(-5*time.Minute)),
+			IsOnline:             isOnline,
+			TradeTerms: func() string {
+				if ad.TradeTerms != nil {
+					return *ad.TradeTerms
+				}
+				return ""
+			}(),
 		}
 	}
 
@@ -129,16 +152,6 @@ func (h *TradeHandler) UpdateAdHandler(c *gin.Context) {
 	userIDStr, _ := c.Get("user_id")
 	userID, _ := uuid.Parse(userIDStr.(string))
 
-	paymentMethods := make([]int, 0, len(req.PaymentMethods))
-	for _, pm := range req.PaymentMethods {
-		id, err := strconv.Atoi(pm)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("invalid payment method ID: %s", pm)})
-			return
-		}
-		paymentMethods = append(paymentMethods, id)
-	}
-
 	updates := &trading.TradeAd{
 		Type:                 trading.AdType(req.Type),
 		CryptoID:             req.CryptoID,
@@ -148,7 +161,7 @@ func (h *TradeHandler) UpdateAdHandler(c *gin.Context) {
 		FloatingMarkup:       req.FloatingMarkup,
 		MinAmount:            req.MinAmount,
 		MaxAmount:            req.MaxAmount,
-		PaymentMethods:       paymentMethods,
+		PaymentMethods:       req.PaymentMethods,
 		TradeTerms:           &req.TradeTerms,
 		PaymentWindowMinutes: req.PaymentWindowMinutes,
 		Timezone:             req.Timezone,
@@ -190,16 +203,6 @@ func (h *TradeHandler) CreateAdHandler(c *gin.Context) {
 	userIDStr, _ := c.Get("user_id")
 	userID, _ := uuid.Parse(userIDStr.(string))
 
-	paymentMethods := make([]int, 0, len(req.PaymentMethods))
-	for _, pm := range req.PaymentMethods {
-		id, err := strconv.Atoi(pm)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("invalid payment method ID: %s", pm)})
-			return
-		}
-		paymentMethods = append(paymentMethods, id)
-	}
-
 	ad := &trading.TradeAd{
 		AdID:                 uuid.New(),
 		UserID:               userID,
@@ -211,7 +214,7 @@ func (h *TradeHandler) CreateAdHandler(c *gin.Context) {
 		FloatingMarkup:       req.FloatingMarkup,
 		MinAmount:            req.MinAmount,
 		MaxAmount:            req.MaxAmount,
-		PaymentMethods:       paymentMethods,
+		PaymentMethods:       req.PaymentMethods,
 		TradeTerms:           &req.TradeTerms,
 		PaymentWindowMinutes: req.PaymentWindowMinutes,
 		IsPublic:             true,

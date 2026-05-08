@@ -66,11 +66,14 @@ type TradeAd struct {
 	DeletedAt            *time.Time    `db:"deleted_at" json:"deleted_at,omitempty"`
 
 	// Enriched fields from joins (not persisted in trade_ads table)
-	Username     string     `json:"username,omitempty"`
-	UserAvatar   string     `json:"user_avatar,omitempty"`
-	UserLastSeen *time.Time `json:"user_last_seen,omitempty"`
-	UserTrades   int        `json:"user_trades,omitempty"`
-	UserRating   float64    `json:"user_rating,omitempty"`
+	Username           string     `json:"username,omitempty"`
+	UserAvatar         string     `json:"user_avatar,omitempty"`
+	UserLastSeen       *time.Time `json:"user_last_seen,omitempty"`
+	UserTrades         int        `json:"user_trades,omitempty"`
+	UserRating         float64    `json:"user_rating,omitempty"`
+	CryptoSymbol       string     `json:"crypto_symbol,omitempty"`
+	FiatSymbol         string     `json:"fiat_symbol,omitempty"`
+	PaymentMethodNames []string   `json:"payment_method_names,omitempty"`
 }
 
 // IsActive checks if the ad is active and visible

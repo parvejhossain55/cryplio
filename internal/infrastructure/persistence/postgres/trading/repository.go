@@ -27,11 +27,11 @@ func (r *tradeRepository) CreateAd(ctx context.Context, ad *trading.TradeAd) err
 				ad_id, user_id, type, crypto_id, fiat_id, price_type, price,
 				floating_markup, min_amount, max_amount, payment_methods,
 				trade_terms, payment_window_minutes,
-				is_public, is_paused, timezone, status, published_at,
-				created_at, updated_at
+				is_public, is_paused, timezone, status,
+				published_at, created_at, updated_at
 			) VALUES (
 				$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
-				$14, $15, $16, $17, $18, NOW(), NOW(), NOW()
+				$14, $15, $16, $17, NOW(), NOW(), NOW()
 			) RETURNING created_at, updated_at
 		`
 
@@ -102,6 +102,22 @@ func (r *tradeRepository) ListAds(ctx context.Context, filter trading.AdFilter) 
 		args = append(args, *filter.FiatID)
 		placeholder++
 	}
+	if filter.FiatCode != nil && *filter.FiatCode != "" {
+		conditions = append(conditions, fmt.Sprintf("fc.code = $%d", placeholder))
+		args = append(args, *filter.FiatCode)
+		placeholder++
+	}
+	if len(filter.PaymentMethods) > 0 {
+		// Check if ad has any of the specified payment methods
+		// payment_methods is int[] in PostgreSQL
+		pmPlaceholders := make([]string, len(filter.PaymentMethods))
+		for i, pm := range filter.PaymentMethods {
+			pmPlaceholders[i] = fmt.Sprintf("$%d", placeholder)
+			args = append(args, pm)
+			placeholder++
+		}
+		conditions = append(conditions, fmt.Sprintf("a.payment_methods && ARRAY[%s]::int[]", strings.Join(pmPlaceholders, ",")))
+	}
 	if filter.UserID != nil {
 		conditions = append(conditions, fmt.Sprintf("a.user_id = $%d", placeholder))
 		args = append(args, *filter.UserID)
@@ -126,8 +142,24 @@ func (r *tradeRepository) ListAds(ctx context.Context, filter trading.AdFilter) 
 		where = "WHERE " + strings.Join(conditions, " AND ")
 	}
 
+	// Determine sort order
+	orderBy := "a.published_at DESC"
+	switch filter.SortBy {
+	case "best_price":
+		orderBy = "a.price ASC"
+	case "newest":
+		orderBy = "a.published_at DESC"
+	case "trade_count":
+		orderBy = "COALESCE(us.total_trades, 0) DESC"
+	}
+
 	// Count total
-	countQuery := "SELECT COUNT(*) FROM trade_ads a " + where
+	countQuery := `
+		SELECT COUNT(*) FROM trade_ads a
+		JOIN users u ON a.user_id = u.user_id
+		LEFT JOIN user_stats us ON u.user_id = us.user_id
+		JOIN fiat_currencies fc ON a.fiat_id = fc.id
+	` + where
 	var total int
 	err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total)
 	if err != nil {
@@ -142,11 +174,14 @@ func (r *tradeRepository) ListAds(ctx context.Context, filter trading.AdFilter) 
 		       a.is_public, a.is_paused, a.timezone, a.status, a.published_at,
 		       a.created_at, a.updated_at,
 		       u.username, u.avatar_url, u.last_seen_at,
-		       COALESCE(us.total_trades, 0), COALESCE(us.avg_rating, 0)
+		       COALESCE(us.total_trades, 0), COALESCE(us.avg_rating, 0),
+		       ca.symbol, fc.symbol
 		FROM trade_ads a
 		JOIN users u ON a.user_id = u.user_id
 		LEFT JOIN user_stats us ON u.user_id = us.user_id
-	` + where + fmt.Sprintf(" ORDER BY a.published_at DESC LIMIT $%d OFFSET $%d", placeholder, placeholder+1)
+		JOIN crypto_assets ca ON a.crypto_id = ca.id
+		JOIN fiat_currencies fc ON a.fiat_id = fc.id
+	` + where + fmt.Sprintf(" ORDER BY %s LIMIT $%d OFFSET $%d", orderBy, placeholder, placeholder+1)
 
 	limit := filter.Limit
 	if limit <= 0 {
@@ -164,7 +199,7 @@ func (r *tradeRepository) ListAds(ctx context.Context, filter trading.AdFilter) 
 	for rows.Next() {
 		var ad trading.TradeAd
 		var paymentMethods []int64
-		var username, avatarURL sql.NullString
+		var username, avatarURL, cryptoSymbol, fiatSymbol sql.NullString
 		var lastSeen pq.NullTime
 		var totalTrades sql.NullInt64
 		var avgRating sql.NullFloat64
@@ -176,6 +211,7 @@ func (r *tradeRepository) ListAds(ctx context.Context, filter trading.AdFilter) 
 			&ad.IsPublic, &ad.IsPaused, &ad.Timezone,
 			&ad.Status, &ad.PublishedAt, &ad.CreatedAt, &ad.UpdatedAt,
 			&username, &avatarURL, &lastSeen, &totalTrades, &avgRating,
+			&cryptoSymbol, &fiatSymbol,
 		)
 		if err != nil {
 			return nil, 0, fmt.Errorf("scan ad: %w", err)
@@ -195,6 +231,12 @@ func (r *tradeRepository) ListAds(ctx context.Context, filter trading.AdFilter) 
 		}
 		if avgRating.Valid {
 			ad.UserRating = avgRating.Float64
+		}
+		if cryptoSymbol.Valid {
+			ad.CryptoSymbol = cryptoSymbol.String
+		}
+		if fiatSymbol.Valid {
+			ad.FiatSymbol = fiatSymbol.String
 		}
 
 		ad.PaymentMethods = make([]int, len(paymentMethods))

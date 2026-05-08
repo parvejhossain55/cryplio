@@ -17,6 +17,7 @@ type AdResponse struct {
 	PaymentMethods       []string `json:"payment_methods"`
 	PaymentWindowMinutes int      `json:"payment_window_minutes"`
 	IsOnline             bool     `json:"is_online"`
+	TradeTerms           string   `json:"trade_terms,omitempty"`
 }
 
 type ListAdsResponse struct {
@@ -33,7 +34,7 @@ type CreateAdRequest struct {
 	FloatingMarkup       *float64 `json:"floating_markup"`
 	MinAmount            float64  `json:"min_amount" binding:"required,gt=0"`
 	MaxAmount            float64  `json:"max_amount" binding:"required,gt=0"`
-	PaymentMethods       []string `json:"payment_methods" binding:"required,min=1"`
+	PaymentMethods       []int    `json:"payment_methods" binding:"required,min=1"`
 	TradeTerms           string   `json:"trade_terms"`
 	PaymentWindowMinutes int      `json:"payment_window_minutes" binding:"required,min=5,max=60"`
 }
@@ -47,7 +48,7 @@ type UpdateAdRequest struct {
 	FloatingMarkup       *float64 `json:"floating_markup"`
 	MinAmount            float64  `json:"min_amount" binding:"omitempty,gt=0"`
 	MaxAmount            float64  `json:"max_amount" binding:"omitempty,gt=0"`
-	PaymentMethods       []string `json:"payment_methods"`
+	PaymentMethods       []int    `json:"payment_methods"`
 	TradeTerms           string   `json:"trade_terms"`
 	PaymentWindowMinutes int      `json:"payment_window_minutes" binding:"omitempty,min=5,max=60"`
 	Timezone             string   `json:"timezone"`

@@ -59,9 +59,9 @@ func NewServer() *Server {
 // Start starts the WebSocket server
 func (s *Server) Start(ctx context.Context) {
 	go s.run()
-	
+
 	http.HandleFunc("/ws", s.handleWebSocket)
-	
+
 	log.Println("WebSocket server started on /ws")
 }
 
@@ -74,7 +74,7 @@ func (s *Server) run() {
 			s.clients[client] = true
 			s.mutex.Unlock()
 			log.Printf("Client connected: %s (User: %s)", client.ID, client.UserID)
-			
+
 			// Send welcome message
 			select {
 			case client.Send <- Message{
@@ -120,12 +120,17 @@ func (s *Server) shouldSendToClient(client *Client, message Message) bool {
 	if message.TradeID == "" {
 		return true
 	}
-	
+
 	_, subscribed := client.TradeIDs[message.TradeID]
 	return subscribed
 }
 
-// handleWebSocket handles new WebSocket connections
+// HandleWebSocket exposes the WebSocket handler for external routers (public)
+func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
+	s.handleWebSocket(w, r)
+}
+
+// handleWebSocket handles new WebSocket connections (internal)
 func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := s.upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -167,7 +172,7 @@ func (c *Client) readPump() {
 
 	c.Conn.SetReadLimit(512)
 	c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
-	
+
 	for {
 		var msg json.RawMessage
 		err := c.Conn.ReadJSON(&msg)
@@ -180,11 +185,11 @@ func (c *Client) readPump() {
 
 		// Parse message and handle subscriptions
 		var message struct {
-			Type   string          `json:"type"`
-			Data   json.RawMessage `json:"data"`
-			TradeID string         `json:"trade_id,omitempty"`
+			Type    string          `json:"type"`
+			Data    json.RawMessage `json:"data"`
+			TradeID string          `json:"trade_id,omitempty"`
 		}
-		
+
 		if err := json.Unmarshal(msg, &message); err != nil {
 			log.Printf("Message parse error: %v", err)
 			continue
@@ -245,7 +250,7 @@ func (s *Server) BroadcastMessage(messageType string, data interface{}, tradeID 
 		Timestamp: time.Now(),
 		TradeID:   tradeID,
 	}
-	
+
 	select {
 	case s.broadcast <- message:
 	default:
@@ -261,10 +266,10 @@ func (s *Server) BroadcastToUser(userID uuid.UUID, messageType string, data inte
 		Timestamp: time.Now(),
 		UserID:    userID.String(),
 	}
-	
+
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	
+
 	for client := range s.clients {
 		if client.UserID == userID {
 			select {
@@ -281,16 +286,16 @@ func (s *Server) BroadcastToUser(userID uuid.UUID, messageType string, data inte
 func (s *Server) GetConnectedUsers() []uuid.UUID {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	
+
 	users := make([]uuid.UUID, 0, len(s.clients))
 	seen := make(map[uuid.UUID]bool)
-	
+
 	for client := range s.clients {
 		if !seen[client.UserID] {
 			users = append(users, client.UserID)
 			seen[client.UserID] = true
 		}
 	}
-	
+
 	return users
 }

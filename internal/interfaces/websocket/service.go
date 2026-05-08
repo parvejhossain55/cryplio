@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/google/uuid"
 )
@@ -13,6 +14,7 @@ type Service interface {
 	BroadcastMessage(messageType string, data interface{}, tradeID string)
 	BroadcastToUser(userID uuid.UUID, messageType string, data interface{})
 	GetConnectedUsers() []uuid.UUID
+	HandleWebSocket(w http.ResponseWriter, r *http.Request)
 }
 
 // NotificationEvent represents different types of notifications

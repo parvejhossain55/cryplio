@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Bell, CheckCircle2, AlertTriangle, Info, Clock, Check } from "lucide-react";
 import { authService } from "@/services/authService";
 import { useAuth } from "@/context/AuthContext";
+import { wsService } from "@/services/websocketService";
 import Link from "next/link";
 
 const NotificationBell = () => {
@@ -13,11 +14,28 @@ const NotificationBell = () => {
     const [notifications, setNotifications] = useState<any[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
 
+    // Connect to WebSocket and listen for real-time notifications
     useEffect(() => {
         if (user) {
+            // Initial fetch
             fetchNotifications();
-            const interval = setInterval(fetchNotifications, 30000); // Poll every 30s
-            return () => clearInterval(interval);
+            
+            // Connect WebSocket
+            wsService.connect();
+            
+            // Listen for notification events
+            const handleNotification = (data: any) => {
+                if (data.type === 'notification') {
+                    setNotifications(prev => [data.data, ...prev]);
+                    setUnreadCount(prev => prev + 1);
+                }
+            };
+            
+            wsService.on('notification', handleNotification);
+            
+            return () => {
+                wsService.off('notification', handleNotification);
+            };
         }
     }, [user]);
 

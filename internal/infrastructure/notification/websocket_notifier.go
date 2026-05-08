@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	domainNotification "cryplio/internal/domain/notification"
 	"cryplio/internal/interfaces/websocket"
 
 	"github.com/google/uuid"
@@ -170,6 +171,11 @@ func (w *WebSocketNotifier) NotifyReferralBonus(ctx context.Context, userID uuid
 		notificationData)
 
 	log.Printf("Referral bonus notification sent for user %s", userID)
+}
+
+// NotifyUser sends a notification to a specific user (implements WebSocketNotifier interface)
+func (w *WebSocketNotifier) NotifyUser(ctx context.Context, userID uuid.UUID, nType domainNotification.NotificationType, title, message string, data map[string]interface{}) {
+	w.sendNotificationToUser(userID, string(nType), title, message, data)
 }
 
 // sendNotificationToUser sends a notification to a specific user

@@ -3,6 +3,7 @@ package websocket
 import (
 	"context"
 	"log"
+	"net/http"
 	"sync"
 
 	"github.com/google/uuid"
@@ -25,13 +26,13 @@ func NewService() Service {
 // Start starts the WebSocket service
 func (ws *websocketService) Start(ctx context.Context) error {
 	ws.ctx, ws.cancel = context.WithCancel(ctx)
-	
+
 	ws.wg.Add(1)
 	go func() {
 		defer ws.wg.Done()
 		ws.server.Start(ws.ctx)
 	}()
-	
+
 	log.Println("WebSocket service started")
 	return nil
 }
@@ -59,4 +60,9 @@ func (ws *websocketService) BroadcastToUser(userID uuid.UUID, messageType string
 // GetConnectedUsers returns the list of connected user IDs
 func (ws *websocketService) GetConnectedUsers() []uuid.UUID {
 	return ws.server.GetConnectedUsers()
+}
+
+// HandleWebSocket handles WebSocket upgrade requests
+func (ws *websocketService) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
+	ws.server.HandleWebSocket(w, r)
 }

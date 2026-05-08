@@ -5,6 +5,7 @@ import (
 	"cryplio/internal/domain/dispute"
 	"cryplio/internal/domain/identity"
 	"cryplio/internal/domain/notification"
+	"cryplio/internal/domain/platform"
 	"errors"
 	"fmt"
 	"strings"
@@ -53,22 +54,55 @@ type tradeService struct {
 	disputeRepo         dispute.Repository
 	escrowClient        EscrowContractClient
 	notificationService notification.Service
+	platformRepo        platform.PlatformRepository
 }
 
-func NewTradeService(tradeRepo TradeRepository, identityRepo identity.UserRepository, disputeRepo dispute.Repository, escrowClient EscrowContractClient, notificationService notification.Service) TradeService {
+func NewTradeService(tradeRepo TradeRepository, identityRepo identity.UserRepository, disputeRepo dispute.Repository, escrowClient EscrowContractClient, notificationService notification.Service, platformRepo platform.PlatformRepository) TradeService {
 	return &tradeService{
 		tradeRepo:           tradeRepo,
 		identityRepo:        identityRepo,
 		disputeRepo:         disputeRepo,
 		escrowClient:        escrowClient,
 		notificationService: notificationService,
+		platformRepo:        platformRepo,
 	}
 }
 
 func (s *tradeService) ListActiveAds(ctx context.Context, filter AdFilter) ([]TradeAd, int, error) {
 	status := TradeAdStatusActive
 	filter.Status = &status
-	return s.tradeRepo.ListAds(ctx, filter)
+	ads, total, err := s.tradeRepo.ListAds(ctx, filter)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Fetch all payment methods for mapping
+	paymentMethods, _, err := s.platformRepo.GetPaymentMethods(ctx, true, 100, 0)
+	if err != nil {
+		// Log error but don't fail - ads will still work without payment method names
+		paymentMethods = []*platform.PaymentMethod{}
+	}
+
+	// Create ID -> Name map
+	pmMap := make(map[int]string)
+	for _, pm := range paymentMethods {
+		pmMap[pm.ID] = pm.Name
+	}
+
+	// Enrich ads with payment method names
+	for i := range ads {
+		if len(ads[i].PaymentMethods) > 0 {
+			names := make([]string, 0, len(ads[i].PaymentMethods))
+			for _, id := range ads[i].PaymentMethods {
+				if name, ok := pmMap[id]; ok {
+					names = append(names, name)
+				}
+			}
+			ads[i].PaymentMethodNames = names
+		}
+	}
+
+	return ads, total, nil
 }
 
 func (s *tradeService) GetAd(ctx context.Context, id uuid.UUID) (*TradeAd, error) {

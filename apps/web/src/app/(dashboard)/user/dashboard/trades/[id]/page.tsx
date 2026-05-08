@@ -41,6 +41,8 @@ interface TradeDetail {
     payment_details?: any;
     escrow_id?: string;
     dispute_id?: string;
+    payment_window_minutes?: number;
+    timer_expires_at?: string;
 }
 
 const TradeDetailPage = () => {
@@ -62,11 +64,33 @@ const TradeDetailPage = () => {
     const [trade, setTrade] = useState<TradeDetail | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [currentUser, setCurrentUser] = useState<any>(null);
+    const [timeRemaining, setTimeRemaining] = useState<number>(0);
+    const [isActionLoading, setIsActionLoading] = useState<string | null>(null);
 
     useEffect(() => {
         fetchTradeDetail();
         fetchCurrentUser();
     }, [tradeId]);
+
+    // Payment timer countdown
+    useEffect(() => {
+        if (!trade?.timer_expires_at || trade.status !== "active") {
+            setTimeRemaining(0);
+            return;
+        }
+
+        const calculateTimeRemaining = () => {
+            const now = new Date().getTime();
+            const expiryTime = new Date(trade.timer_expires_at as string).getTime();
+            const remaining = Math.max(0, expiryTime - now);
+            setTimeRemaining(remaining);
+        };
+
+        calculateTimeRemaining();
+        const interval = setInterval(calculateTimeRemaining, 1000);
+
+        return () => clearInterval(interval);
+    }, [trade?.timer_expires_at, trade?.status]);
 
     const fetchTradeDetail = async () => {
         setIsLoading(true);
@@ -112,23 +136,45 @@ const TradeDetailPage = () => {
         }
     };
 
+    const formatTimeRemaining = (milliseconds: number) => {
+        if (milliseconds <= 0) return "Expired";
+        
+        const hours = Math.floor(milliseconds / (1000 * 60 * 60));
+        const minutes = Math.floor((milliseconds % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((milliseconds % (1000 * 60)) / 1000);
+        
+        if (hours > 0) {
+            return `${hours}h ${minutes}m ${seconds}s`;
+        } else if (minutes > 0) {
+            return `${minutes}m ${seconds}s`;
+        } else {
+            return `${seconds}s`;
+        }
+    };
+
     const handleMarkAsPaid = async () => {
+        setIsActionLoading("mark_paid");
         try {
             await authService.updateTradeStatus(tradeId, "mark_paid");
             toast.success("Trade marked as paid");
             fetchTradeDetail();
         } catch (error: any) {
             toast.error(error.message || "Failed to mark as paid");
+        } finally {
+            setIsActionLoading(null);
         }
     };
 
     const handleReleaseEscrow = async () => {
+        setIsActionLoading("release");
         try {
             await authService.updateTradeStatus(tradeId, "release");
             toast.success("Escrow released successfully");
             fetchTradeDetail();
         } catch (error: any) {
             toast.error(error.message || "Failed to release escrow");
+        } finally {
+            setIsActionLoading(null);
         }
     };
 
@@ -136,12 +182,30 @@ const TradeDetailPage = () => {
         const reason = prompt("Please enter dispute reason:");
         if (!reason) return;
 
+        setIsActionLoading("dispute");
         try {
             await authService.disputeTrade(tradeId, "OTHER", reason);
             toast.success("Dispute created successfully");
             fetchTradeDetail();
         } catch (error: any) {
             toast.error(error.message || "Failed to create dispute");
+        } finally {
+            setIsActionLoading(null);
+        }
+    };
+
+    const handleCancelTrade = async () => {
+        if (!confirm("Are you sure you want to cancel this trade?")) return;
+        
+        setIsActionLoading("cancel");
+        try {
+            await authService.updateTradeStatus(tradeId, "cancel");
+            toast.success("Trade cancelled successfully");
+            fetchTradeDetail();
+        } catch (error: any) {
+            toast.error(error.message || "Failed to cancel trade");
+        } finally {
+            setIsActionLoading(null);
         }
     };
 
@@ -160,7 +224,7 @@ const TradeDetailPage = () => {
     };
 
     const canMarkAsPaid = () => {
-        return isBuyer() && trade?.status === "active";
+        return isBuyer() && trade?.status === "active" && timeRemaining > 0;
     };
 
     const canReleaseEscrow = () => {
@@ -168,7 +232,15 @@ const TradeDetailPage = () => {
     };
 
     const canDispute = () => {
-        return trade?.status === "active" || trade?.status === "paid";
+        return (trade?.status === "active" || trade?.status === "paid") && !trade?.dispute_id;
+    };
+
+    const canCancel = () => {
+        return trade?.status === "active" && timeRemaining > 0;
+    };
+
+    const isTimerExpired = () => {
+        return trade?.status === "active" && timeRemaining <= 0;
     };
 
     if (isLoading) {
@@ -264,7 +336,7 @@ const TradeDetailPage = () => {
                                         <div>
                                             <p className="text-text-dim text-sm">Created</p>
                                             <p className="text-white font-medium">
-                                                {trade.created_at ? new Date(trade.created_at).toLocaleDateString() : 'Unknown'}
+                                                {trade.created_at ? new Date(trade.created_at as string).toLocaleDateString() : 'Unknown'}
                                             </p>
                                         </div>
                                     </div>
@@ -295,6 +367,43 @@ const TradeDetailPage = () => {
                             </div>
                         )}
 
+                        {/* Payment Timer */}
+                        {trade.status === "active" && (
+                            <div className={`bg-surface border rounded-2xl p-6 ${
+                                isTimerExpired() 
+                                    ? "border-red-500/20 bg-red-500/5" 
+                                    : "border-white/10"
+                            }`}>
+                                <h2 className="text-lg font-black text-white mb-4">Payment Timer</h2>
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-text-dim text-sm mb-1">
+                                            {isBuyer() ? "Time to complete payment" : "Waiting for buyer payment"}
+                                        </p>
+                                        <p className={`text-2xl font-black ${
+                                            isTimerExpired() ? "text-red-500" : "text-white"
+                                        }`}>
+                                            {formatTimeRemaining(timeRemaining)}
+                                        </p>
+                                    </div>
+                                    <div className={`p-3 rounded-full ${
+                                        isTimerExpired() 
+                                            ? "bg-red-500/20 text-red-500" 
+                                            : "bg-primary/20 text-primary"
+                                    }`}>
+                                        <Clock className="w-6 h-6" />
+                                    </div>
+                                </div>
+                                {isTimerExpired() && (
+                                    <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+                                        <p className="text-red-500 text-sm font-medium">
+                                            Payment time expired. Trade will be auto-cancelled or disputed.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         {/* Actions */}
                         <div className="bg-surface border border-white/10 rounded-2xl p-6">
                             <h2 className="text-lg font-black text-white mb-4">Actions</h2>
@@ -302,24 +411,48 @@ const TradeDetailPage = () => {
                                 {canMarkAsPaid() && (
                                     <button
                                         onClick={handleMarkAsPaid}
-                                        className="px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors text-sm font-black uppercase tracking-wider"
+                                        disabled={isActionLoading === "mark_paid"}
+                                        className="px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors text-sm font-black uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                                     >
+                                        {isActionLoading === "mark_paid" ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : null}
                                         Mark as Paid
                                     </button>
                                 )}
                                 {canReleaseEscrow() && (
                                     <button
                                         onClick={handleReleaseEscrow}
-                                        className="px-4 py-2 bg-accent text-white rounded-xl hover:bg-accent/90 transition-colors text-sm font-black uppercase tracking-wider"
+                                        disabled={isActionLoading === "release"}
+                                        className="px-4 py-2 bg-accent text-white rounded-xl hover:bg-accent/90 transition-colors text-sm font-black uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                                     >
+                                        {isActionLoading === "release" ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : null}
                                         Release Escrow
+                                    </button>
+                                )}
+                                {canCancel() && (
+                                    <button
+                                        onClick={handleCancelTrade}
+                                        disabled={isActionLoading === "cancel"}
+                                        className="px-4 py-2 bg-orange-500 text-white rounded-xl hover:bg-orange-500/90 transition-colors text-sm font-black uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                    >
+                                        {isActionLoading === "cancel" ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : null}
+                                        Cancel Trade
                                     </button>
                                 )}
                                 {canDispute() && (
                                     <button
                                         onClick={handleDisputeTrade}
-                                        className="px-4 py-2 bg-red-500 text-white rounded-xl hover:bg-red-500/90 transition-colors text-sm font-black uppercase tracking-wider"
+                                        disabled={isActionLoading === "dispute"}
+                                        className="px-4 py-2 bg-red-500 text-white rounded-xl hover:bg-red-500/90 transition-colors text-sm font-black uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                                     >
+                                        {isActionLoading === "dispute" ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : null}
                                         Open Dispute
                                     </button>
                                 )}

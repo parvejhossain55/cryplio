@@ -27,13 +27,9 @@ CREATE INDEX idx_notifications_type ON notifications(type);
 CREATE TABLE IF NOT EXISTS notification_preferences (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL UNIQUE REFERENCES users(user_id) ON DELETE CASCADE,
-    email_notifications BOOLEAN NOT NULL DEFAULT true,
-    sms_notifications BOOLEAN NOT NULL DEFAULT false,
-    push_notifications BOOLEAN NOT NULL DEFAULT true,
-    trade_updates BOOLEAN NOT NULL DEFAULT true,
-    dispute_updates BOOLEAN NOT NULL DEFAULT true,
-    marketing_emails BOOLEAN NOT NULL DEFAULT false,
-    new_features BOOLEAN NOT NULL DEFAULT true,
+    email_prefs JSONB DEFAULT '{}',
+    push_prefs JSONB DEFAULT '{}',
+    sms_prefs JSONB DEFAULT '{}',
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );

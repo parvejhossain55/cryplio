@@ -40,10 +40,12 @@ type AdFilter struct {
 	Type           *AdType
 	CryptoID       *int
 	FiatID         *int
+	FiatCode       *string
 	PaymentMethods []int
 	MinAmount      *float64
 	UserID         *uuid.UUID
 	Status         *TradeAdStatus
+	SortBy         string // best_price, newest, completion_rate, trade_count
 	Limit          int
 	Offset         int
 }

@@ -3,6 +3,7 @@ package notification
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 
 	"cryplio/internal/domain/notification"
@@ -75,16 +76,50 @@ func (r *notificationRepository) MarkRead(ctx context.Context, id uuid.UUID) err
 func (r *notificationRepository) GetPreferences(ctx context.Context, userID uuid.UUID) (*notification.NotificationPreference, error) {
 	query := `SELECT user_id, email_prefs, push_prefs, sms_prefs, created_at, updated_at FROM notification_preferences WHERE user_id = $1`
 	var p notification.NotificationPreference
-	// Note: We'll need to handle the JSONB fields properly in a real app,
-	// for now we'll just mock the preferences or return a default.
-	var emailPrefs, pushPrefs, smsPrefs interface{}
-	err := r.db.QueryRowContext(ctx, query, userID).Scan(&p.UserID, &emailPrefs, &pushPrefs, &smsPrefs, &p.CreatedAt, &p.UpdatedAt)
+	var emailJSON, pushJSON, smsJSON []byte
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(&p.UserID, &emailJSON, &pushJSON, &smsJSON, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// Return default preferences
 			return &notification.NotificationPreference{UserID: userID}, nil
 		}
-		return nil, err
+		return nil, fmt.Errorf("get preferences: %w", err)
 	}
+
+	// Parse JSONB fields
+	if len(emailJSON) > 0 {
+		json.Unmarshal(emailJSON, &p.Email)
+	}
+	if len(pushJSON) > 0 {
+		json.Unmarshal(pushJSON, &p.Push)
+	}
+	if len(smsJSON) > 0 {
+		json.Unmarshal(smsJSON, &p.SMS)
+	}
+
 	return &p, nil
+}
+
+func (r *notificationRepository) SavePreferences(ctx context.Context, prefs *notification.NotificationPreference) error {
+	// Convert maps to JSON
+	emailJSON, _ := json.Marshal(prefs.Email)
+	pushJSON, _ := json.Marshal(prefs.Push)
+	smsJSON, _ := json.Marshal(prefs.SMS)
+
+	query := `
+		INSERT INTO notification_preferences (user_id, email_prefs, push_prefs, sms_prefs, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, NOW(), NOW())
+		ON CONFLICT (user_id) DO UPDATE SET
+			email_prefs = $2,
+			push_prefs = $3,
+			sms_prefs = $4,
+			updated_at = NOW()
+		RETURNING created_at, updated_at
+	`
+
+	err := r.db.QueryRowContext(ctx, query, prefs.UserID, emailJSON, pushJSON, smsJSON).Scan(&prefs.CreatedAt, &prefs.UpdatedAt)
+	if err != nil {
+		return fmt.Errorf("save preferences: %w", err)
+	}
+	return nil
 }

@@ -59,9 +59,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 const currentUser: BackendUser | null = await authService.getCurrentUser();
                 if (currentUser) {
                     setUser(mapBackendUser(currentUser));
+                    localStorage.setItem("user_id", currentUser.id);
+                } else {
+                    localStorage.removeItem("user_id");
                 }
             } catch (error) {
                 console.error("Failed to check session:", error);
+                localStorage.removeItem("user_id");
             } finally {
                 setIsLoading(false);
             }
@@ -89,6 +93,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         try {
             const backendUser: BackendUser = await authService.login(email, password);
             setUser(mapBackendUser(backendUser));
+            localStorage.setItem("user_id", backendUser.id);
             router.push("/user/dashboard");
         } catch (error) {
             const loginError = error as TwoFactorLoginError;
@@ -100,6 +105,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 if (loginError.tempToken && loginError.user) {
                     sessionStorage.setItem("2fa_temp_token", loginError.tempToken);
                     sessionStorage.setItem("2fa_user_id", loginError.user.id);
+                    localStorage.setItem("user_id", loginError.user.id);
                 }
                 // Redirect to 2FA verification page
                 router.push("/2fa-verify");
@@ -121,6 +127,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
             const backendUser: BackendUser = await authService.complete2FALogin(tempToken, code);
             setUser(mapBackendUser(backendUser));
+            localStorage.setItem("user_id", backendUser.id);
             setRequires2FA(false);
             setTemp2FAToken(null);
             sessionStorage.removeItem("2fa_temp_token");

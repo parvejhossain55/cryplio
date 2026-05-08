@@ -87,6 +87,7 @@ export interface WalletBalance {
     wallet_id: string;
     user_id: string;
     crypto_id: number;
+    crypto_symbol: string;
     address: string;
     balance: number;
     locked_balance: number;
@@ -591,6 +592,23 @@ export const authService = {
         return data.wallets || [];
     },
 
+    createWallet: async (cryptoSymbol: string): Promise<WalletBalance> => {
+        const response = await fetchWithRefresh("/api/v1/wallet", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ crypto_symbol: cryptoSymbol }),
+            credentials: "include",
+        });
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "Failed to create wallet");
+        }
+        const data = await response.json();
+        return data.wallet;
+    },
+
     getDepositAddress: async (cryptoSymbol: string): Promise<{ wallet_id: string; crypto_id: number; address: string }> => {
         const response = await fetchWithRefresh(`/api/v1/wallet/deposit/${encodeURIComponent(cryptoSymbol)}`, {
             credentials: "include",
@@ -602,7 +620,7 @@ export const authService = {
         return await response.json();
     },
 
-    withdrawFunds: async (payload: { crypto_symbol: string; address: string; amount: number; fee?: number; memo?: string }): Promise<any> => {
+    withdrawFunds: async (payload: { crypto_symbol: string; address: string; amount: number; two_fa_code: string; fee?: number; memo?: string }): Promise<any> => {
         const response = await fetchWithRefresh("/api/v1/wallet/withdraw", {
             method: "POST",
             headers: {
@@ -881,6 +899,34 @@ export const authService = {
 
         if (!response.ok) {
             throw new Error("Failed to resolve dispute");
+        }
+
+        return await response.json();
+    },
+
+    // Notification Preferences
+    getNotificationPreferences: async (): Promise<any> => {
+        const response = await fetch("/api/v1/notifications/preferences", {
+            credentials: "include",
+        });
+
+        if (!response.ok) {
+            throw new Error("Failed to fetch notification preferences");
+        }
+
+        return await response.json();
+    },
+
+    saveNotificationPreferences: async (prefs: { email?: any; push?: any; sms?: any }): Promise<any> => {
+        const response = await fetch("/api/v1/notifications/preferences", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(prefs),
+            credentials: "include",
+        });
+
+        if (!response.ok) {
+            throw new Error("Failed to save notification preferences");
         }
 
         return await response.json();

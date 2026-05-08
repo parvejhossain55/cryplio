@@ -109,9 +109,8 @@ func New() (*App, error) {
 	}
 
 	tradeRepo := tradingpostgres.NewTradeRepository(db)
-	tradeService := domaintraing.NewTradeService(tradeRepo, userRepo, disputeRepo, escrowClient, notificationService)
-
 	platformRepo := platformpostgres.NewPlatformRepository(db)
+	tradeService := domaintraing.NewTradeService(tradeRepo, userRepo, disputeRepo, escrowClient, notificationService, platformRepo)
 	platformService := platform.NewPlatformService(platformRepo)
 	walletRepo := walletpostgres.NewWalletRepository(db)
 	walletService := domainwallet.NewService(walletRepo, walletClient)
@@ -128,7 +127,10 @@ func New() (*App, error) {
 
 	// Create WebSocket notifier for real-time notifications
 	emailService := notification.NewMockEmailService("noreply@cryplio.com", "Cryplio")
-	_ = notification.NewWebSocketNotifier(wsService, emailService) // TODO: Integrate with handlers
+	wsNotifier := notification.NewWebSocketNotifier(wsService, emailService)
+
+	// Connect WebSocket notifier to notification service for real-time delivery
+	notificationService.SetWebSocketNotifier(wsNotifier)
 
 	router := httpapi.SetupRouter(cfg, authService, tradeService, platformService, walletService, disputeService, notificationService, storage, rateService, wsService)
 
