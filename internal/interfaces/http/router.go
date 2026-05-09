@@ -148,7 +148,6 @@ func SetupRouter(
 
 			// Wallet
 			auth.GET("/wallet/balance", walletHandler.GetBalancesHandler)
-			auth.POST("/wallet", walletHandler.CreateWalletHandler)
 			auth.GET("/wallet/deposit/:crypto", walletHandler.GetDepositAddressHandler)
 			auth.POST("/wallet/withdraw", walletHandler.WithdrawHandler)
 			auth.GET("/wallet/transactions", walletHandler.GetTransactionsHandler)

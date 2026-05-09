@@ -36,7 +36,7 @@ type CreateAdRequest struct {
 	MaxAmount            float64  `json:"max_amount" binding:"required,gt=0"`
 	PaymentMethods       []int    `json:"payment_methods" binding:"required,min=1"`
 	TradeTerms           string   `json:"trade_terms"`
-	PaymentWindowMinutes int      `json:"payment_window_minutes" binding:"required,min=5,max=60"`
+	PaymentWindowMinutes int      `json:"payment_window_minutes" binding:"required"` // Min/max validated in handler using config
 }
 
 type UpdateAdRequest struct {
@@ -50,7 +50,7 @@ type UpdateAdRequest struct {
 	MaxAmount            float64  `json:"max_amount" binding:"omitempty,gt=0"`
 	PaymentMethods       []int    `json:"payment_methods"`
 	TradeTerms           string   `json:"trade_terms"`
-	PaymentWindowMinutes int      `json:"payment_window_minutes" binding:"omitempty,min=5,max=60"`
+	PaymentWindowMinutes int      `json:"payment_window_minutes"` // Min/max validated in handler using config (0 = no change)
 	Timezone             string   `json:"timezone"`
 }
 

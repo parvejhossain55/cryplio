@@ -8,6 +8,7 @@ import (
 
 type Repository interface {
 	GetByID(ctx context.Context, walletID uuid.UUID) (*Wallet, error)
+	GetByUser(ctx context.Context, userID uuid.UUID) (*Wallet, error)
 	GetByUserAndCrypto(ctx context.Context, userID uuid.UUID, cryptoSymbol string) (*Wallet, error)
 	GetByUserAndCryptoID(ctx context.Context, userID uuid.UUID, cryptoID int) (*Wallet, error)
 	GetCryptoIDBySymbol(ctx context.Context, symbol string) (int, error)

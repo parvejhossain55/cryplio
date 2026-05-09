@@ -59,6 +59,15 @@ func (s *tradeService) CreateAd(ctx context.Context, ad *TradeAd) error {
 	if ad.AdID == uuid.Nil {
 		ad.AdID = uuid.New()
 	}
+	// Validate payment window against configured limits
+	if s.cfg != nil {
+		if ad.PaymentWindowMinutes < s.cfg.TradePaymentWindowMinMinutes {
+			return errors.New("payment window too short")
+		}
+		if ad.PaymentWindowMinutes > s.cfg.TradePaymentWindowMaxMinutes {
+			return errors.New("payment window too long")
+		}
+	}
 	return s.tradeRepo.CreateAd(ctx, ad)
 }
 
@@ -106,6 +115,15 @@ func (s *tradeService) UpdateAd(ctx context.Context, adID, userID uuid.UUID, upd
 		ad.TradeTerms = updates.TradeTerms
 	}
 	if updates.PaymentWindowMinutes > 0 {
+		// Validate payment window against configured limits
+		if s.cfg != nil {
+			if updates.PaymentWindowMinutes < s.cfg.TradePaymentWindowMinMinutes {
+				return errors.New("payment window too short")
+			}
+			if updates.PaymentWindowMinutes > s.cfg.TradePaymentWindowMaxMinutes {
+				return errors.New("payment window too long")
+			}
+		}
 		ad.PaymentWindowMinutes = updates.PaymentWindowMinutes
 	}
 	if updates.Timezone != "" {

@@ -15,7 +15,7 @@ import (
 type Service interface {
 	GetBalances(ctx context.Context, userID uuid.UUID) ([]Wallet, error)
 	GetDepositAddress(ctx context.Context, userID uuid.UUID, cryptoSymbol string) (*Wallet, error)
-	CreateWallet(ctx context.Context, userID uuid.UUID, cryptoSymbol string) (*Wallet, error)
+	CreateDefaultWallet(ctx context.Context, userID uuid.UUID) (*Wallet, error)
 	Withdraw(ctx context.Context, userID uuid.UUID, cryptoSymbol, destination string, amount float64, fee float64, memo *string) (*WalletTransaction, error)
 	GetTransactions(ctx context.Context, userID uuid.UUID, limit, offset int) ([]WalletTransaction, int, error)
 	ListPendingWithdrawals(ctx context.Context, limit, offset int) ([]WalletTransaction, int, error)
@@ -39,29 +39,18 @@ func (s *service) GetBalances(ctx context.Context, userID uuid.UUID) ([]Wallet, 
 	return s.repo.ListByUser(ctx, userID)
 }
 
-func (s *service) CreateWallet(ctx context.Context, userID uuid.UUID, cryptoSymbol string) (*Wallet, error) {
-	symbol := strings.TrimSpace(strings.ToUpper(cryptoSymbol))
-	if symbol == "" {
-		return nil, apperrors.InvalidInput("crypto symbol is required", nil)
-	}
-
-	// Get crypto_id from database (handles duplicates by picking first match)
-	cryptoID, err := s.repo.GetCryptoIDBySymbol(ctx, symbol)
-	if err != nil {
-		return nil, apperrors.NotFound("cryptocurrency not supported", err)
-	}
-
-	// Check if wallet already exists using crypto_id
-	existing, err := s.repo.GetByUserAndCryptoID(ctx, userID, cryptoID)
+func (s *service) CreateDefaultWallet(ctx context.Context, userID uuid.UUID) (*Wallet, error) { // Check if user already has a wallet
+	existing, err := s.repo.GetByUser(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 	if existing != nil {
-		return nil, apperrors.InvalidInput("wallet already exists for this cryptocurrency", nil)
+		return existing, nil
 	}
 
-	// Generate a blockchain address
-	address, err := s.walletClient.CreateDepositAddress(ctx, cryptoID, userID.String())
+	// Generate a deposit address for the wallet
+	// Using cryptoID 0 indicates a generic address not tied to specific crypto
+	address, err := s.walletClient.CreateDepositAddress(ctx, 0, userID.String())
 	if err != nil {
 		return nil, fmt.Errorf("generate deposit address: %w", err)
 	}
@@ -69,7 +58,6 @@ func (s *service) CreateWallet(ctx context.Context, userID uuid.UUID, cryptoSymb
 	wallet := &Wallet{
 		WalletID:      uuid.New(),
 		UserID:        userID,
-		CryptoID:      cryptoID,
 		Address:       address,
 		Balance:       0,
 		LockedBalance: 0,
@@ -79,9 +67,14 @@ func (s *service) CreateWallet(ctx context.Context, userID uuid.UUID, cryptoSymb
 	}
 
 	if err := s.repo.Create(ctx, wallet); err != nil {
-		// Check for unique constraint violation
+		// Check for unique constraint violation - race condition handling
+		// If another request created the wallet, return the existing one
 		if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "unique") {
-			return nil, apperrors.InvalidInput("wallet already exists for this cryptocurrency", nil)
+			existing, getErr := s.repo.GetByUser(ctx, userID)
+			if getErr == nil && existing != nil {
+				return existing, nil
+			}
+			return nil, apperrors.WalletExists("user already has a wallet", err)
 		}
 		return nil, fmt.Errorf("create wallet: %w", err)
 	}

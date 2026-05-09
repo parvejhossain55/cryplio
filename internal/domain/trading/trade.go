@@ -309,10 +309,15 @@ func (s *tradeService) ReconcileExpiredTrades(ctx context.Context) (int, error) 
 }
 
 // FlagAutoDisputesForOverduePaidTrades sets IsAutoDisputeTriggered on trades that have been
-// in the Paid state longer than the provided gracePeriod.
+// in the Paid state longer than the provided gracePeriod. Uses configured default if not specified.
 func (s *tradeService) FlagAutoDisputesForOverduePaidTrades(ctx context.Context, gracePeriod time.Duration) (int, error) {
 	if gracePeriod <= 0 {
-		gracePeriod = time.Hour
+		// Use configured grace period or default to 1 hour
+		if s.cfg != nil && s.cfg.TradeAutoDisputeGracePeriod > 0 {
+			gracePeriod = s.cfg.TradeAutoDisputeGracePeriod
+		} else {
+			gracePeriod = time.Hour
+		}
 	}
 
 	threshold := time.Now().Add(-gracePeriod)

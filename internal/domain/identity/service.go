@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"cryplio/internal/domain/events"
+	"cryplio/internal/domain/wallet"
 
 	"github.com/google/uuid"
 )
@@ -163,6 +164,7 @@ type DashboardStats struct {
 
 type authService struct {
 	userRepo           UserRepository
+	walletService      wallet.Service
 	jwtSecret          string
 	jwtExpiry          time.Duration
 	refreshTokenExpiry time.Duration
@@ -220,5 +222,11 @@ func (s *authService) WithEventDispatcher(dispatcher events.Dispatcher) *authSer
 // verification emails.
 func (s *authService) WithPasswordResetMailer(mailer EmailMailer) *authService {
 	s.emailMailer = mailer
+	return s
+}
+
+// WithWalletService attaches the wallet service for auto-creating wallets on registration.
+func (s *authService) WithWalletService(ws wallet.Service) *authService {
+	s.walletService = ws
 	return s
 }

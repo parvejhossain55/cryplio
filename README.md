@@ -477,10 +477,11 @@ Authenticated endpoints accept the JWT either as:
 
 ### Wallet
 
+> **Note:** Wallets are automatically created when users register. Each user has exactly one wallet (USDT).
+
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| `POST` | `/wallet` | ✅ | Create wallet for a crypto asset |
-| `GET` | `/wallet/balance` | ✅ | All wallet balances |
+| `GET` | `/wallet/balance` | ✅ | Get wallet balance |
 | `GET` | `/wallet/deposit/:crypto` | ✅ | Get deposit address |
 | `POST` | `/wallet/withdraw` | ✅ (2FA required) | Request withdrawal |
 | `GET` | `/wallet/transactions` | ✅ | Transaction history |

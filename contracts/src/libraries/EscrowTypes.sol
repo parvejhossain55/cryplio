@@ -61,8 +61,8 @@ library EscrowTypes {
     }
     
     // Constants
-    uint256 public constant ESCROW_EXPIRY_TIME = 24 hours; // 24 hours for payment
-    uint256 public constant DISPUTE_WINDOW = 7 days;      // 7 days to raise dispute
+    uint256 public constant ESCROW_EXPIRY_TIME = 1 hours; // 1 hours for payment
+    uint256 public constant DISPUTE_WINDOW = 2 days;      // 2 days to raise dispute
     
     // Errors
     error EscrowNotFound();

@@ -86,8 +86,8 @@ export interface AdResponse {
 export interface WalletBalance {
     wallet_id: string;
     user_id: string;
-    crypto_id: number;
-    crypto_symbol: string;
+    crypto_id: number | null;
+    crypto_symbol: string | null;
     address: string;
     balance: number;
     locked_balance: number;
@@ -590,23 +590,6 @@ export const authService = {
         }
         const data = await response.json();
         return data.wallets || [];
-    },
-
-    createWallet: async (cryptoSymbol: string): Promise<WalletBalance> => {
-        const response = await fetchWithRefresh("/api/v1/wallet", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ crypto_symbol: cryptoSymbol }),
-            credentials: "include",
-        });
-        if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.error || "Failed to create wallet");
-        }
-        const data = await response.json();
-        return data.wallet;
     },
 
     getDepositAddress: async (cryptoSymbol: string): Promise<{ wallet_id: string; crypto_id: number; address: string }> => {

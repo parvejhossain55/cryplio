@@ -38,8 +38,8 @@ const (
 type Wallet struct {
 	WalletID      uuid.UUID `db:"wallet_id" json:"wallet_id"`
 	UserID        uuid.UUID `db:"user_id" json:"user_id"`
-	CryptoID      int       `db:"crypto_id" json:"crypto_id"`
-	CryptoSymbol  string    `db:"crypto_symbol" json:"crypto_symbol"`
+	CryptoID      *int      `db:"crypto_id" json:"crypto_id,omitempty"`
+	CryptoSymbol  string    `db:"crypto_symbol" json:"crypto_symbol,omitempty"`
 	Address       string    `db:"address" json:"address"`
 	Balance       float64   `db:"balance" json:"balance"`
 	LockedBalance float64   `db:"locked_balance" json:"locked_balance"`

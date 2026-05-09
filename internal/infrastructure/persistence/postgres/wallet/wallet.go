@@ -20,10 +20,19 @@ const walletColumns = `
 
 // scanWallet scans the standard wallet projection into w.
 func scanWallet(row interface{ Scan(...any) error }, w *domainwallet.Wallet) error {
-	return row.Scan(
-		&w.WalletID, &w.UserID, &w.CryptoID, &w.Address, &w.Balance, &w.LockedBalance,
+	var cryptoID sql.NullInt64
+	err := row.Scan(
+		&w.WalletID, &w.UserID, &cryptoID, &w.Address, &w.Balance, &w.LockedBalance,
 		&w.IsActive, &w.IsPrimary, &w.LastUpdated, &w.CreatedAt,
 	)
+	if err != nil {
+		return err
+	}
+	if cryptoID.Valid {
+		id := int(cryptoID.Int64)
+		w.CryptoID = &id
+	}
+	return nil
 }
 
 func (r *walletRepository) GetByID(ctx context.Context, walletID uuid.UUID) (*domainwallet.Wallet, error) {
@@ -35,6 +44,19 @@ func (r *walletRepository) GetByID(ctx context.Context, walletID uuid.UUID) (*do
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get wallet by id: %w", err)
+	}
+	return &w, nil
+}
+
+func (r *walletRepository) GetByUser(ctx context.Context, userID uuid.UUID) (*domainwallet.Wallet, error) {
+	var w domainwallet.Wallet
+	err := scanWallet(r.db.QueryRowContext(ctx,
+		`SELECT `+walletColumns+` FROM wallets WHERE user_id = $1`, userID), &w)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get wallet by user: %w", err)
 	}
 	return &w, nil
 }
@@ -90,7 +112,7 @@ func (r *walletRepository) ListByUser(ctx context.Context, userID uuid.UUID) ([]
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT w.wallet_id, w.user_id, w.crypto_id, w.address, w.balance, w.locked_balance,
 		       w.is_active, false AS is_primary, w.updated_at AS last_updated, w.created_at,
-		       COALESCE(ca.symbol, 'USDT') AS crypto_symbol
+		       ca.symbol AS crypto_symbol
 		FROM wallets w
 		LEFT JOIN crypto_assets ca ON ca.id = w.crypto_id
 		WHERE w.user_id = $1
@@ -103,11 +125,20 @@ func (r *walletRepository) ListByUser(ctx context.Context, userID uuid.UUID) ([]
 	wallets := make([]domainwallet.Wallet, 0)
 	for rows.Next() {
 		var w domainwallet.Wallet
+		var cryptoID sql.NullInt64
+		var cryptoSymbol sql.NullString
 		if err := rows.Scan(
-			&w.WalletID, &w.UserID, &w.CryptoID, &w.Address, &w.Balance, &w.LockedBalance,
-			&w.IsActive, &w.IsPrimary, &w.LastUpdated, &w.CreatedAt, &w.CryptoSymbol,
+			&w.WalletID, &w.UserID, &cryptoID, &w.Address, &w.Balance, &w.LockedBalance,
+			&w.IsActive, &w.IsPrimary, &w.LastUpdated, &w.CreatedAt, &cryptoSymbol,
 		); err != nil {
 			return nil, fmt.Errorf("scan wallet: %w", err)
+		}
+		if cryptoID.Valid {
+			id := int(cryptoID.Int64)
+			w.CryptoID = &id
+		}
+		if cryptoSymbol.Valid {
+			w.CryptoSymbol = cryptoSymbol.String
 		}
 		wallets = append(wallets, w)
 	}
@@ -115,13 +146,18 @@ func (r *walletRepository) ListByUser(ctx context.Context, userID uuid.UUID) ([]
 }
 
 func (r *walletRepository) Create(ctx context.Context, wallet *domainwallet.Wallet) error {
+	var cryptoID sql.NullInt64
+	if wallet.CryptoID != nil {
+		cryptoID.Int64 = int64(*wallet.CryptoID)
+		cryptoID.Valid = true
+	}
 	return r.db.QueryRowContext(ctx, `
 		INSERT INTO wallets (
 			wallet_id, user_id, crypto_id, address, balance, locked_balance,
 			is_active, address_label, created_at, updated_at
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
 		RETURNING created_at, updated_at`,
-		wallet.WalletID, wallet.UserID, wallet.CryptoID, wallet.Address,
+		wallet.WalletID, wallet.UserID, cryptoID, wallet.Address,
 		wallet.Balance, wallet.LockedBalance, wallet.IsActive, wallet.Address,
 	).Scan(&wallet.CreatedAt, &wallet.LastUpdated)
 }

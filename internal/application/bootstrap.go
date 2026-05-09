@@ -62,28 +62,8 @@ func New() (*App, error) {
 		cfg.EmailFrom,
 		cfg.FrontendURL,
 	)
-	authService := domainidentity.NewAuthService(
-		userRepo,
-		cfg.JWTSecret,
-		cfg.JWTExpiry,
-		cfg.RefreshTokenExpiry,
-		cfg.CookieName,
-		cfg.CookieSecure,
-		cfg.CookieSameSite,
-		cfg.IssuerName,
-	).WithGoogleOAuth(
-		cfg.GoogleClientID,
-		cfg.GoogleClientSecret,
-		cfg.OAuthRedirectURL,
-	).WithPasswordResetMailer(emailClient)
 
-	notificationRepo := notificationpostgres.NewNotificationRepository(db)
-	notificationService := domainnotification.NewService(notificationRepo, emailClient)
-
-	disputeRepo := disputepostgres.NewDisputeRepository(db)
-	disputeService := domaindispute.NewService(disputeRepo)
-
-	// Blockchain Clients
+	// Blockchain Clients (create first so wallet service can be injected into auth service)
 	var escrowClient domaintrading.EscrowContractClient
 	var walletClient domainwallet.WalletClient
 
@@ -113,12 +93,37 @@ func New() (*App, error) {
 		walletClient = blockchain.NewNoopWalletClient()
 	}
 
-	tradeRepo := tradingpostgres.NewTradeRepository(db)
-	platformRepo := platformpostgres.NewPlatformRepository(db)
-	tradeService := domaintrading.NewTradeService(tradeRepo, userRepo, disputeRepo, escrowClient, notificationService, platformRepo)
-	platformService := platform.NewPlatformService(platformRepo)
+	// Create wallet service first so it can be injected into auth service
 	walletRepo := walletpostgres.NewWalletRepository(db)
 	walletService := domainwallet.NewService(walletRepo, walletClient)
+
+	// Create auth service with wallet service for auto-creating wallets on registration
+	authService := domainidentity.NewAuthService(
+		userRepo,
+		cfg.JWTSecret,
+		cfg.JWTExpiry,
+		cfg.RefreshTokenExpiry,
+		cfg.CookieName,
+		cfg.CookieSecure,
+		cfg.CookieSameSite,
+		cfg.IssuerName,
+	).WithGoogleOAuth(
+		cfg.GoogleClientID,
+		cfg.GoogleClientSecret,
+		cfg.OAuthRedirectURL,
+	).WithPasswordResetMailer(emailClient).
+		WithWalletService(walletService)
+
+	notificationRepo := notificationpostgres.NewNotificationRepository(db)
+	notificationService := domainnotification.NewService(notificationRepo, emailClient)
+
+	disputeRepo := disputepostgres.NewDisputeRepository(db)
+	disputeService := domaindispute.NewService(disputeRepo)
+
+	tradeRepo := tradingpostgres.NewTradeRepository(db)
+	platformRepo := platformpostgres.NewPlatformRepository(db)
+	tradeService := domaintrading.NewTradeService(tradeRepo, userRepo, disputeRepo, escrowClient, notificationService, platformRepo, cfg)
+	platformService := platform.NewPlatformService(platformRepo)
 
 	rateService := market.NewRateService()
 

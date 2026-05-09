@@ -2,17 +2,16 @@
 pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./EscrowOperations.sol";
+import "./EscrowState.sol";
 import "../libraries/EscrowTypes.sol";
 
 /**
  * @title EscrowViews
  * @dev Base contract containing view functions for escrow data
  */
-abstract contract EscrowViews is EscrowOperations {
-    
+abstract contract EscrowViews is EscrowState {
     // Constructor
-    constructor(address _usdtToken) EscrowOperations(_usdtToken) {}
+    constructor(address _usdtToken) EscrowState(_usdtToken) {}
     
     /**
      * @dev Get escrow details
@@ -136,10 +135,11 @@ abstract contract EscrowViews is EscrowOperations {
         // Note: This is a simplified implementation
         // In production, you'd want to maintain a separate mapping for counts
         // or use events to track this more efficiently
-        uint256 count = 0;
+        // uint256 count = 0;
         // This would require iterating through all escrows, which is gas-intensive
         // For now, returning 0 as placeholder
-        return count;
+        // return count;
+        // return 0;
     }
     
     /**
@@ -158,8 +158,9 @@ abstract contract EscrowViews is EscrowOperations {
         // Note: This is a simplified implementation
         // In production, you'd want to maintain separate mappings for user escrows
         // or use events to track this more efficiently
-        tradeIds = new bytes32[](limit);
+        // tradeIds = new bytes32[](limit);
         // Placeholder implementation
-        return tradeIds;
+        // return tradeIds;
     }
 }
+

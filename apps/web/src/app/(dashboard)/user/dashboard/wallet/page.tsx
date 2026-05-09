@@ -16,8 +16,7 @@ import {
     Loader2,
     X,
     CheckCircle2,
-    QrCode,
-    Plus
+    QrCode
 } from "lucide-react";
 import { authService, WalletBalance, WalletTransaction } from "@/services/authService";
 import { toast } from "sonner";
@@ -31,7 +30,6 @@ const UserWallet = () => {
     // Modal states
     const [showDepositModal, setShowDepositModal] = useState(false);
     const [showWithdrawModal, setShowWithdrawModal] = useState(false);
-    const [showAddWalletModal, setShowAddWalletModal] = useState(false);
     const [selectedWallet, setSelectedWallet] = useState<WalletBalance | null>(null);
     const [depositAddress, setDepositAddress] = useState<string>("");
     const [withdrawForm, setWithdrawForm] = useState({
@@ -39,7 +37,6 @@ const UserWallet = () => {
         address: "",
         twoFACode: ""
     });
-    const [selectedCrypto, setSelectedCrypto] = useState("USDT");
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const loadWalletData = async () => {
@@ -71,9 +68,10 @@ const UserWallet = () => {
     const handleDeposit = async (wallet: WalletBalance) => {
         setSelectedWallet(wallet);
         setShowDepositModal(true);
-        
+
         try {
-            const addressData = await authService.getDepositAddress(wallet.crypto_symbol);
+            const cryptoSymbol = wallet.crypto_symbol || "USDT";
+            const addressData = await authService.getDepositAddress(cryptoSymbol);
             setDepositAddress(addressData.address);
         } catch (error: any) {
             toast.error("Failed to get deposit address");
@@ -122,25 +120,6 @@ const UserWallet = () => {
         }
     };
 
-    const handleAddWallet = async () => {
-        if (!selectedCrypto) {
-            toast.error("Please select a cryptocurrency");
-            return;
-        }
-
-        setIsSubmitting(true);
-        try {
-            await authService.createWallet(selectedCrypto);
-            toast.success(`${selectedCrypto} wallet created successfully`);
-            setShowAddWalletModal(false);
-            loadWalletData();
-        } catch (error: any) {
-            toast.error(error.message || "Failed to create wallet");
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
         toast.success("Copied to clipboard");
@@ -177,26 +156,21 @@ const UserWallet = () => {
                     <div className="bg-surface border border-white/10 rounded-[2rem] p-6">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-black text-white uppercase">Wallet Balances</h3>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => setShowAddWalletModal(true)}
-                                    className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-accent/20 to-accent/10 hover:from-accent/30 hover:to-accent/20 text-accent rounded-xl transition-all duration-200 border border-accent/20 hover:border-accent/40"
-                                    title="Add Wallet"
-                                >
-                                    <Plus className="w-4 h-4" />
-                                    <span className="text-xs font-bold">Add</span>
-                                </button>
-                                <WalletIcon className="w-4 h-4 text-text-dim" />
-                            </div>
+                            <WalletIcon className="w-4 h-4 text-text-dim" />
                         </div>
                         <div className="space-y-4">
                             {loading && <p className="text-text-dim text-sm">Loading balances...</p>}
-                            {!loading && wallets.length === 0 && <p className="text-text-dim text-sm">No wallets found.</p>}
+                            {!loading && wallets.length === 0 && (
+                                <div className="p-4 rounded-xl bg-white/5 border border-white/5 text-center">
+                                    <p className="text-text-dim text-sm">No wallet found.</p>
+                                    <p className="text-xs text-text-dim/70 mt-1">Your wallet will be created automatically when you register.</p>
+                                </div>
+                            )}
                             {wallets.map((wallet) => (
                                 <div key={wallet.wallet_id} className="p-4 rounded-xl bg-white/5 border border-white/5">
                                     <div className="flex items-center justify-between mb-3">
                                         <div>
-                                            <span className="text-sm font-bold text-white">{wallet.crypto_symbol || "USDT"}</span>
+                                            <span className="text-sm font-bold text-white">Universal Wallet</span>
                                             <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${
                                                 wallet.is_active ? "bg-green-500/20 text-green-500" : "bg-red-500/20 text-red-500"
                                             }`}>
@@ -207,7 +181,7 @@ const UserWallet = () => {
                                     <div className="flex items-center justify-between mb-3">
                                         <div>
                                             <p className="text-xl font-black text-white">{Number(wallet.balance).toFixed(4)}</p>
-                                            <p className="text-xs text-text-dim">Available</p>
+                                            <p className="text-xs text-text-dim">Available Balance</p>
                                         </div>
                                         {Number(wallet.locked_balance) > 0 && (
                                             <div className="text-right">
@@ -433,116 +407,6 @@ const UserWallet = () => {
                 </motion.div>
             )}
 
-            {/* Add Wallet Modal */}
-            {showAddWalletModal && (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4"
-                    onClick={() => setShowAddWalletModal(false)}
-                >
-                    <motion.div
-                        initial={{ scale: 0.9, opacity: 0, y: 20 }}
-                        animate={{ scale: 1, opacity: 1, y: 0 }}
-                        transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                        className="bg-gradient-to-br from-surface to-surface/95 border border-white/10 rounded-3xl p-8 max-w-md w-full shadow-2xl shadow-black/50"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        {/* Header with Icon */}
-                        <div className="flex items-center justify-between mb-8">
-                            <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 bg-gradient-to-br from-accent/20 to-accent/5 rounded-2xl flex items-center justify-center border border-accent/20">
-                                    <WalletIcon className="w-6 h-6 text-accent" />
-                                </div>
-                                <div>
-                                    <h3 className="text-xl font-black text-white">New Wallet</h3>
-                                    <p className="text-xs text-text-dim">Create a crypto wallet</p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => setShowAddWalletModal(false)}
-                                className="p-2 hover:bg-white/5 rounded-xl transition-colors"
-                            >
-                                <X className="w-5 h-5 text-text-dim hover:text-white" />
-                            </button>
-                        </div>
-
-                        <div className="space-y-6">
-                            {/* Crypto Selection Cards */}
-                            <div>
-                                <label className="block text-xs font-bold text-text-dim uppercase tracking-wider mb-3">Select Asset</label>
-                                <div className="grid grid-cols-1 gap-2">
-                                    {[
-                                        { symbol: "USDT", name: "Tether", color: "#26A17B", desc: "Stablecoin" },
-                                        { symbol: "BTC", name: "Bitcoin", color: "#F7931A", desc: "Digital gold" },
-                                        { symbol: "ETH", name: "Ethereum", color: "#627EEA", desc: "Smart contracts" },
-                                    ].map((crypto) => (
-                                        <button
-                                            key={crypto.symbol}
-                                            onClick={() => setSelectedCrypto(crypto.symbol)}
-                                            className={`flex items-center gap-4 p-4 rounded-2xl border transition-all duration-200 ${
-                                                selectedCrypto === crypto.symbol
-                                                    ? "bg-white/10 border-accent/50 shadow-lg shadow-accent/10"
-                                                    : "bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20"
-                                            }`}
-                                        >
-                                            <div
-                                                className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-black text-lg"
-                                                style={{ backgroundColor: `${crypto.color}20`, color: crypto.color }}
-                                            >
-                                                {crypto.symbol[0]}
-                                            </div>
-                                            <div className="flex-1 text-left">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-bold text-white">{crypto.symbol}</span>
-                                                    {selectedCrypto === crypto.symbol && (
-                                                        <div className="w-2 h-2 bg-accent rounded-full" />
-                                                    )}
-                                                </div>
-                                                <p className="text-xs text-text-dim">{crypto.name} • {crypto.desc}</p>
-                                            </div>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Info Card */}
-                            <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/20 rounded-2xl p-4">
-                                <div className="flex items-start gap-3">
-                                    <div className="p-2 bg-yellow-500/20 rounded-xl">
-                                        <AlertTriangle className="w-4 h-4 text-yellow-500" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-bold text-yellow-500 mb-1">One per Asset</p>
-                                        <p className="text-xs text-yellow-500/70 leading-relaxed">
-                                            You can create only one wallet per cryptocurrency. The wallet will be ready for deposits and withdrawals immediately.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Action Button */}
-                            <button
-                                onClick={handleAddWallet}
-                                disabled={isSubmitting}
-                                className="w-full py-4 bg-gradient-to-r from-accent to-accent/80 text-white rounded-2xl font-black uppercase tracking-wider text-sm hover:from-accent/90 hover:to-accent/70 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-accent/20 hover:shadow-accent/30"
-                            >
-                                {isSubmitting ? (
-                                    <>
-                                        <Loader2 className="w-5 h-5 animate-spin" />
-                                        <span>Creating...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Plus className="w-5 h-5" />
-                                        <span>Create {selectedCrypto} Wallet</span>
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    </motion.div>
-                </motion.div>
-            )}
         </DashboardLayout>
     );
 };

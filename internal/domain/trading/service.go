@@ -14,6 +14,7 @@ import (
 	"cryplio/internal/domain/identity"
 	"cryplio/internal/domain/notification"
 	"cryplio/internal/domain/platform"
+	"cryplio/pkg/config"
 	"time"
 
 	"github.com/google/uuid"
@@ -61,6 +62,7 @@ type tradeService struct {
 	escrowClient        EscrowContractClient
 	notificationService notification.Service
 	platformRepo        platform.PlatformRepository
+	cfg                 *config.Config
 }
 
 // NewTradeService constructs a TradeService with all required dependencies.
@@ -71,6 +73,7 @@ func NewTradeService(
 	escrowClient EscrowContractClient,
 	notificationService notification.Service,
 	platformRepo platform.PlatformRepository,
+	cfg *config.Config,
 ) TradeService {
 	return &tradeService{
 		tradeRepo:           tradeRepo,
@@ -79,5 +82,6 @@ func NewTradeService(
 		escrowClient:        escrowClient,
 		notificationService: notificationService,
 		platformRepo:        platformRepo,
+		cfg:                 cfg,
 	}
 }

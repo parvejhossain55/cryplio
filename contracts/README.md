@@ -1,38 +1,29 @@
-# Cryplio Escrow Contract Refactoring
+# Cryplio Escrow Contracts
 
 ## Overview
 
-The original `Escrow.sol` contract has been refactored from a monolithic 317-line contract into a modular architecture with clear separation of concerns. This improves maintainability, testability, and reusability.
+This directory contains the smart contracts for the Cryplio P2P crypto buy/sell platform. The escrow contract has been designed with a modular architecture that separates concerns for better maintainability, testability, and security.
 
 ## Architecture
 
-### Before (Monolithic)
+### Project Structure
 ```
-Escrow.sol (317 lines)
-├── Events
-├── State Variables
-├── Structs & Enums
-├── Modifiers
-├── Core Functions
-├── View Functions
-└── Admin Functions
-```
-
-### After (Modular)
-```
-contracts/src/
-├── libraries/
-│   └── EscrowTypes.sol           # Types, constants, validation
-├── base/
-│   ├── EscrowState.sol           # State management
-│   ├── EscrowAuth.sol            # Authorization & modifiers
-│   ├── EscrowOperations.sol      # Core operations
-│   └── EscrowViews.sol           # View functions
-├── interfaces/
-│   └── IEscrowCore.sol           # External interface
-├── CryplioEscrowRefactored.sol   # Main contract
-└── scripts/
-    └── DeployRefactored.s.sol    # Deployment script
+contracts/
+├── src/
+│   ├── libraries/
+│   │   └── EscrowTypes.sol       # Types, constants, validation
+│   ├── base/
+│   │   ├── EscrowState.sol       # State management
+│   │   ├── EscrowAuth.sol        # Authorization & modifiers
+│   │   ├── EscrowOperations.sol  # Core operations
+│   │   └── EscrowViews.sol       # View functions
+│   ├── interfaces/
+│   │   └── IEscrowCore.sol       # External interface
+│   └── CryplioEscrow.sol         # Main contract
+├── scripts/
+│   └── CryplioDeploy.s.sol    # Deployment script
+└── abi/
+    └── (generated ABIs)
 ```
 
 ## Components
@@ -94,15 +85,15 @@ contracts/src/
 - User escrow queries
 - Inherits from `EscrowOperations`
 
-### 6. CryplioEscrowRefactored Contract
-**File**: `CryplioEscrowRefactored.sol`
+### 6. CryplioEscrow Contract
+**File**: `CryplioEscrow.sol`
 **Purpose**: Main contract that combines all functionality
 
 **Key Features**:
 - Inherits from `EscrowViews` (gets all functionality)
 - Re-exports events for external interfaces
 - `emergencyWithdraw()` for owner
-- `getVersion()` and `getContractInfo()` for metadata
+- `getContractInfo()` for metadata
 - Constructor with deployer authorization
 
 ### 7. IEscrowCore Interface
@@ -113,8 +104,6 @@ contracts/src/
 - All public function signatures
 - Event definitions
 - Standard interface for external contracts
-
-## Benefits of Refactoring
 
 ### 1. **Better Code Organization**
 - Each contract has a single responsibility
@@ -148,6 +137,10 @@ contracts/src/
 
 ## Deployment
 
+### Prerequisites
+- [Foundry](https://book.getfoundry.sh/getting-started/installation) installed
+- USDT token contract address for your target network
+
 ### Using Foundry
 ```bash
 # Install dependencies
@@ -158,29 +151,36 @@ export PRIVATE_KEY=your_private_key
 export USDT_TOKEN_ADDRESS=usdt_contract_address
 
 # Deploy
-forge script script/DeployRefactored.s.sol:DeployRefactored --rpc-url your_rpc_url --broadcast
+forge script scripts/DeployRefactored.s.sol:DeployRefactored --rpc-url your_rpc_url --broadcast
 ```
 
 ### Test Deployment
 ```bash
 # Deploy with mock USDT for testing
-forge script script/DeployRefactored.s.sol:DeployRefactored --sig "deployTest()" --rpc-url your_rpc_url --broadcast
+forge script scripts/DeployRefactored.s.sol:DeployRefactored --sig "deployTest()" --rpc-url your_rpc_url --broadcast
 ```
 
-## Migration Guide
+## Contract Functions
 
-### From Original Contract
-1. Deploy the new refactored contract
-2. Transfer any existing USDT balance to the new contract
-3. Update frontend/backend integrations to use the new contract address
-4. Update authorized contracts and signers
+### Core Operations
+- `createEscrow(bytes32 tradeId, address buyer, address seller, address token, uint256 amount)` - Create a new escrow for a trade
+- `releaseEscrow(bytes32 tradeId)` - Release escrow funds to seller
+- `refundEscrow(bytes32 tradeId)` - Refund escrow funds to buyer
+- `raiseDispute(bytes32 tradeId, string reason)` - Raise a dispute for an escrow
 
-### API Compatibility
-The refactored contract maintains full API compatibility with the original:
-- Same function signatures
-- Same events
-- Same behavior
-- Same gas costs (slightly improved due to custom errors)
+### View Functions
+- `getEscrow(bytes32 tradeId)` - Get escrow details
+- `escrowExists(bytes32 tradeId)` - Check if escrow exists
+- `isEscrowExpired(bytes32 tradeId)` - Check expiration status
+- `getTimeRemaining(bytes32 tradeId)` - Get time until expiry
+- `getUSDTBalance()` - Get contract USDT balance
+
+### Admin Functions
+- `emergencyWithdraw(address token, uint256 amount)` - Owner can withdraw tokens in emergency
+- `addAuthorizedContract(address contract)` - Authorize a contract to interact with escrow
+- `removeAuthorizedContract(address contract)` - Remove authorized contract
+- `addAuthorizedSigner(address signer)` - Add authorized signer
+- `removeAuthorizedSigner(address signer)` - Remove authorized signer
 
 ## Testing
 
@@ -259,20 +259,18 @@ forge test --match-test testIntegration
 ```
 contracts/src/
 ├── libraries/
-│   └── EscrowTypes.sol           (120 lines) - Types, constants, validation
+│   └── EscrowTypes.sol           (~85 lines) - Types, constants, validation
 ├── base/
-│   ├── EscrowState.sol           (85 lines)  - State management
-│   ├── EscrowAuth.sol            (95 lines)  - Authorization
-│   ├── EscrowOperations.sol      (180 lines) - Core operations
-│   └── EscrowViews.sol           (150 lines) - View functions
+│   ├── EscrowState.sol           (~75 lines)  - State management
+│   ├── EscrowAuth.sol            (~90 lines)   - Authorization
+│   ├── EscrowOperations.sol      (~178 lines) - Core operations
+│   └── EscrowViews.sol           (~170 lines) - View functions
 ├── interfaces/
-│   └── IEscrowCore.sol           (95 lines)  - External interface
-├── CryplioEscrowRefactored.sol   (85 lines)  - Main contract
-├── CryplioEscrow.sol             (317 lines) - Original contract
-└── scripts/
-    └── DeployRefactored.s.sol    (85 lines)  - Deployment script
+│   └── IEscrowCore.sol           (~80 lines)  - External interface
+└── CryplioEscrow.sol             (~94 lines)  - Main contract
 
-Total: 1,112 lines (vs 317 lines original)
+contracts/scripts/
+└── DeployRefactored.s.sol        (~69 lines)  - Deployment script
 ```
 
-The refactored version has more lines overall due to better organization, documentation, and separation of concerns, but each individual file is much more focused and maintainable.
+The modular architecture provides better organization, documentation, and separation of concerns. Each file is focused on a specific responsibility, making the codebase more maintainable and testable.

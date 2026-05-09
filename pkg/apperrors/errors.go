@@ -59,6 +59,7 @@ const (
 	ErrCodeWalletNotFound    = "WALLET_NOT_FOUND"
 	ErrCodeDisputeExists     = "DISPUTE_EXISTS"
 	ErrCodeInvalidState      = "INVALID_STATE"
+	ErrCodeWalletExists      = "WALLET_EXISTS"
 )
 
 // Common error constructors
@@ -100,6 +101,10 @@ func InsufficientFunds(message string, err error) *AppError {
 
 func InvalidState(message string, err error) *AppError {
 	return New(ErrCodeInvalidState, message, err)
+}
+
+func WalletExists(message string, err error) *AppError {
+	return New(ErrCodeWalletExists, message, err)
 }
 
 // IsAppError checks if an error is an AppError

@@ -38,32 +38,6 @@ func (h *WalletHandler) GetBalancesHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"wallets": balances})
 }
 
-func (h *WalletHandler) CreateWalletHandler(c *gin.Context) {
-	userID, ok := basehandler.GetUserIDFromContext(c)
-	if !ok {
-		return
-	}
-
-	var req struct {
-		CryptoSymbol string `json:"crypto_symbol" binding:"required"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request", "details": err.Error()})
-		return
-	}
-
-	w, err := h.walletService.CreateWallet(c.Request.Context(), userID, req.CryptoSymbol)
-	if err != nil {
-		basehandler.HandleError(c, err)
-		return
-	}
-
-	c.JSON(http.StatusCreated, gin.H{
-		"wallet":  w,
-		"message": "wallet created successfully",
-	})
-}
-
 func (h *WalletHandler) GetDepositAddressHandler(c *gin.Context) {
 	userID, ok := basehandler.GetUserIDFromContext(c)
 	if !ok {
@@ -77,11 +51,14 @@ func (h *WalletHandler) GetDepositAddressHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	response := gin.H{
 		"wallet_id": w.WalletID,
-		"crypto_id": w.CryptoID,
 		"address":   w.Address,
-	})
+	}
+	if w.CryptoID != nil {
+		response["crypto_id"] = *w.CryptoID
+	}
+	c.JSON(http.StatusOK, response)
 }
 
 type withdrawRequest struct {

@@ -56,6 +56,11 @@ func (s *authService) Register(ctx context.Context, email, username, password st
 		})
 	}
 
+	// Auto-create a default wallet for the new user
+	if s.walletService != nil {
+		_, _ = s.walletService.CreateDefaultWallet(ctx, user.UserID)
+	}
+
 	return user, nil
 }
 

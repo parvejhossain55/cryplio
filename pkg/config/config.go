@@ -74,6 +74,11 @@ type Config struct {
 	EthRPCURL             string
 	EthPrivateKey         string
 	EscrowContractAddress string
+
+	// Escrow timing configuration
+	TradePaymentWindowMinMinutes int
+	TradePaymentWindowMaxMinutes int
+	TradeAutoDisputeGracePeriod  time.Duration
 }
 
 func Load() (*Config, error) {
@@ -156,6 +161,26 @@ func Load() (*Config, error) {
 		EthRPCURL:             getEnvCompat("ETH_RPC_URL", "http://localhost:8545"),
 		EthPrivateKey:         getEnvCompat("ETH_PRIVATE_KEY", ""),
 		EscrowContractAddress: getEnvCompat("ESCROW_CONTRACT_ADDRESS", ""),
+
+		// Escrow timing (defaults: 5-60 min payment window, 1 hour auto-dispute grace)
+		TradePaymentWindowMinMinutes: func() int {
+			if m, err := strconv.Atoi(getEnvCompat("TRADE_PAYMENT_WINDOW_MIN_MINUTES", "5")); err == nil && m > 0 {
+				return m
+			}
+			return 5
+		}(),
+		TradePaymentWindowMaxMinutes: func() int {
+			if m, err := strconv.Atoi(getEnvCompat("TRADE_PAYMENT_WINDOW_MAX_MINUTES", "60")); err == nil && m > 0 {
+				return m
+			}
+			return 60
+		}(),
+		TradeAutoDisputeGracePeriod: func() time.Duration {
+			if d, err := time.ParseDuration(getEnvCompat("TRADE_AUTO_DISPUTE_GRACE_PERIOD", "1h")); err == nil && d > 0 {
+				return d
+			}
+			return time.Hour
+		}(),
 	}
 
 	if strings.ToLower(cfg.AppEnv) == "production" && cfg.JWTSecret == "your-secret-key-change-this" {
