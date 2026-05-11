@@ -23,3 +23,7 @@ func (c *NoopEscrowContractClient) Release(context.Context, *trading.Trade) (str
 func (c *NoopEscrowContractClient) Refund(context.Context, *trading.Trade) (string, error) {
 	return "0xnoop-refund", nil
 }
+
+func (c *NoopEscrowContractClient) AdminRefund(context.Context, *trading.Trade) (string, error) {
+	return "0xnoop-admin-refund", nil
+}

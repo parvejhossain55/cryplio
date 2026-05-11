@@ -7,4 +7,5 @@ type EscrowContractClient interface {
 	Lock(ctx context.Context, trade *Trade) (txHash string, contractAddress string, err error)
 	Release(ctx context.Context, trade *Trade) (txHash string, err error)
 	Refund(ctx context.Context, trade *Trade) (txHash string, err error)
+	AdminRefund(ctx context.Context, trade *Trade) (txHash string, err error)
 }

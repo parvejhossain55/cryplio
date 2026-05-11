@@ -77,7 +77,7 @@ Launch a working P2P trading platform within 6 months with:
 | Execute Trade | Initiate, chat, pay, release, complete | ✅ MVP |
 | Trade Chat | Real-time in-trade chat with file upload | ✅ MVP |
 | Escrow System | USDT locked on trade start, released on confirm | ✅ MVP |
-| Payment Timer | Auto-cancel trade if buyer doesn't pay in time | ✅ MVP |
+| Payment Timer | System-triggered refund to seller if buyer doesn't pay in time | ✅ MVP |
 | Feedback System | Rate counterparty after trade | ✅ MVP |
 | Trade History | View all past trades | ✅ MVP |
 | USDT Wallet (ERC20) | Deposit, withdraw, balance display | ✅ MVP |

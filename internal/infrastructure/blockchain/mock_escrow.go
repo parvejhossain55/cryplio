@@ -26,7 +26,7 @@ type MockEscrow struct {
 	Seller       string    `json:"seller"`
 	Amount       string    `json:"amount"`
 	Token        string    `json:"token"`
-	Status       string    `json:"status"` // "created", "locked", "released", "refunded"
+	Status       string    `json:"status"` // "locked", "released", "refunded"
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 	ReleasedTo   string    `json:"released_to,omitempty"`
@@ -54,7 +54,7 @@ func (m *MockEscrowContractClient) CreateEscrow(ctx context.Context, tradeID uui
 		Seller:    seller,
 		Amount:    amount,
 		Token:     token,
-		Status:    "created",
+		Status:    "locked",
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
@@ -82,14 +82,14 @@ func (m *MockEscrowContractClient) Lock(ctx context.Context, trade *trading.Trad
 			Seller:    trade.SellerID.String(),
 			Amount:    fmt.Sprintf("%.6f", trade.CryptoAmount),
 			Token:     "USDT", // Default token for MVP
-			Status:    "created",
+			Status:    "locked",
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		}
 	}
 
 	escrow := m.escrows[escrowID]
-	if escrow.Status != "created" {
+	if escrow.Status != "locked" {
 		return "", "", fmt.Errorf("escrow cannot be locked, current status: %s", escrow.Status)
 	}
 
@@ -152,6 +152,32 @@ func (m *MockEscrowContractClient) Refund(ctx context.Context, trade *trading.Tr
 	txHash = fmt.Sprintf("0xmocktx_%d", time.Now().UnixNano())
 
 	log.Printf("Mock escrow refunded: %s, tx: %s", escrowID, txHash)
+
+	return txHash, nil
+}
+
+// AdminRefund refunds funds to the seller in the mock escrow (admin bypass)
+func (m *MockEscrowContractClient) AdminRefund(ctx context.Context, trade *trading.Trade) (txHash string, err error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	escrowID := fmt.Sprintf("mock_escrow_%s", trade.TradeID.String())
+	escrow, exists := m.escrows[escrowID]
+	if !exists {
+		return "", fmt.Errorf("escrow not found: %s", escrowID)
+	}
+
+	if escrow.Status != "locked" {
+		return "", fmt.Errorf("escrow cannot be refunded, current status: %s", escrow.Status)
+	}
+
+	escrow.Status = "refunded"
+	escrow.RefundReason = "Admin flexible refund (dispute resolution)"
+	escrow.UpdatedAt = time.Now()
+
+	txHash = fmt.Sprintf("0xmocktx_admin_%d", time.Now().UnixNano())
+
+	log.Printf("Mock admin escrow refunded: %s, tx: %s", escrowID, txHash)
 
 	return txHash, nil
 }

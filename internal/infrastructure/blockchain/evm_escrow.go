@@ -3,8 +3,10 @@ package blockchain
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/json"
 	"fmt"
 	"math/big"
+	"os"
 	"strings"
 
 	trading "cryplio/internal/domain/trading"
@@ -17,64 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
-// CryplioEscrow ABI (simplified version - in production, generate from contract)
-const cryplioEscrowABI = `[
-	{
-		"inputs": [
-			{"internalType": "bytes32", "name": "tradeId", "type": "bytes32"},
-			{"internalType": "address", "name": "buyer", "type": "address"},
-			{"internalType": "address", "name": "seller", "type": "address"},
-			{"internalType": "address", "name": "token", "type": "address"},
-			{"internalType": "uint256", "name": "amount", "type": "uint256"}
-		],
-		"name": "createEscrow",
-		"outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [{"internalType": "bytes32", "name": "tradeId", "type": "bytes32"}],
-		"name": "releaseEscrow",
-		"outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [{"internalType": "bytes32", "name": "tradeId", "type": "bytes32"}],
-		"name": "refundEscrow",
-		"outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{"internalType": "bytes32", "name": "tradeId", "type": "bytes32"},
-			{"internalType": "string", "name": "reason", "type": "string"}
-		],
-		"name": "raiseDispute",
-		"outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [{"internalType": "bytes32", "name": "tradeId", "type": "bytes32"}],
-		"name": "getEscrow",
-		"outputs": [
-			{"internalType": "address", "name": "buyer", "type": "address"},
-			{"internalType": "address", "name": "seller", "type": "address"},
-			{"internalType": "address", "name": "token", "type": "address"},
-			{"internalType": "uint256", "name": "amount", "type": "uint256"},
-			{"internalType": "uint256", "name": "createdAt", "type": "uint256"},
-			{"internalType": "uint256", "name": "expiresAt", "type": "uint256"},
-			{"internalType": "uint8", "name": "status", "type": "uint8"},
-			{"internalType": "address", "name": "disputeRaiser", "type": "address"},
-			{"internalType": "string", "name": "disputeReason", "type": "string"}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	}
-]`
-
 type EvmEscrowClient struct {
 	client     *ethclient.Client
 	privateKey *ecdsa.PrivateKey
@@ -82,9 +26,10 @@ type EvmEscrowClient struct {
 	contract   common.Address
 	chainID    *big.Int
 	auth       *bind.TransactOpts
+	parsedABI  *abi.ABI
 }
 
-func NewEvmEscrowClient(rawUrl string, pkHex string, contractAddr string) (*EvmEscrowClient, error) {
+func NewEvmEscrowClient(rawUrl string, pkHex string, contractAddr string, abiPath string) (*EvmEscrowClient, error) {
 	client, err := ethclient.Dial(rawUrl)
 	if err != nil {
 		return nil, fmt.Errorf("dial eth: %w", err)
@@ -116,6 +61,24 @@ func NewEvmEscrowClient(rawUrl string, pkHex string, contractAddr string) (*EvmE
 	auth.GasLimit = 300000                       // Adjust based on actual gas usage
 	auth.GasPrice = big.NewInt(params.GWei * 20) // 20 Gwei
 
+	// Load and parse ABI from JSON file
+	abiBytes, err := os.ReadFile(abiPath)
+	if err != nil {
+		return nil, fmt.Errorf("read ABI file: %w", err)
+	}
+
+	var abiWrapper struct {
+		ABI json.RawMessage `json:"abi"`
+	}
+	if err := json.Unmarshal(abiBytes, &abiWrapper); err != nil {
+		return nil, fmt.Errorf("unmarshal ABI JSON: %w", err)
+	}
+
+	parsedABI, err := abi.JSON(strings.NewReader(string(abiWrapper.ABI)))
+	if err != nil {
+		return nil, fmt.Errorf("parse ABI: %w", err)
+	}
+
 	return &EvmEscrowClient{
 		client:     client,
 		privateKey: pk,
@@ -123,17 +86,13 @@ func NewEvmEscrowClient(rawUrl string, pkHex string, contractAddr string) (*EvmE
 		contract:   common.HexToAddress(contractAddr),
 		chainID:    chainID,
 		auth:       auth,
+		parsedABI:  &parsedABI,
 	}, nil
 }
 
 func (c *EvmEscrowClient) Lock(ctx context.Context, trade *trading.Trade) (string, string, error) {
 	// Create contract binding
-	parsedABI, err := abi.JSON(strings.NewReader(cryplioEscrowABI))
-	if err != nil {
-		return "", "", fmt.Errorf("parse ABI: %w", err)
-	}
-
-	boundContract := bind.NewBoundContract(c.contract, parsedABI, c.client, c.client, c.client)
+	boundContract := bind.NewBoundContract(c.contract, *c.parsedABI, c.client, c.client, c.client)
 
 	// Convert trade ID to bytes32
 	tradeIdBytes := common.HexToHash(trade.TradeID.String())
@@ -148,11 +107,14 @@ func (c *EvmEscrowClient) Lock(ctx context.Context, trade *trading.Trade) (strin
 	// Convert amount to wei (USDT has 6 decimals)
 	amount := big.NewInt(int64(trade.CryptoAmount * 1000000)) // Convert to USDT smallest unit
 
+	// Expiry time in seconds (e.g. 1 hour = 3600)
+	expiryTime := big.NewInt(3600) // Default for MVP
+
 	// Call createEscrow
 	auth := *c.auth
 	auth.Context = ctx
 
-	tx, err := boundContract.Transact(&auth, "createEscrow", tradeIdBytes, buyerAddr, sellerAddr, usdtAddr, amount)
+	tx, err := boundContract.Transact(&auth, "createEscrow", tradeIdBytes, buyerAddr, sellerAddr, usdtAddr, amount, expiryTime)
 	if err != nil {
 		return "", "", fmt.Errorf("call createEscrow: %w", err)
 	}
@@ -165,12 +127,7 @@ func (c *EvmEscrowClient) Lock(ctx context.Context, trade *trading.Trade) (strin
 }
 
 func (c *EvmEscrowClient) Release(ctx context.Context, trade *trading.Trade) (string, error) {
-	parsedABI, err := abi.JSON(strings.NewReader(cryplioEscrowABI))
-	if err != nil {
-		return "", fmt.Errorf("parse ABI: %w", err)
-	}
-
-	boundContract := bind.NewBoundContract(c.contract, parsedABI, c.client, c.client, c.client)
+	boundContract := bind.NewBoundContract(c.contract, *c.parsedABI, c.client, c.client, c.client)
 
 	tradeIdBytes := common.HexToHash(trade.TradeID.String())
 
@@ -190,12 +147,7 @@ func (c *EvmEscrowClient) Release(ctx context.Context, trade *trading.Trade) (st
 }
 
 func (c *EvmEscrowClient) Refund(ctx context.Context, trade *trading.Trade) (string, error) {
-	parsedABI, err := abi.JSON(strings.NewReader(cryplioEscrowABI))
-	if err != nil {
-		return "", fmt.Errorf("parse ABI: %w", err)
-	}
-
-	boundContract := bind.NewBoundContract(c.contract, parsedABI, c.client, c.client, c.client)
+	boundContract := bind.NewBoundContract(c.contract, *c.parsedABI, c.client, c.client, c.client)
 
 	tradeIdBytes := common.HexToHash(trade.TradeID.String())
 
@@ -214,57 +166,30 @@ func (c *EvmEscrowClient) Refund(ctx context.Context, trade *trading.Trade) (str
 	return tx.Hash().Hex(), nil
 }
 
+func (c *EvmEscrowClient) AdminRefund(ctx context.Context, trade *trading.Trade) (string, error) {
+	return c.Refund(ctx, trade)
+}
+
 // GetEscrowStatus returns the current status of an escrow
 func (c *EvmEscrowClient) GetEscrowStatus(ctx context.Context, tradeId string) (uint8, error) {
-	parsedABI, err := abi.JSON(strings.NewReader(cryplioEscrowABI))
-	if err != nil {
-		return 0, fmt.Errorf("parse ABI: %w", err)
-	}
-
-	boundContract := bind.NewBoundContract(c.contract, parsedABI, c.client, c.client, c.client)
+	boundContract := bind.NewBoundContract(c.contract, *c.parsedABI, c.client, c.client, c.client)
 
 	tradeIdBytes := common.HexToHash(tradeId)
 
 	var results []interface{}
-	err = boundContract.Call(nil, &results, "getEscrow", tradeIdBytes)
+	err := boundContract.Call(nil, &results, "getEscrow", tradeIdBytes)
 	if err != nil {
 		return 0, fmt.Errorf("call getEscrow: %w", err)
 	}
 
-	if len(results) < 7 {
+	if len(results) < 6 {
 		return 0, fmt.Errorf("unexpected result length")
 	}
 
-	status, ok := results[6].(uint8)
+	status, ok := results[5].(uint8)
 	if !ok {
 		return 0, fmt.Errorf("invalid status type")
 	}
 
 	return status, nil
-}
-
-// RaiseDispute creates a dispute for the escrow
-func (c *EvmEscrowClient) RaiseDispute(ctx context.Context, tradeId string, reason string) (string, error) {
-	parsedABI, err := abi.JSON(strings.NewReader(cryplioEscrowABI))
-	if err != nil {
-		return "", fmt.Errorf("parse ABI: %w", err)
-	}
-
-	boundContract := bind.NewBoundContract(c.contract, parsedABI, c.client, c.client, c.client)
-
-	tradeIdBytes := common.HexToHash(tradeId)
-
-	auth := *c.auth
-	auth.Context = ctx
-
-	tx, err := boundContract.Transact(&auth, "raiseDispute", tradeIdBytes, reason)
-	if err != nil {
-		return "", fmt.Errorf("call raiseDispute: %w", err)
-	}
-
-	if tx == nil {
-		return "", fmt.Errorf("transaction was nil")
-	}
-
-	return tx.Hash().Hex(), nil
 }

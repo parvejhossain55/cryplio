@@ -204,7 +204,7 @@ Cryplio MVP is a web-based P2P crypto trading platform. It interfaces with:
 | FR-225 | Countdown timer shown; trade auto-cancels and escrow releases if buyer doesn't pay in time | Critical |
 | FR-226 | Buyer clicks "Mark as Paid" after sending fiat | Critical |
 | FR-227 | Seller clicks "Release" after confirming fiat received — USDT sent to buyer | Critical |
-| FR-228 | Either party can cancel before buyer marks paid; after that only dispute can unlock escrow | Critical |
+| FR-228 | Trade cannot be cancelled by users once USDT is locked in escrow; it must either be released by seller or refunded by admin after expiry | Critical |
 | FR-229 | Every trade gets a unique alphanumeric Trade ID | Critical |
 | FR-230 | Email + in-app notification sent on trade completion | Critical |
 
@@ -247,7 +247,8 @@ Cryplio MVP is a web-based P2P crypto trading platform. It interfaces with:
 | FR-404 | Dispute auto-assigned to an admin moderator within 1 business hour | Critical |
 | FR-405 | Admin must issue ruling within 48 hours of dispute creation | Critical |
 | FR-406 | 3-way dispute chat: admin + buyer + seller | High |
-| FR-407 | Admin can: release escrow to buyer / return to seller | Critical |
+| FR-407 | Admin can: release escrow to buyer (Force Release) / refund to seller (Standard or Flexible) | Critical |
+| FR-408 | Flexible Admin Refund: Authorized admins can refund seller at any time to resolve backend disputes | High |
 | FR-410 | If seller does not release within 1h after buyer marks paid with no action → auto-dispute triggered | High |
 
 **Excluded from MVP:** Appeal process (FR-408), dispute stats on public profile (FR-409)

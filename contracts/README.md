@@ -1,276 +1,117 @@
-# Cryplio Escrow Contracts
+# Cryplio Smart Contract
 
-## Overview
+A secure, non-custodial P2P escrow system specialized for stablecoins (USDT, USDC, DAI).
 
-This directory contains the smart contracts for the Cryplio P2P crypto buy/sell platform. The escrow contract has been designed with a modular architecture that separates concerns for better maintainability, testability, and security.
+## 1. Overview
+Cryplio Escrow facilitates trustless trades between buyers and sellers using stablecoins. It locks seller funds in a smart contract and releases them only after payment confirmation or through an authorized dispute resolution process. By focusing exclusively on stablecoins, the platform ensures that trade values remain stable during the escrow period.
 
-## Architecture
+## 2. Key Features
+- **Non-Custodial**: Users maintain control over their funds through the smart contract.
+- **Meta-Transactions (EIP-712)**: Supports gasless escrow creation for a better user experience.
+- **Dispute Resolution**: Authorized admin signers can resolve conflicts by refunding or force-releasing funds.
+- **Emergency Pause**: Built-in circuit breaker for emergency situations.
+- **Fee Mechanism**: 
+    - **Standard Release Fee**: 0.75% (75 BPS)
+    - **Refund Fee**: 0.25% (25 BPS)
+- **Gas Optimized**: Efficient storage packing and caching to minimize transaction costs.
 
-### Project Structure
-```
-contracts/
-├── src/
-│   ├── libraries/
-│   │   └── EscrowTypes.sol       # Types, constants, validation
-│   ├── base/
-│   │   ├── EscrowState.sol       # State management
-│   │   ├── EscrowAuth.sol        # Authorization & modifiers
-│   │   ├── EscrowOperations.sol  # Core operations
-│   │   └── EscrowViews.sol       # View functions
-│   ├── interfaces/
-│   │   └── IEscrowCore.sol       # External interface
-│   └── CryplioEscrow.sol         # Main contract
-├── scripts/
-│   └── CryplioDeploy.s.sol    # Deployment script
-└── abi/
-    └── (generated ABIs)
-```
+## 3. Architecture
+The system is built using a modular inheritance structure:
+- **[CryplioEscrow.sol](file:///home/parvej/Project/Cryplio_Smart_Contract/src/CryplioEscrow.sol)**: The main entry point that combines all functionalities.
+- **[EscrowOperations.sol](file:///home/parvej/Project/Cryplio_Smart_Contract/src/base/EscrowOperations.sol)**: Handles state-changing logic (creation, release, refund).
+- **[EscrowAuth.sol](file:///home/parvej/Project/Cryplio_Smart_Contract/src/base/EscrowAuth.sol)**: Manages access control, admin signers, and emergency pause.
+- **[EscrowState.sol](file:///home/parvej/Project/Cryplio_Smart_Contract/src/base/EscrowState.sol)**: Defines the storage layout and internal state management.
+- **[EscrowTypes.sol](file:///home/parvej/Project/Cryplio_Smart_Contract/src/lib/EscrowTypes.sol)**: Central library for events, errors, structs, and validation logic.
+- **[ICryplioEscrow.sol](file:///home/parvej/Project/Cryplio_Smart_Contract/src/interface/ICrpylioEscrow.sol)**: External interface defining the public API.
 
-## Components
+## 4. Development & Usage
+This project uses [Foundry](https://book.getfoundry.sh/).
 
-### 1. EscrowTypes Library
-**File**: `libraries/EscrowTypes.sol`
-**Purpose**: Shared types, constants, events, and validation functions
-
-**Key Features**:
-- `Escrow` struct definition
-- `EscrowStatus` enum
-- All contract events
-- Constants (`ESCROW_EXPIRY_TIME`, `DISPUTE_WINDOW`)
-- Custom errors for better gas efficiency
-- Validation functions (`validateTradeId`, `validateAddresses`, etc.)
-
-### 2. EscrowState Contract
-**File**: `base/EscrowState.sol`
-**Purpose**: State management and storage
-
-**Key Features**:
-- All storage variables (`escrows`, `authorizedContracts`, etc.)
-- Internal state modification functions
-- State retrieval functions
-- Authorization state management
-
-### 3. EscrowAuth Contract
-**File**: `base/EscrowAuth.sol`
-**Purpose**: Authorization logic and modifiers
-
-**Key Features**:
-- All authorization modifiers (`onlyAuthorized`, `validEscrow`, etc.)
-- Owner functions for managing authorized addresses
-- Authorization view functions
-- Inherits from `EscrowState` and `Ownable`
-
-### 4. EscrowOperations Contract
-**File**: `base/EscrowOperations.sol`
-**Purpose**: Core escrow operations
-
-**Key Features**:
-- `createEscrow()` - Create new escrow
-- `releaseEscrow()` - Release funds to seller
-- `refundEscrow()` - Refund funds to buyer
-- `raiseDispute()` - Raise dispute for escrow
-- Event emissions
-- Inherits from `EscrowAuth` and `ReentrancyGuard`
-
-### 5. EscrowViews Contract
-**File**: `base/EscrowViews.sol`
-**Purpose**: View functions and data queries
-
-**Key Features**:
-- `getEscrow()` - Get escrow details
-- `escrowExists()` - Check if escrow exists
-- `isEscrowExpired()` - Check expiration status
-- `getTimeRemaining()` - Get time until expiry
-- `getUSDTBalance()` - Get contract balance
-- User escrow queries
-- Inherits from `EscrowOperations`
-
-### 6. CryplioEscrow Contract
-**File**: `CryplioEscrow.sol`
-**Purpose**: Main contract that combines all functionality
-
-**Key Features**:
-- Inherits from `EscrowViews` (gets all functionality)
-- Re-exports events for external interfaces
-- `emergencyWithdraw()` for owner
-- `getContractInfo()` for metadata
-- Constructor with deployer authorization
-
-### 7. IEscrowCore Interface
-**File**: `interfaces/IEscrowCore.sol`
-**Purpose**: External interface for escrow interaction
-
-**Key Features**:
-- All public function signatures
-- Event definitions
-- Standard interface for external contracts
-
-### 1. **Better Code Organization**
-- Each contract has a single responsibility
-- Clear separation of concerns
-- Easier to navigate and understand
-
-### 2. **Improved Maintainability**
-- Changes to specific functionality are isolated
-- Reduced risk of breaking unrelated features
-- Easier to add new features
-
-### 3. **Enhanced Testability**
-- Each component can be tested independently
-- Mock implementations for testing
-- Focused unit tests
-
-### 4. **Reusability**
-- Components can be reused in other contracts
-- Library functions can be shared
-- Interface-based design
-
-### 5. **Gas Efficiency**
-- Custom errors instead of string messages
-- Optimized validation functions
-- Reduced deployment size
-
-### 6. **Better Documentation**
-- Each component is self-documented
-- Clear purpose and responsibilities
-- Easier onboarding for new developers
-
-## Deployment
-
-### Prerequisites
-- [Foundry](https://book.getfoundry.sh/getting-started/installation) installed
-- USDT token contract address for your target network
-
-### Using Foundry
-```bash
-# Install dependencies
+### Installation
+```shell
 forge install
-
-# Set environment variables
-export PRIVATE_KEY=your_private_key
-export USDT_TOKEN_ADDRESS=usdt_contract_address
-
-# Deploy
-forge script scripts/DeployRefactored.s.sol:DeployRefactored --rpc-url your_rpc_url --broadcast
 ```
 
-### Test Deployment
-```bash
-# Deploy with mock USDT for testing
-forge script scripts/DeployRefactored.s.sol:DeployRefactored --sig "deployTest()" --rpc-url your_rpc_url --broadcast
+### Local Development
+
+1. **Start Anvil**:
+   ```shell
+   anvil
+   ```
+2. **Deploy Mock USDT** (Optional, for local testing):
+   ```shell
+   source .env && forge script script/DeployMockUSDT.s.sol:DeployMockUSDT --rpc-url http://127.0.0.1:8545 --broadcast
+   ```
+3. **Deploy CryplioEscrow**:
+   ```shell
+   source .env && forge script script/Deploy.s.sol:DeployCryplioEscrow --rpc-url http://127.0.0.1:8545 --broadcast
+   ```
+
+### Build
+```shell
+forge build
 ```
 
-## Contract Functions
-
-### Core Operations
-- `createEscrow(bytes32 tradeId, address buyer, address seller, address token, uint256 amount)` - Create a new escrow for a trade
-- `releaseEscrow(bytes32 tradeId)` - Release escrow funds to seller
-- `refundEscrow(bytes32 tradeId)` - Refund escrow funds to buyer
-- `raiseDispute(bytes32 tradeId, string reason)` - Raise a dispute for an escrow
-
-### View Functions
-- `getEscrow(bytes32 tradeId)` - Get escrow details
-- `escrowExists(bytes32 tradeId)` - Check if escrow exists
-- `isEscrowExpired(bytes32 tradeId)` - Check expiration status
-- `getTimeRemaining(bytes32 tradeId)` - Get time until expiry
-- `getUSDTBalance()` - Get contract USDT balance
-
-### Admin Functions
-- `emergencyWithdraw(address token, uint256 amount)` - Owner can withdraw tokens in emergency
-- `addAuthorizedContract(address contract)` - Authorize a contract to interact with escrow
-- `removeAuthorizedContract(address contract)` - Remove authorized contract
-- `addAuthorizedSigner(address signer)` - Add authorized signer
-- `removeAuthorizedSigner(address signer)` - Remove authorized signer
-
-## Testing
-
-### Unit Tests
-```bash
-# Run all tests
-forge test
-
-# Run tests for specific component
-forge test --match-contract EscrowOperationsTest
-forge test --match-contract EscrowViewsTest
+### Test
+```shell
+forge test --match-path test/CryplioEscrow.t.sol
 ```
 
-### Integration Tests
-```bash
-# Run integration tests
-forge test --match-test testIntegration
+### Deploy
+Deployment scripts are located in `script/`.
+
+1. Create a `.env` file based on [.env.example](./.env.example):
+   ```shell
+   cp .env.example .env
+   ```
+2. Fill in your variables in `.env`.
+3. Run the deployment script:
+   ```shell
+   source .env && forge script script/Deploy.s.sol:DeployCryplioEscrow --rpc-url $SEPOLIA_RPC_URL --broadcast --verify
+   ```
+
+**Required Environment Variables:**
+- `PRIVATE_KEY`: Deployer's private key.
+- `FEE_RECIPIENT`: Address to receive platform fees.
+- `INITIAL_TOKEN_ADDRESS`: First supported ERC20 token.
+- `INITIAL_SIGNER`: First authorized admin signer.
+
+## 5. Integration Guide
+
+### Creating an Escrow (On-chain)
+```solidity
+escrow.createEscrow(tradeId, buyer, seller, token, amount, expiryTime);
 ```
 
-## Gas Optimization
-
-### Custom Errors
-- Replaced string messages with custom errors
-- Saves ~50-100 gas per revert
-- Better error handling
-
-### Validation Library
-- Centralized validation functions
-- Reduced code duplication
-- Consistent validation logic
-
-### Storage Optimization
-- Efficient storage layout
-- Minimal storage slots
-- Optimized struct packing
-
-## Security Considerations
-
-### 1. **Access Control**
-- Maintains same authorization model
-- Owner can manage authorized contracts and signers
-- Modifier-based protection
-
-### 2. **Reentrancy Protection**
-- All state-changing functions use `nonReentrant`
-- Consistent with original contract
-
-### 3. **Input Validation**
-- Enhanced validation with custom errors
-- Centralized validation logic
-- Consistent error messages
-
-### 4. **Emergency Functions**
-- `emergencyWithdraw()` for owner
-- Same security model as original
-
-## Future Enhancements
-
-### 1. **Upgradeability**
-- Can be extended with proxy patterns
-- Modular design facilitates upgrades
-- Interface-based compatibility
-
-### 2. **Multi-Token Support**
-- Library design makes it easy to add new tokens
-- Validation functions can be extended
-- Type-safe token handling
-
-### 3. **Advanced Features**
-- Dispute resolution system
-- Automated expiry handling
-- Fee mechanisms
-
-## File Structure Summary
-
-```
-contracts/src/
-├── libraries/
-│   └── EscrowTypes.sol           (~85 lines) - Types, constants, validation
-├── base/
-│   ├── EscrowState.sol           (~75 lines)  - State management
-│   ├── EscrowAuth.sol            (~90 lines)   - Authorization
-│   ├── EscrowOperations.sol      (~178 lines) - Core operations
-│   └── EscrowViews.sol           (~170 lines) - View functions
-├── interfaces/
-│   └── IEscrowCore.sol           (~80 lines)  - External interface
-└── CryplioEscrow.sol             (~94 lines)  - Main contract
-
-contracts/scripts/
-└── DeployRefactored.s.sol        (~69 lines)  - Deployment script
+### Creating an Escrow (Meta-transaction)
+1. Sign the `CreateEscrow` struct hash following EIP-712.
+2. Submit via:
+```solidity
+escrow.createEscrowMeta(tradeId, buyer, seller, token, amount, expiryTime, nonce, signature);
 ```
 
-The modular architecture provides better organization, documentation, and separation of concerns. Each file is focused on a specific responsibility, making the codebase more maintainable and testable.
+## 6. Security & Safety
+- **Reentrancy Protection**: All state-changing functions use OpenZeppelin's `ReentrancyGuard`.
+- **Emergency Pause**: The owner can pause new escrow creations in case of emergency.
+- **Token Whitelisting**: Only owner-approved ERC20 tokens can be used.
+- **Signatures**: Uses EIP-712 standard for all meta-transactions to prevent replay attacks.
+
+## 7. Interaction Guide (using Cast)
+
+### Read Operations
+```shell
+# Check if token is supported
+cast call <ESCROW_ADDR> "isTokenSupported(address)(bool)" <TOKEN_ADDR> --rpc-url $RPC_URL
+```
+
+### Write Operations
+```shell
+# 1. Approve tokens
+cast send <TOKEN_ADDR> "approve(address,uint256)" <ESCROW_ADDR> <AMOUNT> --private-key $PRIV_KEY --rpc-url $RPC_URL
+
+# 2. Create Escrow
+cast send <ESCROW_ADDR> "createEscrow(bytes32,address,address,address,uint256,uint256)" <TRADE_ID> <BUYER> <SELLER> <TOKEN> <AMOUNT> <EXPIRY> --private-key $PRIV_KEY --rpc-url $RPC_URL
+```
+
+## License
+This project is licensed under the MIT License.

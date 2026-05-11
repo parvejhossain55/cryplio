@@ -68,7 +68,7 @@ func New() (*App, error) {
 	var walletClient domainwallet.WalletClient
 
 	if cfg.EscrowContractAddress != "" && cfg.EthRPCURL != "" {
-		evmEscrow, err := blockchain.NewEvmEscrowClient(cfg.EthRPCURL, cfg.EthPrivateKey, cfg.EscrowContractAddress)
+		evmEscrow, err := blockchain.NewEvmEscrowClient(cfg.EthRPCURL, cfg.EthPrivateKey, cfg.EscrowContractAddress, cfg.EscrowABIPath)
 		if err == nil {
 			escrowClient = evmEscrow
 		} else {
@@ -89,8 +89,11 @@ func New() (*App, error) {
 			walletClient = blockchain.NewNoopWalletClient()
 		}
 	} else {
-		escrowClient = blockchain.NewNoopEscrowContractClient()
 		walletClient = blockchain.NewNoopWalletClient()
+	}
+
+	if escrowClient == nil {
+		escrowClient = blockchain.NewNoopEscrowContractClient()
 	}
 
 	// Create wallet service first so it can be injected into auth service

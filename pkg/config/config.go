@@ -74,6 +74,7 @@ type Config struct {
 	EthRPCURL             string
 	EthPrivateKey         string
 	EscrowContractAddress string
+	EscrowABIPath         string
 
 	// Escrow timing configuration
 	TradePaymentWindowMinMinutes int
@@ -161,6 +162,7 @@ func Load() (*Config, error) {
 		EthRPCURL:             getEnvCompat("ETH_RPC_URL", "http://localhost:8545"),
 		EthPrivateKey:         getEnvCompat("ETH_PRIVATE_KEY", ""),
 		EscrowContractAddress: getEnvCompat("ESCROW_CONTRACT_ADDRESS", ""),
+		EscrowABIPath:         getEnvCompat("ESCROW_ABI_PATH", "contracts/out/CryplioEscrow.sol/CryplioEscrow.json"),
 
 		// Escrow timing (defaults: 5-60 min payment window, 1 hour auto-dispute grace)
 		TradePaymentWindowMinMinutes: func() int {
