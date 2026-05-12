@@ -8,11 +8,11 @@ import (
 
 // RegisterUserUseCase coordinates user registration.
 type RegisterUserUseCase struct {
-	authService identity.AuthService
+	registrar identity.UserRegistrar
 }
 
-func NewRegisterUserUseCase(authService identity.AuthService) *RegisterUserUseCase {
-	return &RegisterUserUseCase{authService: authService}
+func NewRegisterUserUseCase(registrar identity.UserRegistrar) *RegisterUserUseCase {
+	return &RegisterUserUseCase{registrar: registrar}
 }
 
 type RegisterUserInput struct {
@@ -22,5 +22,5 @@ type RegisterUserInput struct {
 }
 
 func (uc *RegisterUserUseCase) Execute(ctx context.Context, input RegisterUserInput) (*identity.User, error) {
-	return uc.authService.Register(ctx, input.Email, input.Username, input.Password)
+	return uc.registrar.Register(ctx, input.Email, input.Username, input.Password)
 }

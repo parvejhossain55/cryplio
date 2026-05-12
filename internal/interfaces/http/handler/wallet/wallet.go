@@ -15,12 +15,21 @@ import (
 )
 
 type WalletHandler struct {
-	walletService walletdomain.Service
-	authService   identity.AuthService
+	walletService    walletdomain.Service
+	profileManager   identity.ProfileManager
+	twoFactorManager identity.TwoFactorManager
 }
 
-func NewWalletHandler(walletService walletdomain.Service, authService identity.AuthService) *WalletHandler {
-	return &WalletHandler{walletService: walletService, authService: authService}
+func NewWalletHandler(
+	walletService walletdomain.Service,
+	profileManager identity.ProfileManager,
+	twoFactorManager identity.TwoFactorManager,
+) *WalletHandler {
+	return &WalletHandler{
+		walletService:    walletService,
+		profileManager:   profileManager,
+		twoFactorManager: twoFactorManager,
+	}
 }
 
 func (h *WalletHandler) GetBalancesHandler(c *gin.Context) {
@@ -76,12 +85,12 @@ func (h *WalletHandler) WithdrawHandler(c *gin.Context) {
 	}
 
 	// Check if 2FA is enabled for withdrawals
-	user, err := h.authService.GetUserByID(c.Request.Context(), userID)
+	user, err := h.profileManager.GetUserByID(c.Request.Context(), userID)
 	if err != nil {
 		basehandler.HandleError(c, err)
 		return
 	}
-	if !h.authService.Is2FAEnabled(user) {
+	if !h.twoFactorManager.Is2FAEnabled(user) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "2FA is required for withdrawals"})
 		return
 	}

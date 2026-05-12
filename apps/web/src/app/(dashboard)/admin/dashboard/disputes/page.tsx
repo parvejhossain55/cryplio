@@ -20,7 +20,7 @@ import {
     Download
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import { authService } from "@/services/authService";
+import { adminService } from "@/services/adminService";
 import { toast } from "sonner";
 import Link from "next/link";
 
@@ -38,7 +38,7 @@ const AdminDisputesPage = () => {
     const fetchDisputes = async () => {
         setIsLoading(true);
         try {
-            const data = await authService.getAdminDisputes();
+            const data = await adminService.getDisputes();
             setDisputes(data || []);
         } catch (err: any) {
             console.error(err.message);
@@ -49,7 +49,7 @@ const AdminDisputesPage = () => {
 
     const handleAssign = async (disputeId: string) => {
         try {
-            await authService.assignDispute(disputeId);
+            await adminService.assignDispute(disputeId);
             toast.success("Dispute assigned to you");
             fetchDisputes();
         } catch (err: any) {
@@ -65,7 +65,7 @@ const AdminDisputesPage = () => {
                 onClick: async () => {
                     try {
                         const dispute = disputes.find(d => d.dispute_id === disputeId);
-                        await authService.resolveDispute(disputeId, resolution, dispute.raised_by);
+                        await adminService.resolveDispute(disputeId, resolution, dispute.raised_by);
                         toast.success("Dispute resolved successfully");
                         fetchDisputes();
                     } catch (err: any) {

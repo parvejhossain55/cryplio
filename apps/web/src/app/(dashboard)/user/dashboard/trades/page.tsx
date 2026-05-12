@@ -17,7 +17,7 @@ import {
     ExternalLink
 } from "lucide-react";
 import Link from "next/link";
-import { authService } from "@/services/authService";
+import { tradeService } from "@/services/tradeService";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 
 const UserTradesPage = () => {
@@ -32,7 +32,7 @@ const UserTradesPage = () => {
     const fetchTrades = async () => {
         setIsLoading(true);
         try {
-            const data = await authService.getMyTrades();
+            const data = await tradeService.getMyTrades();
             setTrades(data || []);
         } catch (err: any) {
             console.error(err.message);

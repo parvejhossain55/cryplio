@@ -101,16 +101,16 @@ func New() (*App, error) {
 	walletService := domainwallet.NewService(walletRepo, walletClient)
 
 	// Create auth service with wallet service for auto-creating wallets on registration
-	authService := domainidentity.NewAuthService(
-		userRepo,
-		cfg.JWTSecret,
-		cfg.JWTExpiry,
-		cfg.RefreshTokenExpiry,
-		cfg.CookieName,
-		cfg.CookieSecure,
-		cfg.CookieSameSite,
-		cfg.IssuerName,
-	).WithGoogleOAuth(
+	authService := domainidentity.NewAuthService(domainidentity.AuthServiceConfig{
+		UserRepo:           userRepo,
+		JWTSecret:          cfg.JWTSecret,
+		JWTExpiry:          cfg.JWTExpiry,
+		RefreshTokenExpiry: cfg.RefreshTokenExpiry,
+		CookieName:         cfg.CookieName,
+		CookieSecure:       cfg.CookieSecure,
+		CookieSameSite:     cfg.CookieSameSite,
+		IssuerName:         cfg.IssuerName,
+	}).WithGoogleOAuth(
 		cfg.GoogleClientID,
 		cfg.GoogleClientSecret,
 		cfg.OAuthRedirectURL,
@@ -125,7 +125,15 @@ func New() (*App, error) {
 
 	tradeRepo := tradingpostgres.NewTradeRepository(db)
 	platformRepo := platformpostgres.NewPlatformRepository(db)
-	tradeService := domaintrading.NewTradeService(tradeRepo, userRepo, disputeRepo, escrowClient, notificationService, platformRepo, cfg)
+	tradeService := domaintrading.NewTradeService(domaintrading.TradeServiceConfig{
+		TradeRepo:           tradeRepo,
+		IdentityRepo:        userRepo,
+		DisputeRepo:         disputeRepo,
+		EscrowClient:        escrowClient,
+		NotificationService: notificationService,
+		PlatformRepo:        platformRepo,
+		Cfg:                 cfg,
+	})
 	platformService := platform.NewPlatformService(platformRepo)
 
 	rateService := market.NewRateService()

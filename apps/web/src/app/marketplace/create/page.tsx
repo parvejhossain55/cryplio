@@ -19,7 +19,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import { authService } from "@/services/authService";
+import { tradeService } from "@/services/tradeService";
 
 const CreateAdPage = () => {
     const router = useRouter();
@@ -100,7 +100,7 @@ const CreateAdPage = () => {
                 payment_window_minutes: paymentWindow,
             };
 
-            await authService.createAd(adData);
+            await tradeService.createAd(adData);
             setSuccess(true);
             setTimeout(() => router.push("/marketplace"), 2000);
         } catch (err: any) {

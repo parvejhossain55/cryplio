@@ -51,7 +51,7 @@ func (h *TradeHandler) ListAdsHandler(c *gin.Context) {
 		}
 	}
 
-	ads, total, err := h.tradeService.ListActiveAds(c.Request.Context(), filter)
+	ads, total, err := h.adManager.ListActiveAds(c.Request.Context(), filter)
 	if err != nil {
 		basehandler.HandleError(c, err)
 		return
@@ -126,19 +126,18 @@ func (h *TradeHandler) CreateAdHandler(c *gin.Context) {
 		Status:               trading.TradeAdStatusActive,
 	}
 
-	if err := h.tradeService.CreateAd(c.Request.Context(), ad); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if err := h.adManager.CreateAd(c.Request.Context(), ad); err != nil {
+		basehandler.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, ad)
+	c.JSON(http.StatusCreated, gin.H{"message": "Ad created successfully", "ad_id": ad.AdID})
 }
 
-// UpdateAdHandler updates an existing trade advertisement owned by the authenticated user.
+// UpdateAdHandler updates an existing trade advertisement.
 func (h *TradeHandler) UpdateAdHandler(c *gin.Context) {
-	adID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid ad id"})
+	adID, ok := basehandler.ParseUUIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -168,19 +167,18 @@ func (h *TradeHandler) UpdateAdHandler(c *gin.Context) {
 		Timezone:             req.Timezone,
 	}
 
-	if err := h.tradeService.UpdateAd(c.Request.Context(), adID, userID, updates); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := h.adManager.UpdateAd(c.Request.Context(), adID, userID, updates); err != nil {
+		basehandler.HandleError(c, err)
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Ad updated successfully"})
 }
 
-// DeleteAdHandler removes a trade advertisement owned by the authenticated user.
+// DeleteAdHandler removes a trade advertisement.
 func (h *TradeHandler) DeleteAdHandler(c *gin.Context) {
-	adID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid ad id"})
+	adID, ok := basehandler.ParseUUIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -189,24 +187,24 @@ func (h *TradeHandler) DeleteAdHandler(c *gin.Context) {
 		return
 	}
 
-	if err := h.tradeService.DeleteAd(c.Request.Context(), adID, userID); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := h.adManager.DeleteAd(c.Request.Context(), adID, userID); err != nil {
+		basehandler.HandleError(c, err)
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Ad deleted successfully"})
 }
 
-// ListMyAdsHandler returns all advertisements belonging to the authenticated user.
-func (h *TradeHandler) ListMyAdsHandler(c *gin.Context) {
+// ListUserAdsHandler returns all advertisements belonging to the authenticated user.
+func (h *TradeHandler) ListUserAdsHandler(c *gin.Context) {
 	userID, ok := basehandler.GetUserIDFromContext(c)
 	if !ok {
 		return
 	}
 
-	ads, total, err := h.tradeService.ListUserAds(c.Request.Context(), userID)
+	ads, total, err := h.adManager.ListUserAds(c.Request.Context(), userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		basehandler.HandleError(c, err)
 		return
 	}
 
@@ -225,7 +223,7 @@ func (h *TradeHandler) ListMyAdsHandler(c *gin.Context) {
 			Price:                ad.Price,
 			MinAmount:            ad.MinAmount,
 			MaxAmount:            ad.MaxAmount,
-			PaymentMethods:       []string{}, // TODO: map IDs to names
+			PaymentMethods:       ad.PaymentMethodNames,
 			PaymentWindowMinutes: ad.PaymentWindowMinutes,
 		}
 	}
@@ -235,9 +233,8 @@ func (h *TradeHandler) ListMyAdsHandler(c *gin.Context) {
 
 // ToggleAdStatusHandler pauses or activates a trade advertisement.
 func (h *TradeHandler) ToggleAdStatusHandler(c *gin.Context) {
-	adID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid ad id"})
+	adID, ok := basehandler.ParseUUIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -246,8 +243,8 @@ func (h *TradeHandler) ToggleAdStatusHandler(c *gin.Context) {
 		return
 	}
 
-	if err := h.tradeService.ToggleAdStatus(c.Request.Context(), adID, userID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if err := h.adManager.ToggleAdStatus(c.Request.Context(), adID, userID); err != nil {
+		basehandler.HandleError(c, err)
 		return
 	}
 

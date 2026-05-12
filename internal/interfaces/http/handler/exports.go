@@ -14,3 +14,8 @@ func HandleError(c *gin.Context, err error) {
 func GetUserIDFromContext(c *gin.Context) (uuid.UUID, bool) {
 	return getUserIDFromContext(c)
 }
+
+// ParseUUIDParam is the exported variant of parseUUIDParam for use by handler sub-packages.
+func ParseUUIDParam(c *gin.Context, name string) (uuid.UUID, bool) {
+	return parseUUIDParam(c, name)
+}

@@ -18,7 +18,8 @@ import {
     CheckCircle2,
     QrCode
 } from "lucide-react";
-import { authService, WalletBalance, WalletTransaction } from "@/services/authService";
+import { walletService } from "@/services/walletService";
+import { WalletBalance, WalletTransaction } from "@/types/api";
 import { toast } from "sonner";
 
 const UserWallet = () => {
@@ -44,8 +45,8 @@ const UserWallet = () => {
         setError(null);
         try {
             const [walletData, txData] = await Promise.all([
-                authService.getWalletBalances(),
-                authService.getWalletTransactions({ limit: 10, offset: 0 }),
+                walletService.getBalances(),
+                walletService.getTransactions({ limit: 10, offset: 0 }),
             ]);
             setWallets(walletData);
             setTransactions(txData.transactions);
@@ -71,7 +72,7 @@ const UserWallet = () => {
 
         try {
             const cryptoSymbol = wallet.crypto_symbol || "USDT";
-            const addressData = await authService.getDepositAddress(cryptoSymbol);
+            const addressData = await walletService.getDepositAddress(cryptoSymbol);
             setDepositAddress(addressData.address);
         } catch (error: any) {
             toast.error("Failed to get deposit address");
@@ -102,7 +103,7 @@ const UserWallet = () => {
 
         setIsSubmitting(true);
         try {
-            await authService.withdrawFunds({
+            await walletService.withdraw({
                 crypto_symbol: selectedWallet?.crypto_symbol || "USDT",
                 amount: Number(withdrawForm.amount),
                 address: withdrawForm.address,

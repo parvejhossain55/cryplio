@@ -5,6 +5,7 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { authService } from "@/services/authService";
+import { userService } from "@/services/userService";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import ProfileEdit from "@/components/settings/user/ProfileSettings";
 import AlertsSettings from "@/components/settings/user/AlertsSettings";
@@ -133,7 +134,7 @@ export default function SettingsPage() {
     const loadSessions = async () => {
         setIsLoadingSessions(true);
         try {
-            const sessionList = await authService.getSessions();
+            const sessionList = await userService.getSessions();
             setSessions(sessionList);
         } catch (error) {
             console.error("Failed to load sessions:", error);
@@ -186,7 +187,7 @@ export default function SettingsPage() {
     const confirmRevokeSession = async () => {
         if (!selectedTokenId) return;
         try {
-            await authService.revokeSession(selectedTokenId);
+            await userService.revokeSession(selectedTokenId);
             setSessions(sessions.filter(s => s.token_id !== selectedTokenId));
             toast.success("Session revoked successfully");
         } catch (error: any) {
@@ -231,7 +232,7 @@ export default function SettingsPage() {
     const confirmLogoutAll = async () => {
         try {
             for (const session of sessions) {
-                await authService.revokeSession(session.token_id);
+                await userService.revokeSession(session.token_id);
             }
             setSessions([]);
             toast.success("Logged out from all devices successfully");

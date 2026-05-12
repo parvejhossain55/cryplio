@@ -8,7 +8,8 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import ConfirmModal from "@/components/ui/ConfirmModal";
-import { authService, UserPaymentMethod } from "@/services/authService";
+import { userService } from "@/services/userService";
+import { UserPaymentMethod } from "@/types/api";
 
 // Supported payment method types (matches DB seed data)
 const PAYMENT_METHOD_OPTIONS = [
@@ -76,10 +77,10 @@ const MethodModal = ({ initial, onClose, onSaved }: MethodFormProps) => {
             };
 
             if (isEdit && initial?.id) {
-                await authService.updatePaymentMethod(initial.id, payload);
+                await userService.updatePaymentMethod(initial.id, payload);
                 toast.success("Payment method updated");
             } else {
-                await authService.createPaymentMethod(payload);
+                await userService.createPaymentMethod(payload);
                 toast.success("Payment method added");
             }
             onSaved();
@@ -245,7 +246,7 @@ const PaymentSettings = () => {
     const fetchMethods = async () => {
         setIsLoading(true);
         try {
-            const data = await authService.getPaymentMethods();
+            const data = await userService.getPaymentMethods();
             setMethods(data);
         } catch (err: any) {
             toast.error(err.message || "Failed to load payment methods");
@@ -260,7 +261,7 @@ const PaymentSettings = () => {
         if (!deleteTarget) return;
         setIsDeleting(true);
         try {
-            await authService.deletePaymentMethod(deleteTarget);
+            await userService.deletePaymentMethod(deleteTarget);
             setMethods(prev => prev.filter(m => m.id !== deleteTarget));
             toast.success("Payment method removed");
         } catch (err: any) {
@@ -273,7 +274,7 @@ const PaymentSettings = () => {
 
     const handleSetDefault = async (id: string) => {
         try {
-            await authService.setDefaultPaymentMethod(id);
+            await userService.setDefaultPaymentMethod(id);
             setMethods(prev => prev.map(m => ({ ...m, is_default: m.id === id })));
             toast.success("Default payment method updated");
         } catch (err: any) {

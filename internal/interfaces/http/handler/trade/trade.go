@@ -15,12 +15,26 @@ import (
 
 // TradeHandler handles all trade-related HTTP endpoints.
 type TradeHandler struct {
-	tradeService trading.TradeService
-	storage      storage.ObjectStorage
-	wsService    websocket.Service
+	adManager     trading.AdManager
+	lifecycle     trading.TradeLifecycleManager
+	communication trading.TradeCommunicationManager
+	storage       storage.ObjectStorage
+	wsService     websocket.Service
 }
 
 // NewTradeHandler creates a new TradeHandler.
-func NewTradeHandler(service trading.TradeService, storage storage.ObjectStorage, wsService websocket.Service) *TradeHandler {
-	return &TradeHandler{tradeService: service, storage: storage, wsService: wsService}
+func NewTradeHandler(
+	adManager trading.AdManager,
+	lifecycle trading.TradeLifecycleManager,
+	communication trading.TradeCommunicationManager,
+	storage storage.ObjectStorage,
+	wsService websocket.Service,
+) *TradeHandler {
+	return &TradeHandler{
+		adManager:     adManager,
+		lifecycle:     lifecycle,
+		communication: communication,
+		storage:       storage,
+		wsService:     wsService,
+	}
 }

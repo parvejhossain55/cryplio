@@ -20,19 +20,19 @@ import (
 // It is intentionally separate from AuthHandler to keep auth concerns
 // and admin management concerns independent.
 type AdminHandler struct {
-	authService    identity.AuthService
+	adminManager   identity.UserAdminManager
 	tradeService   trading.TradeService
 	disputeService dispute.Service
 }
 
 // NewAdminHandler creates a new AdminHandler.
 func NewAdminHandler(
-	authService identity.AuthService,
+	adminManager identity.UserAdminManager,
 	tradeService trading.TradeService,
 	disputeService dispute.Service,
 ) *AdminHandler {
 	return &AdminHandler{
-		authService:    authService,
+		adminManager:   adminManager,
 		tradeService:   tradeService,
 		disputeService: disputeService,
 	}
@@ -43,8 +43,8 @@ func (h *AdminHandler) GetDashboardStatsHandler(c *gin.Context) {
 	ctx := c.Request.Context()
 	stats := identity.DashboardStats{}
 
-	if h.authService != nil {
-		stats.TotalUsers, _ = h.authService.CountUsers(ctx)
+	if h.adminManager != nil {
+		stats.TotalUsers, _ = h.adminManager.CountUsers(ctx)
 	}
 	if h.tradeService != nil {
 		stats.TotalTrades, _ = h.tradeService.CountTrades(ctx, "")
@@ -78,7 +78,7 @@ func (h *AdminHandler) ListUsersHandler(c *gin.Context) {
 		fmt.Sscanf(o, "%d", &offset)
 	}
 
-	users, err := h.authService.ListUsers(c.Request.Context(), limit, offset)
+	users, err := h.adminManager.ListUsers(c.Request.Context(), limit, offset)
 	if err != nil {
 		basehandler.HandleError(c, err)
 		return
@@ -118,7 +118,7 @@ func (h *AdminHandler) SuspendUserHandler(c *gin.Context) {
 		duration = &d
 	}
 
-	if err := h.authService.SuspendUser(c.Request.Context(), adminID, userID, req.Reason, duration); err != nil {
+	if err := h.adminManager.SuspendUser(c.Request.Context(), adminID, userID, req.Reason, duration); err != nil {
 		basehandler.HandleError(c, err)
 		return
 	}
@@ -137,7 +137,7 @@ func (h *AdminHandler) UnsuspendUserHandler(c *gin.Context) {
 		return
 	}
 
-	if err := h.authService.UnsuspendUser(c.Request.Context(), adminID, userID); err != nil {
+	if err := h.adminManager.UnsuspendUser(c.Request.Context(), adminID, userID); err != nil {
 		basehandler.HandleError(c, err)
 		return
 	}
@@ -164,7 +164,7 @@ func (h *AdminHandler) BanUserHandler(c *gin.Context) {
 		return
 	}
 
-	if err := h.authService.BanUser(c.Request.Context(), adminID, userID, req.Reason); err != nil {
+	if err := h.adminManager.BanUser(c.Request.Context(), adminID, userID, req.Reason); err != nil {
 		basehandler.HandleError(c, err)
 		return
 	}
@@ -182,7 +182,7 @@ func (h *AdminHandler) UnbanUserHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
 		return
 	}
-	if err := h.authService.UnbanUser(c.Request.Context(), adminID, userID); err != nil {
+	if err := h.adminManager.UnbanUser(c.Request.Context(), adminID, userID); err != nil {
 		basehandler.HandleError(c, err)
 		return
 	}

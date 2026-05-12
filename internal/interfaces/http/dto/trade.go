@@ -25,6 +25,10 @@ type ListAdsResponse struct {
 	Total int          `json:"total"`
 }
 
+type ListTradesResponse struct {
+	Trades []any `json:"trades"`
+}
+
 type CreateAdRequest struct {
 	Type                 string   `json:"type" binding:"required,oneof=buy sell"`
 	CryptoID             int      `json:"crypto_id" binding:"required"`

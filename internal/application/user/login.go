@@ -8,11 +8,11 @@ import (
 
 // LoginUseCase coordinates user authentication.
 type LoginUseCase struct {
-	authService identity.AuthService
+	authenticator identity.Authenticator
 }
 
-func NewLoginUseCase(authService identity.AuthService) *LoginUseCase {
-	return &LoginUseCase{authService: authService}
+func NewLoginUseCase(authenticator identity.Authenticator) *LoginUseCase {
+	return &LoginUseCase{authenticator: authenticator}
 }
 
 type LoginInput struct {
@@ -26,7 +26,7 @@ type LoginOutput struct {
 }
 
 func (uc *LoginUseCase) Execute(ctx context.Context, input LoginInput) (*LoginOutput, error) {
-	access, _, user, err := uc.authService.Login(ctx, input.Email, input.Password)
+	access, _, user, err := uc.authenticator.Login(ctx, input.Email, input.Password)
 	if err != nil {
 		return nil, err
 	}

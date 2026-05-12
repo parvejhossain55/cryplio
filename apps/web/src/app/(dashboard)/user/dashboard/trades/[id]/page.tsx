@@ -16,7 +16,8 @@ import {
     Download
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { authService } from "@/services/authService";
+import { tradeService } from "@/services/tradeService";
+import { userService } from "@/services/userService";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import TradeChat from "@/components/trade/TradeChat";
 import { toast } from "sonner";
@@ -95,11 +96,11 @@ const TradeDetailPage = () => {
     const fetchTradeDetail = async () => {
         setIsLoading(true);
         try {
-            const data = await authService.getTradeDetails(tradeId);
+            const data = await tradeService.getTradeDetails(tradeId);
             setTrade(data);
         } catch (error: any) {
-            console.error("Error fetching trade detail:", error);
             toast.error("Failed to load trade details");
+            router.push("/user/dashboard/trades");
         } finally {
             setIsLoading(false);
         }
@@ -107,10 +108,23 @@ const TradeDetailPage = () => {
 
     const fetchCurrentUser = async () => {
         try {
-            const user = await authService.getCurrentUser();
+            const user = await userService.getCurrentUser();
             setCurrentUser(user);
         } catch (error) {
-            console.error("Error fetching current user:", error);
+            console.error("Failed to fetch current user:", error);
+        }
+    };
+
+    const handleAction = async (action: string) => {
+        setIsActionLoading(action);
+        try {
+            await tradeService.updateTradeStatus(tradeId, action);
+            toast.success(`Trade ${action === "pay" ? "marked as paid" : (action === "release" ? "released" : "cancelled")}`);
+            fetchTradeDetail();
+        } catch (error: any) {
+            toast.error(error.message || `Failed to ${action} trade`);
+        } finally {
+            setIsActionLoading(null);
         }
     };
 
@@ -155,7 +169,7 @@ const TradeDetailPage = () => {
     const handleMarkAsPaid = async () => {
         setIsActionLoading("mark_paid");
         try {
-            await authService.updateTradeStatus(tradeId, "mark_paid");
+            await tradeService.updateTradeStatus(tradeId, "mark_paid");
             toast.success("Trade marked as paid");
             fetchTradeDetail();
         } catch (error: any) {
@@ -168,7 +182,7 @@ const TradeDetailPage = () => {
     const handleReleaseEscrow = async () => {
         setIsActionLoading("release");
         try {
-            await authService.updateTradeStatus(tradeId, "release");
+            await tradeService.updateTradeStatus(tradeId, "release");
             toast.success("Escrow released successfully");
             fetchTradeDetail();
         } catch (error: any) {
@@ -184,7 +198,7 @@ const TradeDetailPage = () => {
 
         setIsActionLoading("dispute");
         try {
-            await authService.disputeTrade(tradeId, "OTHER", reason);
+            await tradeService.disputeTrade(tradeId, "OTHER", reason);
             toast.success("Dispute created successfully");
             fetchTradeDetail();
         } catch (error: any) {
@@ -199,7 +213,7 @@ const TradeDetailPage = () => {
         
         setIsActionLoading("cancel");
         try {
-            await authService.updateTradeStatus(tradeId, "cancel");
+            await tradeService.updateTradeStatus(tradeId, "cancel");
             toast.success("Trade cancelled successfully");
             fetchTradeDetail();
         } catch (error: any) {

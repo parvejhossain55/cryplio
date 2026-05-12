@@ -163,10 +163,10 @@ func (s *authService) RefreshToken(ctx context.Context, refreshTokenString strin
 
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
-		return "", "", nil, apperrors.NotFound("user not found", err)
+		return "", "", nil, apperrors.Unauthorized("user not found", err)
 	}
 	if user == nil || user.IsDeleted() {
-		return "", "", nil, apperrors.NotFound("user not found", nil)
+		return "", "", nil, apperrors.Unauthorized("user not found", nil)
 	}
 
 	// Rotate: delete old session, create new one.

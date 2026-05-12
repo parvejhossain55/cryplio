@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
     phone_verified BOOLEAN NOT NULL DEFAULT false,
     email_verified BOOLEAN NOT NULL DEFAULT false,
     status user_status NOT NULL DEFAULT 'pending',
+    role VARCHAR(20) NOT NULL DEFAULT 'user',
     avatar_url VARCHAR(500),
     bio VARCHAR(200),
     timezone VARCHAR(50) DEFAULT 'UTC',

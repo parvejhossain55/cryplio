@@ -21,7 +21,7 @@ func (h *AuthHandler) Setup2FAHandler(c *gin.Context) {
 		return
 	}
 
-	secret, uri, err := h.authService.Setup2FA(c.Request.Context(), userID)
+	secret, uri, err := h.twoFactorManager.Setup2FA(c.Request.Context(), userID)
 	if err != nil {
 		basehandler.HandleError(c, err)
 		return
@@ -44,7 +44,7 @@ func (h *AuthHandler) Verify2FAHandler(c *gin.Context) {
 		return
 	}
 
-	if err := h.authService.Verify2FA(c.Request.Context(), userID, req.Code); err != nil {
+	if err := h.twoFactorManager.Verify2FA(c.Request.Context(), userID, req.Code); err != nil {
 		basehandler.HandleError(c, err)
 		return
 	}
@@ -65,7 +65,7 @@ func (h *AuthHandler) Disable2FAHandler(c *gin.Context) {
 		return
 	}
 
-	if err := h.authService.Disable2FA(c.Request.Context(), userID, req.Password); err != nil {
+	if err := h.twoFactorManager.Disable2FA(c.Request.Context(), userID, req.Password); err != nil {
 		basehandler.HandleError(c, err)
 		return
 	}
@@ -82,7 +82,7 @@ func (h *AuthHandler) GetSessionsHandler(c *gin.Context) {
 		return
 	}
 
-	sessions, err := h.authService.GetSessionsByUserID(c.Request.Context(), userID)
+	sessions, err := h.sessionManager.GetSessionsByUserID(c.Request.Context(), userID)
 	if err != nil {
 		basehandler.HandleError(c, err)
 		return
@@ -107,7 +107,7 @@ func (h *AuthHandler) DeleteSessionHandler(c *gin.Context) {
 		return
 	}
 
-	if err := h.authService.DeleteSession(c.Request.Context(), tokenID); err != nil {
+	if err := h.sessionManager.DeleteSession(c.Request.Context(), tokenID); err != nil {
 		basehandler.HandleError(c, err)
 		return
 	}

@@ -6,7 +6,8 @@ import { Search, Filter, ArrowUpRight, ChevronDown, CheckCircle2, ShieldCheck, C
 import { toast } from "sonner";
 import Link from "next/link";
 import Pagination from "@/components/ui/Pagination";
-import { authService, AdResponse } from "@/services/authService";
+import { tradeService } from "@/services/tradeService";
+import { AdResponse } from "@/types/api";
 
 const p2pAds = [
     // USD - BUY
@@ -83,11 +84,11 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
         const fetchAds = async () => {
             setIsLoading(true);
             try {
-                const data = await authService.getAds({
+                const data = await tradeService.getAds({
                     type: activeTab,
                 });
 
-                if (!data || data.length === 0) {
+                if (!data.ads || data.ads.length === 0) {
                     const mockMapped: AdResponse[] = p2pAds
                         .filter(ad => ad.type === activeTab && ad.currency === selectedFiat && ad.coin === selectedCoin)
                         .map((ad, idx) => ({
@@ -99,40 +100,20 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
                             type: ad.type as "buy" | "sell",
                             crypto_symbol: ad.coin,
                             fiat_symbol: ad.currency,
+                            price_type: "fixed",
                             price: parseFloat(ad.price.replace(/,/g, "")),
-                            min_amount: parseFloat(ad.limits.split("-")[0].replace(/,/g, "")),
-                            max_amount: parseFloat(ad.limits.split("-")[1].replace(/,/g, "")),
+                            min_amount: parseFloat(ad.limits.split(" - ")[0]?.replace(/,/g, "") || ad.limits.split("-")[0].replace(/,/g, "")),
+                            max_amount: parseFloat(ad.limits.split(" - ")[1]?.replace(/,/g, "").replace("M", "000000") || ad.limits.split("-")[1].replace(/,/g, "")),
                             payment_methods: ad.methods,
-                            payment_window_minutes: parseInt(ad.time.split(" ")[0]),
-                            is_online: true,
-                            price_type: "fixed"
+                            payment_window_minutes: parseInt(ad.time.replace(/\D/g, "")),
+                            is_online: true
                         }));
                     setAds(mockMapped);
                 } else {
-                    setAds(data);
+                    setAds(data.ads);
                 }
             } catch (error) {
-                // Fallen back to mock data if API is temporarily unavailable
-                const mockMapped: AdResponse[] = p2pAds
-                    .filter(ad => ad.type === activeTab && ad.currency === selectedFiat && ad.coin === selectedCoin)
-                    .map((ad, idx) => ({
-                        ad_id: `mock-${idx}`,
-                        user_id: `user-${ad.user}`,
-                        username: ad.user,
-                        user_trades: parseInt(ad.trades.replace(/\D/g, "")),
-                        user_rating: parseFloat(ad.rating.replace("%", "")),
-                        type: ad.type as "buy" | "sell",
-                        crypto_symbol: ad.coin,
-                        fiat_symbol: ad.currency,
-                        price: parseFloat(ad.price.replace(/,/g, "")),
-                        min_amount: parseFloat(ad.limits.split("-")[0].replace(/,/g, "")),
-                        max_amount: parseFloat(ad.limits.split("-")[1].replace(/,/g, "")),
-                        payment_methods: ad.methods,
-                        payment_window_minutes: parseInt(ad.time.split(" ")[0]),
-                        is_online: true,
-                        price_type: "fixed"
-                    }));
-                setAds(mockMapped);
+                console.error("Failed to fetch ads:", error);
             } finally {
                 setIsLoading(false);
             }
@@ -140,6 +121,24 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
 
         fetchAds();
     }, [activeTab, selectedCoin, selectedFiat]);
+
+    const handleInitiateTrade = async () => {
+        if (!selectedAd || !tradeAmount) return;
+        
+        setIsInitiating(true);
+        setInitiationError(null);
+        
+        try {
+            const result = await tradeService.initiateTrade(selectedAd.ad_id, parseFloat(tradeAmount));
+            toast.success("Trade initiated successfully!");
+            window.location.href = `/marketplace/trade/${result.trade_id}`;
+        } catch (err: any) {
+            setInitiationError(err.message || "Failed to initiate trade");
+            toast.error(err.message || "Failed to initiate trade");
+        } finally {
+            setIsInitiating(false);
+        }
+    };
 
     const fiats = [
         { code: "USD", name: "US Dollar" },
@@ -504,20 +503,8 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
 
                                 <div className="flex gap-4">
                                     <button
-                                        disabled={isInitiating}
-                                        onClick={async () => {
-                                            setIsInitiating(true);
-                                            setInitiationError(null);
-                                            try {
-                                                const amount = parseFloat(tradeAmount);
-                                                const result = await authService.initiateTrade(selectedAd.ad_id, amount);
-                                                window.location.href = `/marketplace/trade/${result.trade_id}`;
-                                            } catch (err: any) {
-                                                setInitiationError(err.message);
-                                            } finally {
-                                                setIsInitiating(false);
-                                            }
-                                        }}
+                                        disabled={isInitiating || !tradeAmount}
+                                        onClick={handleInitiateTrade}
                                         className="flex-1 py-6 bg-primary text-white rounded-[2rem] font-black uppercase tracking-widest text-xs hover:scale-105 active:scale-95 transition-all shadow-xl shadow-primary/20 disabled:opacity-50"
                                     >
                                         {isInitiating ? "Initiating..." : `Start ${activeTab === "buy" ? "Buy" : "Sell"} Trade`}

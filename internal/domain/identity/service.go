@@ -182,25 +182,27 @@ type authService struct {
 // NewAuthService constructs an authService with the required dependencies.
 // Optional capabilities (Google OAuth, event dispatch, email) are added via
 // the With* builder methods.
-func NewAuthService(
-	userRepo UserRepository,
-	jwtSecret string,
-	jwtExpiry time.Duration,
-	refreshTokenExpiry time.Duration,
-	cookieName string,
-	cookieSecure bool,
-	cookieSameSite string,
-	issuerName string,
-) *authService {
+type AuthServiceConfig struct {
+	UserRepo           UserRepository
+	JWTSecret          string
+	JWTExpiry          time.Duration
+	RefreshTokenExpiry time.Duration
+	CookieName         string
+	CookieSecure       bool
+	CookieSameSite     string
+	IssuerName         string
+}
+
+func NewAuthService(cfg AuthServiceConfig) *authService {
 	return &authService{
-		userRepo:           userRepo,
-		jwtSecret:          jwtSecret,
-		jwtExpiry:          jwtExpiry,
-		refreshTokenExpiry: refreshTokenExpiry,
-		cookieName:         cookieName,
-		cookieSecure:       cookieSecure,
-		cookieSameSite:     cookieSameSite,
-		issuerName:         issuerName,
+		userRepo:           cfg.UserRepo,
+		jwtSecret:          cfg.JWTSecret,
+		jwtExpiry:          cfg.JWTExpiry,
+		refreshTokenExpiry: cfg.RefreshTokenExpiry,
+		cookieName:         cfg.CookieName,
+		cookieSecure:       cfg.CookieSecure,
+		cookieSameSite:     cfg.CookieSameSite,
+		issuerName:         cfg.IssuerName,
 	}
 }
 

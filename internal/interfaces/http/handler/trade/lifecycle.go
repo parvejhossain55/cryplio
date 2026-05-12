@@ -10,14 +10,12 @@ import (
 	basehandler "cryplio/internal/interfaces/http/handler"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
 
 // InitiateTradeHandler starts a new trade against a given advertisement.
 func (h *TradeHandler) InitiateTradeHandler(c *gin.Context) {
-	adID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid ad id"})
+	adID, ok := basehandler.ParseUUIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -32,9 +30,9 @@ func (h *TradeHandler) InitiateTradeHandler(c *gin.Context) {
 		return
 	}
 
-	trade, err := h.tradeService.InitiateTrade(c.Request.Context(), adID, buyerID, req.Amount)
+	trade, err := h.lifecycle.InitiateTrade(c.Request.Context(), adID, buyerID, req.Amount)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		basehandler.HandleError(c, err)
 		return
 	}
 
@@ -55,26 +53,33 @@ func (h *TradeHandler) ListTradesHandler(c *gin.Context) {
 
 	// Need to add ListTrades to TradeService first
 	// For now, call repo directly if service not updated yet or update service
-	trades, err := h.tradeService.ListTrades(c.Request.Context(), userID, role)
+	trades, err := h.lifecycle.ListTrades(c.Request.Context(), userID, role)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		basehandler.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, trades)
+	c.JSON(http.StatusOK, dto.ListTradesResponse{
+		Trades: func() []any {
+			res := make([]any, len(trades))
+			for i, t := range trades {
+				res[i] = t
+			}
+			return res
+		}(),
+	})
 }
 
 // GetTradeHandler retrieves a single trade by ID.
 func (h *TradeHandler) GetTradeHandler(c *gin.Context) {
-	tradeID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid trade id"})
+	tradeID, ok := basehandler.ParseUUIDParam(c, "id")
+	if !ok {
 		return
 	}
 
-	trade, err := h.tradeService.GetTrade(c.Request.Context(), tradeID)
+	trade, err := h.lifecycle.GetTrade(c.Request.Context(), tradeID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		basehandler.HandleError(c, err)
 		return
 	}
 	if trade == nil {
@@ -87,9 +92,8 @@ func (h *TradeHandler) GetTradeHandler(c *gin.Context) {
 
 // UpdateTradeStatusHandler advances a trade through its lifecycle (pay / release / cancel).
 func (h *TradeHandler) UpdateTradeStatusHandler(c *gin.Context) {
-	tradeID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid trade id"})
+	tradeID, ok := basehandler.ParseUUIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -107,44 +111,35 @@ func (h *TradeHandler) UpdateTradeStatusHandler(c *gin.Context) {
 		return
 	}
 
-	var updateErr error
+	var actionErr error
 	switch req.Action {
 	case "pay":
-		updateErr = h.tradeService.MarkAsPaid(c.Request.Context(), tradeID, userID)
+		actionErr = h.lifecycle.MarkAsPaid(c.Request.Context(), tradeID, userID)
 	case "release":
-		updateErr = h.tradeService.ReleaseEscrow(c.Request.Context(), tradeID, userID)
+		actionErr = h.lifecycle.ReleaseEscrow(c.Request.Context(), tradeID, userID)
 	case "cancel":
-		updateErr = h.tradeService.CancelTrade(c.Request.Context(), tradeID, userID, req.Reason)
+		actionErr = h.lifecycle.CancelTrade(c.Request.Context(), tradeID, userID, req.Reason)
 	}
 
-	if updateErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": updateErr.Error()})
+	if actionErr != nil {
+		basehandler.HandleError(c, actionErr)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Trade %sed successfully", req.Action)})
+	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Trade action '%s' completed", req.Action)})
 }
 
-// ListAllTradesHandler returns all trades for admin monitoring.
-func (h *TradeHandler) ListAllTradesHandler(c *gin.Context) {
-	status := c.Query("status")
-	trades, err := h.tradeService.ListAllTrades(c.Request.Context(), status)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"trades": trades})
-}
-
-// DisputeTradeHandler raises a dispute for an in-progress trade.
+// DisputeTradeHandler initiates a dispute for a trade.
 func (h *TradeHandler) DisputeTradeHandler(c *gin.Context) {
-	tradeID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid trade id"})
+	tradeID, ok := basehandler.ParseUUIDParam(c, "id")
+	if !ok {
 		return
 	}
 
-	var req dto.RaiseDisputeRequest
+	var req struct {
+		ReasonCode string `json:"reason_code" binding:"required"`
+		ReasonText string `json:"reason_text" binding:"required"`
+	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -155,16 +150,35 @@ func (h *TradeHandler) DisputeTradeHandler(c *gin.Context) {
 		return
 	}
 
-	trade, err := h.tradeService.DisputeTrade(c.Request.Context(), tradeID, userID, req.ReasonCode, req.ReasonText)
+	trade, err := h.lifecycle.DisputeTrade(c.Request.Context(), tradeID, userID, req.ReasonCode, req.ReasonText)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		basehandler.HandleError(c, err)
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":    "Dispute raised successfully",
-		"trade_id":   trade.TradeID.String(),
-		"dispute_id": trade.DisputeID,
-		"status":     trade.Status,
+		"message":  "Dispute initiated",
+		"trade_id": trade.TradeID.String(),
+		"status":   trade.Status,
+	})
+}
+
+// ListAllTradesHandler returns all trades in the system (admin only).
+func (h *TradeHandler) ListAllTradesHandler(c *gin.Context) {
+	status := c.Query("status")
+	trades, err := h.lifecycle.ListAllTrades(c.Request.Context(), status)
+	if err != nil {
+		basehandler.HandleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.ListTradesResponse{
+		Trades: func() []any {
+			res := make([]any, len(trades))
+			for i, t := range trades {
+				res[i] = t
+			}
+			return res
+		}(),
 	})
 }

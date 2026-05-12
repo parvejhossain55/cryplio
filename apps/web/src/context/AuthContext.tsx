@@ -2,7 +2,10 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { authService, BackendUser } from "@/services/authService";
+import { authService } from "@/services/authService";
+import { userService } from "@/services/userService";
+import { hasRememberedAuthSession } from "@/services/apiClient";
+import { BackendUser, AuthResponse } from "@/types/api";
 
 export interface User {
     id: string;
@@ -55,8 +58,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     useEffect(() => {
         const checkSession = async () => {
+            // Don't check session if we don't have a remembered session or if we are on login/register pages
+            const isAuthPage = ["/login", "/register", "/forgot-password", "/reset-password"].includes(window.location.pathname);
+            
+            if (!hasRememberedAuthSession() || isAuthPage) {
+                setIsLoading(false);
+                return;
+            }
+
             try {
-                const currentUser: BackendUser | null = await authService.getCurrentUser();
+                const currentUser: BackendUser = await userService.getCurrentUser();
                 if (currentUser) {
                     setUser(mapBackendUser(currentUser));
                     localStorage.setItem("user_id", currentUser.id);
@@ -91,26 +102,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const login = async (email: string, password: string) => {
         setIsLoading(true);
         try {
-            const backendUser: BackendUser = await authService.login(email, password);
-            setUser(mapBackendUser(backendUser));
-            localStorage.setItem("user_id", backendUser.id);
-            router.push("/user/dashboard");
-        } catch (error) {
-            const loginError = error as TwoFactorLoginError;
-            // Check for 2FA requirement
-            if (loginError.requires2FA || loginError.message === "2FA_REQUIRED") {
+            const data: AuthResponse = await authService.login(email, password);
+            if (data.requires_2fa) {
                 setRequires2FA(true);
-                setTemp2FAToken(loginError.tempToken || sessionStorage.getItem("2fa_temp_token") || null);
-                // Store in sessionStorage as backup
-                if (loginError.tempToken && loginError.user) {
-                    sessionStorage.setItem("2fa_temp_token", loginError.tempToken);
-                    sessionStorage.setItem("2fa_user_id", loginError.user.id);
-                    localStorage.setItem("user_id", loginError.user.id);
+                setTemp2FAToken(data.temp_token || null);
+                if (data.temp_token && data.user) {
+                    sessionStorage.setItem("2fa_temp_token", data.temp_token);
+                    sessionStorage.setItem("2fa_user_id", data.user.id);
+                    localStorage.setItem("user_id", data.user.id);
                 }
-                // Redirect to 2FA verification page
                 router.push("/2fa-verify");
                 return;
             }
+
+            if (data.user) {
+                setUser(mapBackendUser(data.user));
+                localStorage.setItem("user_id", data.user.id);
+                router.push("/user/dashboard");
+            }
+        } catch (error) {
             throw error;
         } finally {
             setIsLoading(false);
@@ -180,7 +190,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const refreshUser = async () => {
         try {
-            const currentUser: BackendUser | null = await authService.getCurrentUser();
+            const currentUser: BackendUser = await userService.getCurrentUser();
             if (currentUser) {
                 setUser(mapBackendUser(currentUser));
             } else {

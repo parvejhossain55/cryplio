@@ -20,9 +20,8 @@ import (
 
 // SendMessageHandler sends a text or file message in a trade's chat.
 func (h *TradeHandler) SendMessageHandler(c *gin.Context) {
-	tradeID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid trade id"})
+	tradeID, ok := basehandler.ParseUUIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -73,9 +72,9 @@ func (h *TradeHandler) SendMessageHandler(c *gin.Context) {
 		}
 
 		// Send file message
-		msg, err := h.tradeService.SendFileMessage(c.Request.Context(), tradeID, userID, uploadResult.URL, contentType, int(header.Size))
+		msg, err := h.communication.SendFileMessage(c.Request.Context(), tradeID, userID, uploadResult.URL, contentType, int(header.Size))
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			basehandler.HandleError(c, err)
 			return
 		}
 
@@ -125,9 +124,9 @@ func (h *TradeHandler) SendMessageHandler(c *gin.Context) {
 		return
 	}
 
-	msg, err := h.tradeService.SendMessage(c.Request.Context(), tradeID, userID, req.Content)
+	msg, err := h.communication.SendMessage(c.Request.Context(), tradeID, userID, req.Content)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		basehandler.HandleError(c, err)
 		return
 	}
 
@@ -154,9 +153,8 @@ func (h *TradeHandler) SendMessageHandler(c *gin.Context) {
 
 // GetChatHistoryHandler returns all chat messages for a given trade.
 func (h *TradeHandler) GetChatHistoryHandler(c *gin.Context) {
-	tradeID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid trade id"})
+	tradeID, ok := basehandler.ParseUUIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -165,9 +163,9 @@ func (h *TradeHandler) GetChatHistoryHandler(c *gin.Context) {
 		return
 	}
 
-	messages, err := h.tradeService.GetChatHistory(c.Request.Context(), tradeID, userID)
+	messages, err := h.communication.GetChatHistory(c.Request.Context(), tradeID, userID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		basehandler.HandleError(c, err)
 		return
 	}
 
@@ -176,9 +174,8 @@ func (h *TradeHandler) GetChatHistoryHandler(c *gin.Context) {
 
 // LeaveFeedbackHandler submits a rating and optional comment for a completed trade.
 func (h *TradeHandler) LeaveFeedbackHandler(c *gin.Context) {
-	tradeID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid trade id"})
+	tradeID, ok := basehandler.ParseUUIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -194,13 +191,12 @@ func (h *TradeHandler) LeaveFeedbackHandler(c *gin.Context) {
 	}
 
 	rating := trading.FeedbackRating(req.Rating)
-	err = h.tradeService.LeaveFeedback(c.Request.Context(), tradeID, userID, rating, req.Comment)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := h.communication.LeaveFeedback(c.Request.Context(), tradeID, userID, rating, req.Comment); err != nil {
+		basehandler.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "Feedback submitted successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "Feedback submitted successfully"})
 }
 
 // isAllowedFileType reports whether the given MIME type is permitted for trade chat uploads.

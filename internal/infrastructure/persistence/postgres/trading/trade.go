@@ -154,7 +154,7 @@ func scanTrades(rows interface {
 	Scan(...any) error
 	Err() error
 }) ([]trading.Trade, error) {
-	var trades []trading.Trade
+	trades := []trading.Trade{}
 	for rows.Next() {
 		var t trading.Trade
 		if err := scanTrade(rows, &t); err != nil {

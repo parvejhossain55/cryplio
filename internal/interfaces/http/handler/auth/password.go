@@ -20,7 +20,7 @@ func (h *AuthHandler) RequestEmailVerificationHandler(c *gin.Context) {
 		return
 	}
 
-	if err := h.authService.RequestEmailVerification(c.Request.Context(), req.UserID); err != nil {
+	if err := h.emailVerifier.RequestEmailVerification(c.Request.Context(), req.UserID); err != nil {
 		basehandler.HandleError(c, err)
 		return
 	}
@@ -36,7 +36,7 @@ func (h *AuthHandler) VerifyEmailHandler(c *gin.Context) {
 		return
 	}
 
-	user, err := h.authService.VerifyEmail(c.Request.Context(), req.Token)
+	user, err := h.emailVerifier.VerifyEmail(c.Request.Context(), req.Token)
 	if err != nil {
 		basehandler.HandleError(c, err)
 		return
@@ -57,7 +57,7 @@ func (h *AuthHandler) RequestPasswordResetHandler(c *gin.Context) {
 	}
 
 	// Ignore errors to avoid leaking whether the email exists.
-	_ = h.authService.RequestPasswordReset(c.Request.Context(), req.Email)
+	_ = h.passwordResetter.RequestPasswordReset(c.Request.Context(), req.Email)
 
 	c.JSON(http.StatusOK, gin.H{"message": "If an account with that email exists, a reset link has been sent"})
 }
@@ -70,7 +70,7 @@ func (h *AuthHandler) ResetPasswordHandler(c *gin.Context) {
 		return
 	}
 
-	user, err := h.authService.ResetPassword(c.Request.Context(), req.Token, req.Password)
+	user, err := h.passwordResetter.ResetPassword(c.Request.Context(), req.Token, req.Password)
 	if err != nil {
 		basehandler.HandleError(c, err)
 		return

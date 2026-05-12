@@ -64,7 +64,11 @@ func mapUserWithStats(u *identity.User, stats *identity.UserStats) dto.UserRespo
 
 // setAuthCookie writes the access token into an HttpOnly cookie.
 func setAuthCookie(c *gin.Context, cfg *Config, token string) {
-	c.SetCookie(cfg.CookieName, token, 86400, "/", "", cfg.CookieSecure, true)
+	maxAge := int(cfg.RefreshTokenExpiry.Seconds())
+	if maxAge <= 0 {
+		maxAge = 86400 // fallback to 1 day
+	}
+	c.SetCookie(cfg.CookieName, token, maxAge, "/", "", cfg.CookieSecure, true)
 }
 
 // clearAuthCookie removes the authentication cookie.

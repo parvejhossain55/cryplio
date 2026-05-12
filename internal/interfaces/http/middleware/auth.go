@@ -4,13 +4,19 @@ import (
 	"net/http"
 
 	sharedjwt "cryplio/pkg/jwt"
+
 	"github.com/gin-gonic/gin"
 )
 
 // AuthMiddleware validates JWT from cookie or Authorization header
-func AuthMiddleware(secret string) gin.HandlerFunc {
+func AuthMiddleware(secret string, cookieName ...string) gin.HandlerFunc {
+	name := "auth_token"
+	if len(cookieName) > 0 && cookieName[0] != "" {
+		name = cookieName[0]
+	}
+
 	return func(c *gin.Context) {
-		tokenString, err := sharedjwt.FromRequest(readAuthCookie(c), c.GetHeader("Authorization"))
+		tokenString, err := sharedjwt.FromRequest(readAuthCookie(c, name), c.GetHeader("Authorization"))
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 			c.Abort()
@@ -46,9 +52,14 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 }
 
 // OptionalAuth allows endpoints that work with or without auth
-func OptionalAuth(secret string) gin.HandlerFunc {
+func OptionalAuth(secret string, cookieName ...string) gin.HandlerFunc {
+	name := "auth_token"
+	if len(cookieName) > 0 && cookieName[0] != "" {
+		name = cookieName[0]
+	}
+
 	return func(c *gin.Context) {
-		tokenString, err := sharedjwt.FromRequest(readAuthCookie(c), c.GetHeader("Authorization"))
+		tokenString, err := sharedjwt.FromRequest(readAuthCookie(c, name), c.GetHeader("Authorization"))
 		if err != nil {
 			c.Next()
 			return
@@ -74,8 +85,8 @@ func OptionalAuth(secret string) gin.HandlerFunc {
 	}
 }
 
-func readAuthCookie(c *gin.Context) string {
-	cookie, err := c.Cookie("auth_token")
+func readAuthCookie(c *gin.Context, name string) string {
+	cookie, err := c.Cookie(name)
 	if err != nil {
 		return ""
 	}

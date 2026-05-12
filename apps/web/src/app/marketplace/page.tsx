@@ -20,29 +20,13 @@ import {
     Loader2,
     Plus
 } from "lucide-react";
-import { authService } from "@/services/authService";
+import { tradeService } from "@/services/tradeService";
+import { AdResponse } from "@/types/api";
 import { toast } from "sonner";
 
-interface TradeAd {
-    ad_id: string;
-    user_id: string;
-    username: string;
-    user_avatar?: string;
-    is_online?: boolean;
-    type: "buy" | "sell";
-    crypto_symbol: string;
-    fiat_symbol: string;
-    price_type: "fixed" | "floating";
-    price: number;
-    min_amount: number;
-    max_amount: number;
-    payment_methods: string[];
-    payment_window_minutes: number;
-    trade_terms?: string;
+interface TradeAd extends AdResponse {
     status: "active" | "paused" | "closed";
     created_at: string;
-    user_trades?: number;
-    user_rating?: number;
 }
 
 const ADS_PER_PAGE = 12;
@@ -82,36 +66,28 @@ const MarketplacePage = () => {
         }
         
         try {
-            const params = new URLSearchParams();
-            params.append("limit", ADS_PER_PAGE.toString());
-            params.append("offset", currentOffset.toString());
-            if (filters.type !== "all") params.append("type", filters.type);
-            if (filters.fiat_currency !== "all") params.append("fiat_currency", filters.fiat_currency);
-            if (filters.payment_method !== "all") params.append("payment_method", filters.payment_method);
+            const data = await tradeService.getAds({
+                limit: ADS_PER_PAGE,
+                offset: currentOffset,
+                type: filters.type !== "all" ? filters.type : undefined,
+                fiat_currency: filters.fiat_currency !== "all" ? filters.fiat_currency : undefined,
+                payment_method: filters.payment_method !== "all" ? filters.payment_method : undefined,
+            });
             
-            const response = await fetch(`/api/v1/marketplace/ads?${params.toString()}`);
-            const data = await response.json();
+            const newAds = data.ads as TradeAd[];
+            setTotal(data.total);
             
-            if (response.ok) {
-                const newAds = data.ads || [];
-                setTotal(data.total || 0);
-                
-                if (isInitial) {
-                    setAds(newAds);
-                } else {
-                    setAds(prev => [...prev, ...newAds]);
-                }
-                
-                // Check if there are more ads to load
-                const loadedCount = isInitial ? newAds.length : currentOffset + newAds.length;
-                setHasMore(loadedCount < (data.total || 0));
-                setOffset(currentOffset + newAds.length);
+            if (isInitial) {
+                setAds(newAds);
             } else {
-                throw new Error(data.message || "Failed to fetch ads");
+                setAds(prev => [...prev, ...newAds]);
             }
+            
+            setHasMore(newAds.length === ADS_PER_PAGE);
+            setOffset(currentOffset + newAds.length);
         } catch (error: any) {
             console.error("Error fetching ads:", error);
-            toast.error("Failed to load marketplace ads");
+            toast.error("Failed to load advertisements");
         } finally {
             setLoading(false);
             setLoadingMore(false);

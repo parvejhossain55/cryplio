@@ -22,7 +22,8 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { authService, BackendUser, UserStats } from "@/services/authService";
+import { userService } from "@/services/userService";
+import { BackendUser, UserStats } from "@/types/api";
 import { useAuth } from "@/context/AuthContext";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
@@ -42,7 +43,7 @@ const PublicProfilePage = () => {
         const fetchProfile = async () => {
             try {
                 setIsLoading(true);
-                const data = await authService.getUserByUsername(username as string);
+                const data = await userService.getUserByUsername(username as string);
                 setProfile(data);
             } catch (err: any) {
                 setError(err.message || "Failed to load profile");

@@ -24,7 +24,7 @@ func (h *AuthHandler) ListPaymentMethodsHandler(c *gin.Context) {
 		return
 	}
 
-	methods, err := h.authService.GetPaymentMethods(c.Request.Context(), userID)
+	methods, err := h.paymentManager.GetPaymentMethods(c.Request.Context(), userID)
 	if err != nil {
 		basehandler.HandleError(c, err)
 		return
@@ -55,7 +55,7 @@ func (h *AuthHandler) CreatePaymentMethodHandler(c *gin.Context) {
 	}
 	pm.IsActive = true
 
-	result, err := h.authService.AddPaymentMethod(c.Request.Context(), userID, &pm)
+	result, err := h.paymentManager.AddPaymentMethod(c.Request.Context(), userID, &pm)
 	if err != nil {
 		basehandler.HandleError(c, err)
 		return
@@ -85,7 +85,7 @@ func (h *AuthHandler) UpdatePaymentMethodHandler(c *gin.Context) {
 	pm.ID = pmID
 	pm.UserID = userID
 
-	result, err := h.authService.UpdatePaymentMethod(c.Request.Context(), userID, &pm)
+	result, err := h.paymentManager.UpdatePaymentMethod(c.Request.Context(), userID, &pm)
 	if err != nil {
 		basehandler.HandleError(c, err)
 		return
@@ -107,7 +107,7 @@ func (h *AuthHandler) DeletePaymentMethodHandler(c *gin.Context) {
 		return
 	}
 
-	if err := h.authService.RemovePaymentMethod(c.Request.Context(), userID, pmID); err != nil {
+	if err := h.paymentManager.RemovePaymentMethod(c.Request.Context(), userID, pmID); err != nil {
 		basehandler.HandleError(c, err)
 		return
 	}
@@ -129,7 +129,7 @@ func (h *AuthHandler) SetDefaultPaymentMethodHandler(c *gin.Context) {
 		return
 	}
 
-	if err := h.authService.SetDefaultPaymentMethod(c.Request.Context(), userID, pmID); err != nil {
+	if err := h.paymentManager.SetDefaultPaymentMethod(c.Request.Context(), userID, pmID); err != nil {
 		basehandler.HandleError(c, err)
 		return
 	}

@@ -20,16 +20,21 @@ import (
 	"github.com/google/uuid"
 )
 
-// TradeService is the primary service interface for the trading domain.
-type TradeService interface {
-	// Ads
+// ─── Narrow domain interfaces ─────────────────────────────────────────────────
+
+// AdManager handles advertisement lifecycle.
+type AdManager interface {
 	ListActiveAds(ctx context.Context, filter AdFilter) ([]TradeAd, int, error)
 	GetAd(ctx context.Context, id uuid.UUID) (*TradeAd, error)
 	CreateAd(ctx context.Context, ad *TradeAd) error
 	UpdateAd(ctx context.Context, adID, userID uuid.UUID, updates *TradeAd) error
 	DeleteAd(ctx context.Context, adID, userID uuid.UUID) error
+	ListUserAds(ctx context.Context, userID uuid.UUID) ([]TradeAd, int, error)
+	ToggleAdStatus(ctx context.Context, adID, userID uuid.UUID) error
+}
 
-	// Trades
+// TradeLifecycleManager handles the core P2P trade workflow.
+type TradeLifecycleManager interface {
 	InitiateTrade(ctx context.Context, adID, buyerID uuid.UUID, amount float64) (*Trade, error)
 	ListTrades(ctx context.Context, userID uuid.UUID, role string) ([]Trade, error)
 	ListAllTrades(ctx context.Context, status string) ([]Trade, error)
@@ -41,18 +46,21 @@ type TradeService interface {
 	DisputeTrade(ctx context.Context, tradeID, userID uuid.UUID, reasonCode string, reasonText string) (*Trade, error)
 	ReconcileExpiredTrades(ctx context.Context) (int, error)
 	FlagAutoDisputesForOverduePaidTrades(ctx context.Context, gracePeriod time.Duration) (int, error)
+}
 
-	// Messages
+// TradeCommunicationManager handles chat and feedback within trades.
+type TradeCommunicationManager interface {
 	SendMessage(ctx context.Context, tradeID, senderID uuid.UUID, content string) (*TradeMessage, error)
 	SendFileMessage(ctx context.Context, tradeID, senderID uuid.UUID, fileURL, mimeType string, fileSize int) (*TradeMessage, error)
 	GetChatHistory(ctx context.Context, tradeID, userID uuid.UUID) ([]TradeMessage, error)
-
-	// Feedback
 	LeaveFeedback(ctx context.Context, tradeID, userID uuid.UUID, rating FeedbackRating, comment string) error
+}
 
-	// Merchant Management
-	ListUserAds(ctx context.Context, userID uuid.UUID) ([]TradeAd, int, error)
-	ToggleAdStatus(ctx context.Context, adID, userID uuid.UUID) error
+// TradeService is the primary service interface for the trading domain.
+type TradeService interface {
+	AdManager
+	TradeLifecycleManager
+	TradeCommunicationManager
 }
 
 type tradeService struct {
@@ -65,23 +73,25 @@ type tradeService struct {
 	cfg                 *config.Config
 }
 
+type TradeServiceConfig struct {
+	TradeRepo           TradeRepository
+	IdentityRepo        identity.UserRepository
+	DisputeRepo         dispute.Repository
+	EscrowClient        EscrowContractClient
+	NotificationService notification.Service
+	PlatformRepo        platform.PlatformRepository
+	Cfg                 *config.Config
+}
+
 // NewTradeService constructs a TradeService with all required dependencies.
-func NewTradeService(
-	tradeRepo TradeRepository,
-	identityRepo identity.UserRepository,
-	disputeRepo dispute.Repository,
-	escrowClient EscrowContractClient,
-	notificationService notification.Service,
-	platformRepo platform.PlatformRepository,
-	cfg *config.Config,
-) TradeService {
+func NewTradeService(cfg TradeServiceConfig) TradeService {
 	return &tradeService{
-		tradeRepo:           tradeRepo,
-		identityRepo:        identityRepo,
-		disputeRepo:         disputeRepo,
-		escrowClient:        escrowClient,
-		notificationService: notificationService,
-		platformRepo:        platformRepo,
-		cfg:                 cfg,
+		tradeRepo:           cfg.TradeRepo,
+		identityRepo:        cfg.IdentityRepo,
+		disputeRepo:         cfg.DisputeRepo,
+		escrowClient:        cfg.EscrowClient,
+		notificationService: cfg.NotificationService,
+		platformRepo:        cfg.PlatformRepo,
+		cfg:                 cfg.Cfg,
 	}
 }

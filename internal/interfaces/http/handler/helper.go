@@ -60,3 +60,19 @@ func getUserIDFromContext(c *gin.Context) (uuid.UUID, bool) {
 	}
 	return userID, true
 }
+
+// parseUUIDParam extracts a UUID from a URL parameter. Returns (uuid.Nil, false)
+// and writes a 400 response if the parameter is missing or not a valid UUID.
+func parseUUIDParam(c *gin.Context, name string) (uuid.UUID, bool) {
+	val := c.Param(name)
+	if val == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing parameter: " + name})
+		return uuid.Nil, false
+	}
+	id, err := uuid.Parse(val)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid " + name})
+		return uuid.Nil, false
+	}
+	return id, true
+}

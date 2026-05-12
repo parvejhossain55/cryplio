@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import type { User as UserType } from "@/context/AuthContext";
 import { authService } from "@/services/authService";
+import { userService } from "@/services/userService";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { toast } from "sonner";
 
@@ -42,7 +43,7 @@ const ProfileEdit = ({ user }: ProfileEditProps) => {
         }
         setIsSaving(true);
         try {
-            await authService.updateCurrentUser({
+            await userService.updateCurrentUser({
                 username: username.trim(),
                 bio: bio.trim()
             });

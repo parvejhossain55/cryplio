@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Bell, BellOff, Mail, Smartphone, Globe, Volume2, VolumeX, Loader2, CheckCircle, AlertCircle, Save } from "lucide-react";
 import { motion } from "framer-motion";
-import { authService } from "@/services/authService";
+import { notificationService } from "@/services/notificationService";
 import { toast } from "sonner";
 
 interface NotificationChannel {
@@ -64,7 +64,7 @@ const AlertsSettings = () => {
     useEffect(() => {
         const loadPreferences = async () => {
             try {
-                const prefs = await authService.getNotificationPreferences();
+                const prefs = await notificationService.getPreferences();
                 if (prefs) {
                     // Map backend preferences to channels
                     setChannels(prev => prev.map(ch => ({
@@ -115,7 +115,7 @@ const AlertsSettings = () => {
             };
             
             // Save to backend
-            await authService.saveNotificationPreferences(prefs);
+            await notificationService.savePreferences(prefs);
             
             // Also save to localStorage as backup
             const localPrefs = channels.reduce((acc, ch) => ({ ...acc, [ch.id]: ch.enabled }), {});

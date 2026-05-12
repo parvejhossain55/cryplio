@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
-import { authService } from "@/services/authService";
+import { tradeService } from "@/services/tradeService";
 import Navbar from "@/components/layout/Navbar";
 import { useAuth } from "@/context/AuthContext";
 import DisputeModal from "@/components/trade/DisputeModal";
@@ -55,8 +55,8 @@ const TradeDetailPage = () => {
     const fetchTradeDetails = async () => {
         try {
             const [tradeData, msgData] = await Promise.all([
-                authService.getTradeDetails(id as string),
-                authService.getTradeMessages(id as string)
+                tradeService.getTradeDetails(id as string),
+                tradeService.getChatHistory(id as string)
             ]);
             setTrade(tradeData);
             setMessages(msgData || []);
@@ -72,7 +72,7 @@ const TradeDetailPage = () => {
         if (!newMessage.trim()) return;
 
         try {
-            const msg = await authService.sendTradeMessage(id as string, newMessage);
+            const msg = await tradeService.sendMessage(id as string, newMessage);
             setMessages([...messages, msg]);
             setNewMessage("");
         } catch (err: any) {
@@ -82,7 +82,7 @@ const TradeDetailPage = () => {
 
     const handleRaiseDispute = async (reasonCode: string, reasonText: string) => {
         try {
-            await authService.disputeTrade(id as string, reasonCode, reasonText);
+            await tradeService.disputeTrade(id as string, reasonCode, reasonText);
             fetchTradeDetails();
         } catch (err: any) {
             throw err;
@@ -91,7 +91,7 @@ const TradeDetailPage = () => {
 
     const handleLeaveFeedback = async (rating: string, comment: string) => {
         try {
-            await authService.leaveFeedback(id as string, rating, comment);
+            await tradeService.leaveFeedback(id as string, parseInt(rating), comment);
             fetchTradeDetails();
         } catch (err: any) {
             throw err;
@@ -101,7 +101,7 @@ const TradeDetailPage = () => {
     const handleAction = async (action: string) => {
         setIsUpdating(true);
         try {
-            await authService.updateTradeStatus(id as string, action);
+            await tradeService.updateTradeStatus(id as string, action);
             toast.success(`Trade ${action === 'pay' ? 'marked as paid' : action === 'release' ? 'assets released' : 'cancelled'}`);
             fetchTradeDetails();
         } catch (err: any) {
