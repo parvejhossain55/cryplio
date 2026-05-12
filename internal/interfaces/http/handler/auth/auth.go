@@ -7,6 +7,7 @@ import (
 	basehandler "cryplio/internal/interfaces/http/handler"
 
 	"cryplio/internal/domain/identity"
+	notificationdomain "cryplio/internal/domain/notification"
 	"cryplio/internal/infrastructure/storage"
 	"cryplio/internal/interfaces/http/dto"
 	httpvalidator "cryplio/internal/interfaces/http/validator"
@@ -24,17 +25,48 @@ import (
 //   - twofactor_session.go   — 2FA management & session CRUD
 //   - payment_method.go      — user payment methods
 type AuthHandler struct {
-	authService identity.AuthService
-	cfg         *Config
-	storage     storage.ObjectStorage
+	registrar           identity.UserRegistrar
+	authenticator       identity.Authenticator
+	oauthProvider       identity.OAuthProvider
+	profileManager      identity.ProfileManager
+	emailVerifier       identity.EmailVerifier
+	passwordResetter    identity.PasswordResetter
+	twoFactorManager    identity.TwoFactorManager
+	sessionManager      identity.SessionManager
+	paymentManager      identity.PaymentManager
+	notificationService notificationdomain.Service
+	cfg                 *Config
+	storage             storage.ObjectStorage
 }
 
 // NewAuthHandler creates a new AuthHandler.
-func NewAuthHandler(authService identity.AuthService, cfg *Config, storage storage.ObjectStorage) *AuthHandler {
+func NewAuthHandler(
+	registrar identity.UserRegistrar,
+	authenticator identity.Authenticator,
+	oauthProvider identity.OAuthProvider,
+	profileManager identity.ProfileManager,
+	emailVerifier identity.EmailVerifier,
+	passwordResetter identity.PasswordResetter,
+	twoFactorManager identity.TwoFactorManager,
+	sessionManager identity.SessionManager,
+	paymentManager identity.PaymentManager,
+	notificationService notificationdomain.Service,
+	cfg *Config,
+	storage storage.ObjectStorage,
+) *AuthHandler {
 	return &AuthHandler{
-		authService: authService,
-		cfg:         cfg,
-		storage:     storage,
+		registrar:           registrar,
+		authenticator:       authenticator,
+		oauthProvider:       oauthProvider,
+		profileManager:      profileManager,
+		emailVerifier:       emailVerifier,
+		passwordResetter:    passwordResetter,
+		twoFactorManager:    twoFactorManager,
+		sessionManager:      sessionManager,
+		paymentManager:      paymentManager,
+		notificationService: notificationService,
+		cfg:                 cfg,
+		storage:             storage,
 	}
 }
 
@@ -50,18 +82,18 @@ func (h *AuthHandler) RegisterHandler(c *gin.Context) {
 	}
 	httpvalidator.NormalizeRegisterRequest(&req)
 
-	user, err := h.authService.Register(c.Request.Context(), req.Email, req.Username, req.Password)
+	user, err := h.registrar.Register(c.Request.Context(), req.Email, req.Username, req.Password)
 	if err != nil {
 		basehandler.HandleError(c, err)
 		return
 	}
 
 	// Fire-and-forget: send verification email after account is created.
-	_ = h.authService.RequestEmailVerification(c.Request.Context(), user.UserID)
+	_ = h.emailVerifier.RequestEmailVerification(c.Request.Context(), user.UserID)
 
 	// Auto-login. New users cannot have 2FA, so Login will not return
 	// TwoFactorRequiredError. We guard anyway for safety.
-	access, refresh, _, err := h.authService.Login(c.Request.Context(), req.Email, req.Password)
+	access, refresh, _, err := h.authenticator.Login(c.Request.Context(), req.Email, req.Password)
 	if err != nil {
 		// User was created — return 201 without tokens so the client can log in manually.
 		c.JSON(http.StatusCreated, gin.H{
@@ -89,7 +121,7 @@ func (h *AuthHandler) LoginHandler(c *gin.Context) {
 	}
 	httpvalidator.NormalizeLoginRequest(&req)
 
-	access, refresh, user, err := h.authService.Login(c.Request.Context(), req.Email, req.Password)
+	access, refresh, user, err := h.authenticator.Login(c.Request.Context(), req.Email, req.Password)
 	if err != nil {
 		var twoFactorErr identity.TwoFactorRequiredError
 		if errors.As(err, &twoFactorErr) {
@@ -115,7 +147,7 @@ func (h *AuthHandler) LogoutHandler(c *gin.Context) {
 	if refreshToken != "" {
 		if claims, err := sharedjwt.Parse(h.cfg.JWTSecret, refreshToken); err == nil {
 			if jti, ok := claims["jti"].(string); ok {
-				_ = h.authService.Logout(c.Request.Context(), jti)
+				_ = h.authenticator.Logout(c.Request.Context(), jti)
 			}
 		}
 	}
@@ -134,7 +166,7 @@ func (h *AuthHandler) RefreshTokenHandler(c *gin.Context) {
 		return
 	}
 
-	access, refresh, user, err := h.authService.RefreshToken(c.Request.Context(), refreshToken)
+	access, refresh, user, err := h.authenticator.RefreshToken(c.Request.Context(), refreshToken)
 	if err != nil {
 		basehandler.HandleError(c, err)
 		return
@@ -157,7 +189,7 @@ func (h *AuthHandler) Complete2FALoginHandler(c *gin.Context) {
 		return
 	}
 
-	access, refresh, user, err := h.authService.Complete2FALogin(c.Request.Context(), req.TempToken, req.Code)
+	access, refresh, user, err := h.authenticator.Complete2FALogin(c.Request.Context(), req.TempToken, req.Code)
 	if err != nil {
 		basehandler.HandleError(c, err)
 		return
@@ -172,7 +204,7 @@ func (h *AuthHandler) Complete2FALoginHandler(c *gin.Context) {
 
 // GoogleAuthHandler initiates the Google OAuth 2.0 authorization flow.
 func (h *AuthHandler) GoogleAuthHandler(c *gin.Context) {
-	oauthURL := h.authService.GoogleOAuthURL()
+	oauthURL := h.oauthProvider.GoogleOAuthURL()
 	if oauthURL == "" {
 		c.JSON(http.StatusNotImplemented, gin.H{"error": "OAuth not configured"})
 		return
@@ -189,7 +221,7 @@ func (h *AuthHandler) GoogleCallbackHandler(c *gin.Context) {
 		return
 	}
 
-	accessToken, refreshToken, _, err := h.authService.GoogleCallback(c.Request.Context(), code)
+	accessToken, refreshToken, _, err := h.oauthProvider.GoogleCallback(c.Request.Context(), code)
 	if err != nil {
 		basehandler.HandleError(c, err)
 		return

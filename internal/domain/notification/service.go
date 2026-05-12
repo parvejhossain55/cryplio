@@ -19,6 +19,7 @@ type Service interface {
 	Notify(ctx context.Context, userID uuid.UUID, nType NotificationType, title, message string, data *string) error
 	NotifyWithWebSocket(ctx context.Context, userID uuid.UUID, nType NotificationType, title, message string, data map[string]interface{}) error
 	GetNotifications(ctx context.Context, userID uuid.UUID, limit, offset int) ([]Notification, error)
+	GetUnreadCount(ctx context.Context, userID uuid.UUID) (int, error)
 	MarkAsRead(ctx context.Context, id uuid.UUID) error
 	SetWebSocketNotifier(notifier WebSocketNotifier)
 	GetPreferences(ctx context.Context, userID uuid.UUID) (*NotificationPreference, error)
@@ -83,6 +84,10 @@ func (s *notificationService) NotifyWithWebSocket(ctx context.Context, userID uu
 
 func (s *notificationService) GetNotifications(ctx context.Context, userID uuid.UUID, limit, offset int) ([]Notification, error) {
 	return s.repo.ListByUserID(ctx, userID, limit, offset)
+}
+
+func (s *notificationService) GetUnreadCount(ctx context.Context, userID uuid.UUID) (int, error) {
+	return s.repo.CountUnread(ctx, userID)
 }
 
 func (s *notificationService) MarkAsRead(ctx context.Context, id uuid.UUID) error {

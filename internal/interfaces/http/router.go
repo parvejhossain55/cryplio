@@ -67,19 +67,22 @@ func SetupRouter(
 	// API v1
 	v1 := r.Group("/api/v1")
 	{
-		authHandler := authh.NewAuthHandler(authService, &authh.Config{
-			CookieName:         cfg.CookieName,
-			CookieSecure:       cfg.CookieSecure,
-			CookieSameSite:     cfg.CookieSameSite,
-			FrontendURL:        cfg.FrontendURL,
-			RefreshTokenExpiry: cfg.RefreshTokenExpiry,
-			JWTSecret:          cfg.JWTSecret,
-		}, storage)
+		authHandler := authh.NewAuthHandler(
+			authService, authService, authService, authService, authService,
+			authService, authService, authService, authService, notificationService,
+			&authh.Config{
+				CookieName:         cfg.CookieName,
+				CookieSecure:       cfg.CookieSecure,
+				CookieSameSite:     cfg.CookieSameSite,
+				FrontendURL:        cfg.FrontendURL,
+				RefreshTokenExpiry: cfg.RefreshTokenExpiry,
+				JWTSecret:          cfg.JWTSecret,
+			}, storage)
 		adminHandler := authh.NewAdminHandler(authService, tradeService, disputeService)
 
-		tradeHandler := tradeh.NewTradeHandler(tradeService, storage, wsService)
+		tradeHandler := tradeh.NewTradeHandler(tradeService, tradeService, tradeService, storage, wsService)
 		platformHandler := platformh.NewPlatformHandler(platformService)
-		walletHandler := walleth.NewWalletHandler(walletService, authService)
+		walletHandler := walleth.NewWalletHandler(walletService, authService, authService)
 		disputeHandler := disputeh.NewDisputeHandler(disputeService, storage)
 		notificationHandler := notificationh.NewNotificationHandler(notificationService)
 
@@ -108,9 +111,10 @@ func SetupRouter(
 		v1.GET("/market/rates/:crypto/:fiat", marketHandler.GetRateHandler)
 
 		auth := v1.Group("/")
-		auth.Use(middleware.AuthMiddleware(cfg.JWTSecret))
+		auth.Use(middleware.AuthMiddleware(cfg.JWTSecret, cfg.CookieName))
 		{
 			auth.GET("/users/me", authHandler.GetUserHandler)
+			auth.GET("/users/me/header", authHandler.GetHeaderProfileHandler)
 			auth.PUT("/users/me", authHandler.UpdateUserHandler)
 			auth.POST("/users/me/avatar", authHandler.UploadAvatarHandler)
 
@@ -132,7 +136,7 @@ func SetupRouter(
 
 			// Trading (Authenticated)
 			auth.POST("/marketplace/ads", tradeHandler.CreateAdHandler)
-			auth.GET("/marketplace/my-ads", tradeHandler.ListMyAdsHandler)
+			auth.GET("/marketplace/my-ads", tradeHandler.ListUserAdsHandler)
 			auth.PUT("/marketplace/ads/:id", tradeHandler.UpdateAdHandler)
 			auth.DELETE("/marketplace/ads/:id", tradeHandler.DeleteAdHandler)
 			auth.PATCH("/marketplace/ads/:id/status", tradeHandler.ToggleAdStatusHandler)

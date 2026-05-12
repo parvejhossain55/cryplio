@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 
+	"cryplio/internal/domain/identity"
 	basehandler "cryplio/internal/interfaces/http/handler"
 
 	"cryplio/internal/infrastructure/storage"
@@ -25,13 +26,13 @@ func (h *AuthHandler) GetUserHandler(c *gin.Context) {
 		return
 	}
 
-	user, err := h.authService.GetUserByID(c.Request.Context(), userID)
+	user, err := h.profileManager.GetUserByID(c.Request.Context(), userID)
 	if err != nil {
 		basehandler.HandleError(c, err)
 		return
 	}
 
-	stats, _ := h.authService.GetUserStats(c.Request.Context(), userID)
+	stats, _ := h.profileManager.GetUserStats(c.Request.Context(), userID)
 	c.JSON(http.StatusOK, gin.H{"user": mapUserWithStats(user, stats)})
 }
 
@@ -49,7 +50,7 @@ func (h *AuthHandler) UpdateUserHandler(c *gin.Context) {
 	}
 	httpvalidator.NormalizeUpdateProfileRequest(&req)
 
-	user, err := h.authService.UpdateProfile(c.Request.Context(), userID, req.Username, req.Bio)
+	user, err := h.profileManager.UpdateProfile(c.Request.Context(), userID, req.Username, req.Bio)
 	if err != nil {
 		basehandler.HandleError(c, err)
 		return
@@ -111,7 +112,7 @@ func (h *AuthHandler) UploadAvatarHandler(c *gin.Context) {
 		return
 	}
 
-	user, err := h.authService.UpdateAvatar(c.Request.Context(), userID, uploadResult.URL)
+	user, err := h.profileManager.UpdateAvatar(c.Request.Context(), userID, uploadResult.URL)
 	if err != nil {
 		basehandler.HandleError(c, err)
 		return
@@ -131,7 +132,7 @@ func (h *AuthHandler) GetUserByUsernameHandler(c *gin.Context) {
 		return
 	}
 
-	user, stats, err := h.authService.GetUserByUsername(c.Request.Context(), username)
+	user, stats, err := h.profileManager.GetUserByUsername(c.Request.Context(), username)
 	if err != nil {
 		basehandler.HandleError(c, err)
 		return
@@ -144,9 +145,68 @@ func (h *AuthHandler) GetUserByUsernameHandler(c *gin.Context) {
 	// Refresh last-seen for the authenticated viewer (best-effort).
 	if viewerIDRaw, exists := c.Get("user_id"); exists {
 		if viewerID, err := uuid.Parse(viewerIDRaw.(string)); err == nil {
-			_ = h.authService.UpdateLastSeen(c.Request.Context(), viewerID)
+			_ = h.profileManager.UpdateLastSeen(c.Request.Context(), viewerID)
 		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"user": mapUserWithStats(user, stats)})
+}
+
+// ─── Header Profile ───────────────────────────────────────────────────────────
+
+// GetHeaderProfileHandler returns the user profile data needed for the header component.
+// This includes username, avatar, online status, trader badge, and unread notification count.
+func (h *AuthHandler) GetHeaderProfileHandler(c *gin.Context) {
+	userID, ok := basehandler.GetUserIDFromContext(c)
+	if !ok {
+		return
+	}
+
+	user, err := h.profileManager.GetUserByID(c.Request.Context(), userID)
+	if err != nil {
+		basehandler.HandleError(c, err)
+		return
+	}
+
+	// Get unread notification count
+	unreadCount, _ := h.notificationService.GetUnreadCount(c.Request.Context(), userID)
+
+	// Determine trader badge based on user stats and role
+	stats, _ := h.profileManager.GetUserStats(c.Request.Context(), userID)
+	traderBadge := h.determineTraderBadge(user, stats)
+
+	response := dto.HeaderProfileResponse{
+		Username:                user.Username,
+		AvatarURL:               user.AvatarURL,
+		IsOnline:                user.IsOnline(),
+		TraderBadge:             traderBadge,
+		UnreadNotificationCount: unreadCount,
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// determineTraderBadge determines the trader badge based on user role and stats
+func (h *AuthHandler) determineTraderBadge(user *identity.User, stats *identity.UserStats) string {
+	// Admin badge
+	if user.Role == identity.UserRoleAdmin {
+		return "ADMIN"
+	}
+
+	// Merchant badge
+	if user.IsMerchant || user.Role == identity.UserRoleMerchant {
+		return "PRO TRADER"
+	}
+
+	// Verified trader badge based on successful trades
+	if stats != nil && stats.SuccessfulTrades >= 10 {
+		return "VERIFIED"
+	}
+
+	// New trader badge
+	if stats != nil && stats.SuccessfulTrades >= 5 {
+		return "TRADER"
+	}
+
+	return ""
 }

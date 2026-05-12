@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
     Search,
     Bell,
@@ -10,6 +10,8 @@ import {
     Activity
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { userService } from "@/services/userService";
+import { HeaderProfileResponse } from "@/types/api";
 
 interface DashboardHeaderProps {
     title: string;
@@ -17,6 +19,24 @@ interface DashboardHeaderProps {
 }
 
 const DashboardHeader = ({ title, onMenuClick }: DashboardHeaderProps) => {
+    const [headerData, setHeaderData] = useState<HeaderProfileResponse | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchHeaderData = async () => {
+            try {
+                const data = await userService.getHeaderProfile();
+                setHeaderData(data);
+            } catch (error) {
+                console.error("Failed to fetch header profile:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchHeaderData();
+    }, []);
+
     return (
         <header className="sticky top-0 z-30 flex items-center justify-between px-6 md:px-10 py-4 bg-background/80 backdrop-blur-xl border-b border-white/5">
             <div className="flex items-center space-x-4">
@@ -58,23 +78,40 @@ const DashboardHeader = ({ title, onMenuClick }: DashboardHeaderProps) => {
                 {/* Notifications */}
                 <button className="relative p-2.5 hover:bg-surface-light rounded-xl transition-all border border-white/5 group">
                     <Bell className="w-5 h-5 text-text-dim group-hover:text-white transition-colors" />
-                    <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full border-2 border-background animate-pulse" />
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center px-1 bg-primary text-white text-[10px] font-bold rounded-full border-2 border-background">
+                        {headerData?.unread_notification_count !== undefined
+                            ? (headerData.unread_notification_count > 99 ? '99+' : headerData.unread_notification_count)
+                            : '0'}
+                    </span>
                 </button>
 
                 {/* Profile Dropdown */}
                 <div className="flex items-center space-x-2 pl-2">
                     <div className="relative cursor-pointer group">
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 border border-white/10 flex items-center justify-center overflow-hidden">
-                            <User className="w-5 h-5 text-text-dim group-hover:text-white transition-colors" />
+                            {headerData?.avatar_url ? (
+                                <img
+                                    src={headerData.avatar_url}
+                                    alt="Avatar"
+                                    className="w-full h-full object-cover"
+                                />
+                            ) : (
+                                <User className="w-5 h-5 text-text-dim group-hover:text-white transition-colors" />
+                            )}
                         </div>
-                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-accent border-4 border-background rounded-full" />
+                        {headerData?.is_online && (
+                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-accent border-4 border-background rounded-full" />
+                        )}
                     </div>
                     <div className="hidden lg:block">
                         <div className="flex items-center space-x-1 cursor-pointer">
-                            <span className="text-sm font-bold text-white">Alex Morgan</span>
-                            <ChevronDown className="w-4 h-4 text-text-dim" />
+                            <span className="text-sm font-bold text-white">
+                                {loading ? "Loading..." : headerData?.username || "User"}
+                            </span>
                         </div>
-                        <p className="text-[10px] font-medium text-text-dim uppercase tracking-widest leading-none">Pro Trader</p>
+                        <p className="text-[10px] font-medium text-text-dim uppercase tracking-widest leading-none">
+                            {loading ? "" : headerData?.trader_badge || "Trader"}
+                        </p>
                     </div>
                 </div>
             </div>

@@ -67,6 +67,16 @@ func (r *notificationRepository) ListByUserID(ctx context.Context, userID uuid.U
 	return notifications, nil
 }
 
+func (r *notificationRepository) CountUnread(ctx context.Context, userID uuid.UUID) (int, error) {
+	query := `SELECT COUNT(*) FROM notifications WHERE user_id = $1 AND is_read = false`
+	var count int
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("count unread notifications: %w", err)
+	}
+	return count, nil
+}
+
 func (r *notificationRepository) MarkRead(ctx context.Context, id uuid.UUID) error {
 	query := `UPDATE notifications SET is_read = true, read_at = NOW() WHERE notification_id = $1`
 	_, err := r.db.ExecContext(ctx, query, id)

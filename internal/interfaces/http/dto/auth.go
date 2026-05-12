@@ -68,3 +68,12 @@ type TwoFactorLoginCompleteRequest struct {
 	TempToken string `json:"temp_token" binding:"required"`
 	Code      string `json:"code" binding:"required"`
 }
+
+// HeaderProfileResponse represents the user profile data needed for the header component
+type HeaderProfileResponse struct {
+	Username                string  `json:"username"`
+	AvatarURL               *string `json:"avatar_url,omitempty"`
+	IsOnline                bool    `json:"is_online"`
+	TraderBadge             string  `json:"trader_badge"` // e.g., "PRO TRADER", "VERIFIED", ""
+	UnreadNotificationCount int     `json:"unread_notification_count"`
+}
