@@ -30,14 +30,12 @@ Cryplio is a global P2P crypto exchange where buyers and sellers trade directly 
 
 **Key capabilities**
 
-- Escrow-backed P2P trades (USDT, USDC, ETH, BTC)
-- Multi-payment method support — bKash, Nagad, Bank Transfer, Wise, PayPal, UPI
-- Real-time trade chat and notifications via WebSocket
+- Escrow-backed P2P trades (USDT, USDC, DAI)
+- Multi-payment method support — bKash, Nagad, Rocket, Upay, Bank Transfer
+- Real-time trade chat via WebSocket
 - Google OAuth 2.0 login alongside email/password
 - TOTP two-factor authentication
 - Admin dispute resolution with evidence upload
-- Merchant portal for high-volume traders
-- Referral programme with commission tracking
 - Rate-limited, session-based API with HttpOnly cookie + Bearer token support
 
 ---
@@ -88,7 +86,7 @@ The codebase follows **Clean Architecture** with **Domain-Driven Design**. Depen
 | Email | SMTP (configurable provider) |
 | Logging | Zerolog |
 | Hot Reload | Air |
-| Containerisation | Docker Compose (local dev) |
+| Containerisation | Docker Compose |
 
 ---
 
@@ -97,9 +95,9 @@ The codebase follows **Clean Architecture** with **Domain-Driven Design**. Depen
 ```
 cryplio/
 ├── cmd/
-│   ├── api/            # HTTP server entrypoint
-│   ├── migrate/        # Migration CLI (apply / rollback / status)
-│   └── seed/           # Database seeder
+│   ├── api/                        # HTTP server entrypoint
+│   ├── migrate/                    # Migration CLI (apply / rollback / status)
+│   └── seed/                       # Database seeder
 │
 ├── internal/
 │   │
@@ -255,7 +253,7 @@ make migrate-up
 
 ```bash
 make seed
-# Creates: 1 admin, 2 merchants, 5 traders, wallets, ads, trades, disputes
+# Creates: 1 admin, 5 traders, wallets, ads, trades, disputes
 ```
 
 ### 6 — Start the API server
@@ -279,7 +277,7 @@ Copy `.env.example` to `.env` and fill in the values. Required fields are marked
 
 ```env
 # ── App ──────────────────────────────────────────────────
-APP_ENV=development          # development | production
+APP_ENV=development                  # development | production
 SERVER_PORT=8080
 FRONTEND_URL=http://localhost:3000
 
@@ -312,7 +310,6 @@ S3_ACCESS_KEY_ID=cryplio
 S3_SECRET_ACCESS_KEY=cryplio123
 S3_USE_SSL=false
 S3_BUCKET_NAME=cryplio-storage
-S3_PUBLIC_BASE_URL=
 
 # ── Email (SMTP) ─────────────────────────────────────────
 SMTP_HOST=smtp.example.com
@@ -326,10 +323,13 @@ GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 OAUTH_REDIRECT_URL=http://localhost:8080/api/v1/auth/oauth/google/callback
 
-# ── Blockchain (optional) ────────────────────────────────
-ETH_RPC_URL=http://localhost:8545
-ETH_PRIVATE_KEY=                     # Platform wallet private key
+# ── Blockchain ────────────────────────────────
+RPC_URL=http://localhost:8545
+PRIVATE_KEY=                         # Platform wallet private key
 ESCROW_CONTRACT_ADDRESS=             # Deployed escrow contract address
+ESCROW_ABI_PATH=contracts/out/CryplioEscrow.sol/CryplioEscrow.json
+PLATFORM_WALLET_PRIVATE_KEY=
+WALLET_ENCRYPTION_KEY=your-32-char-secret
 
 # ── Rate Limiting ────────────────────────────────────────
 RATE_LIMIT_ENABLED=true
@@ -365,7 +365,7 @@ make env-down       # docker compose down
 
 ## Database Migrations
 
-Migrations live in `migrations/` and are applied with `golang-migrate`. There are currently **25 migration pairs** (000–025).
+Migrations live in `migrations/` and are applied with `golang-migrate`.
 
 ```bash
 # Apply all pending migrations
@@ -388,23 +388,12 @@ make migrate-create name=add_merchant_tier_column
 | Migration | Tables created |
 |---|---|
 | 000 | PostgreSQL enum types |
-| 001 | `users`, `user_stats`, `user_sessions`, token tables |
-| 002 | `crypto_assets`, `fiat_currencies`, `payment_methods`, `fee_tiers` |
-| 003 | `trade_status_log`, `email_templates`, `email_queue` |
-| 004 | `trade_ads` |
-| 005 | `trades`, `trade_messages`, `trade_attachments` |
-| 006 | `trade_feedback` |
-| 007 | `disputes`, `dispute_messages` |
-| 008 | `wallets`, `wallet_transactions` |
-| 009 | `notifications`, `notification_preferences` |
-| 010 | `referrals` |
-| 011 | `merchant_applications`, `merchant_analytics` |
-| 012 | `audit_logs`, `admin_actions`, `platform_config`, `announcements` |
-| 013 | `rate_limit_counts`, `login_attempts`, `api_request_logs` |
-| 014 | Database views (`active_trade_ads`, `completed_trades`, etc.) |
-| 015 | Auto-update triggers for `updated_at` columns |
-| 016 | Seed data (crypto assets, fiat currencies, payment methods, config) |
-| 017–025 | OAuth, 2FA, user payment methods, withdrawal approvals, notification type fix |
+| 001 | `users`, `user_statistics`, `user_sessions` |
+| 002 | `payment_methods`, `crypto`, `fiat_currencies`, `feedback_ratings` |
+| 003 | `trade_ads`, `trades` |
+| 004 | `wallets`, `transactions` |
+| 005 | `disputes`, `messages` |
+| 006 | `feedback`, `admin_actions`, `blockchain_links` |
 
 ---
 
@@ -486,14 +475,6 @@ Authenticated endpoints accept the JWT either as:
 | `POST` | `/wallet/withdraw` | ✅ (2FA required) | Request withdrawal |
 | `GET` | `/wallet/transactions` | ✅ | Transaction history |
 
-### Notifications
-
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| `GET` | `/notifications` | ✅ | List notifications |
-| `PATCH` | `/notifications/:id/read` | ✅ | Mark as read |
-| `GET` | `/notifications/preferences` | ✅ | Get notification preferences |
-| `POST` | `/notifications/preferences` | ✅ | Save notification preferences |
 
 ### Market Rates
 
@@ -583,14 +564,9 @@ AD_ACTIVE
 1. Buyer initiates trade → `escrowClient.Lock(trade)` — seller's crypto is locked in the smart contract
 2. Buyer sends fiat via the agreed payment method and marks the trade as **paid**
 3. Seller verifies receipt and calls **release** → `escrowClient.Release(trade)` — crypto is sent to buyer's wallet
-4. If the seller does not release within the payment window, an auto-dispute is flagged by the background worker
+4. If the seller does not release within the payment window, buyer can be raise dispute.
 5. Admin reviews evidence and resolves: **release to buyer** or **return to seller**
 
-### Payment window auto-cancellation
-
-A background Asynq worker (`worker/`) runs every 5 minutes to:
-- Expire `pending`/`active` trades whose payment window has elapsed → `EXPIRED`
-- Flag `paid` trades past the grace period for auto-dispute
 
 ---
 
@@ -619,8 +595,6 @@ abigen --abi contracts/abi/Escrow.json \
        --out internal/infrastructure/blockchain/escrow_binding.go
 ```
 
-When `ESCROW_CONTRACT_ADDRESS` or `ETH_RPC_URL` are not set, the application falls back to a **mock escrow client** that simulates blockchain calls in memory — safe for local development without a running node.
-
 ---
 
 ## Contributing
@@ -629,7 +603,6 @@ When `ESCROW_CONTRACT_ADDRESS` or `ETH_RPC_URL` are not set, the application fal
 2. Follow the layer rules — domain code must never import infrastructure packages
 3. Add tests for any new use case or service method
 4. Run `make fmt && make lint && make test` before opening a PR
-5. PRs require at least one reviewer approval
 
 ### Commit convention
 
