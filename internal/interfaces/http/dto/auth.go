@@ -76,4 +76,9 @@ type HeaderProfileResponse struct {
 	IsOnline                bool    `json:"is_online"`
 	TraderBadge             string  `json:"trader_badge"` // e.g., "PRO TRADER", "VERIFIED", ""
 	UnreadNotificationCount int     `json:"unread_notification_count"`
+	// Security fields for Account Health section
+	AccountHealth      string `json:"account_health"`      // e.g., "EXCELLENT", "GOOD", "FAIR", "POOR"
+	AccountSecurity    string `json:"account_security"`    // e.g., "VERIFIED", "UNVERIFIED"
+	TwoFactorStatus    string `json:"two_factor_status"`   // e.g., "ENABLED", "DISABLED"
+	LoginNotifications string `json:"login_notifications"` // e.g., "ACTIVE", "INACTIVE"
 }

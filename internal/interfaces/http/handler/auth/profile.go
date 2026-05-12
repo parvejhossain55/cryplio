@@ -19,7 +19,7 @@ import (
 
 // ─── Own Profile ─────────────────────────────────────────────────────────────
 
-// GetUserHandler returns the authenticated user's full profile including stats.
+// GetUserHandler returns the authenticated user's full profile including stats and header fields.
 func (h *AuthHandler) GetUserHandler(c *gin.Context) {
 	userID, ok := basehandler.GetUserIDFromContext(c)
 	if !ok {
@@ -33,7 +33,24 @@ func (h *AuthHandler) GetUserHandler(c *gin.Context) {
 	}
 
 	stats, _ := h.profileManager.GetUserStats(c.Request.Context(), userID)
-	c.JSON(http.StatusOK, gin.H{"user": mapUserWithStats(user, stats)})
+
+	// Get unread notification count
+	unreadCount, _ := h.notificationService.GetUnreadCount(c.Request.Context(), userID)
+
+	// Calculate trader badge and security status
+	traderBadge := h.determineTraderBadge(user, stats)
+	accountHealth, accountSecurity, twoFactorStatus, loginNotifications := h.calculateSecurityStatus(user)
+
+	// Map user with stats and header fields
+	userDTO := mapUserWithStats(user, stats)
+	userDTO.TraderBadge = traderBadge
+	userDTO.UnreadNotificationCount = unreadCount
+	userDTO.AccountHealth = accountHealth
+	userDTO.AccountSecurity = accountSecurity
+	userDTO.TwoFactorStatus = twoFactorStatus
+	userDTO.LoginNotifications = loginNotifications
+
+	c.JSON(http.StatusOK, gin.H{"user": userDTO})
 }
 
 // UpdateUserHandler updates the authenticated user's profile fields.
@@ -155,7 +172,7 @@ func (h *AuthHandler) GetUserByUsernameHandler(c *gin.Context) {
 // ─── Header Profile ───────────────────────────────────────────────────────────
 
 // GetHeaderProfileHandler returns the user profile data needed for the header component.
-// This includes username, avatar, online status, trader badge, and unread notification count.
+// This includes username, avatar, online status, trader badge, unread notification count, and security status.
 func (h *AuthHandler) GetHeaderProfileHandler(c *gin.Context) {
 	userID, ok := basehandler.GetUserIDFromContext(c)
 	if !ok {
@@ -175,12 +192,19 @@ func (h *AuthHandler) GetHeaderProfileHandler(c *gin.Context) {
 	stats, _ := h.profileManager.GetUserStats(c.Request.Context(), userID)
 	traderBadge := h.determineTraderBadge(user, stats)
 
+	// Calculate account health and security status
+	accountHealth, accountSecurity, twoFactorStatus, loginNotifications := h.calculateSecurityStatus(user)
+
 	response := dto.HeaderProfileResponse{
 		Username:                user.Username,
 		AvatarURL:               user.AvatarURL,
 		IsOnline:                user.IsOnline(),
 		TraderBadge:             traderBadge,
 		UnreadNotificationCount: unreadCount,
+		AccountHealth:           accountHealth,
+		AccountSecurity:         accountSecurity,
+		TwoFactorStatus:         twoFactorStatus,
+		LoginNotifications:      loginNotifications,
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -209,4 +233,45 @@ func (h *AuthHandler) determineTraderBadge(user *identity.User, stats *identity.
 	}
 
 	return ""
+}
+
+// calculateSecurityStatus calculates the account health and security status
+func (h *AuthHandler) calculateSecurityStatus(user *identity.User) (accountHealth, accountSecurity, twoFactorStatus, loginNotifications string) {
+	// Account Security: based on email verification
+	if user.EmailVerified {
+		accountSecurity = "VERIFIED"
+	} else {
+		accountSecurity = "UNVERIFIED"
+	}
+
+	// 2FA Status: based on two factor authentication (check if secret is set)
+	if user.TwoFASecret != nil && *user.TwoFASecret != "" {
+		twoFactorStatus = "ENABLED"
+	} else {
+		twoFactorStatus = "DISABLED"
+	}
+
+	// Login Notifications: assume active for now (can be enhanced with user preferences)
+	loginNotifications = "ACTIVE"
+
+	// Calculate overall account health based on security factors
+	securityScore := 0
+	if user.EmailVerified {
+		securityScore++
+	}
+	if user.TwoFASecret != nil && *user.TwoFASecret != "" {
+		securityScore++
+	}
+
+	// Determine health based on score
+	switch securityScore {
+	case 2:
+		accountHealth = "EXCELLENT"
+	case 1:
+		accountHealth = "GOOD"
+	default:
+		accountHealth = "FAIR"
+	}
+
+	return
 }

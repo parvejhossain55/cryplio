@@ -8,34 +8,38 @@ import (
 	"math/big"
 	"os"
 	"strings"
+	"time"
 
-	trading "cryplio/internal/domain/trading"
+	tradingdomain "cryplio/internal/domain/trading"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/params"
 )
 
 type EvmEscrowClient struct {
-	client     *ethclient.Client
-	privateKey *ecdsa.PrivateKey
-	fromAddr   common.Address
-	contract   common.Address
-	chainID    *big.Int
-	auth       *bind.TransactOpts
-	parsedABI  *abi.ABI
+	client          *ethclient.Client
+	privateKey      *ecdsa.PrivateKey
+	fromAddr        common.Address
+	contractAddress common.Address
+	chainID         *big.Int
+	parsedABI       abi.ABI
 }
 
-func NewEvmEscrowClient(rawUrl string, pkHex string, contractAddr string, abiPath string) (*EvmEscrowClient, error) {
+func NewEvmEscrowClient(rawUrl, pkHex, contractAddr, abiPath string) (*EvmEscrowClient, error) {
 	client, err := ethclient.Dial(rawUrl)
 	if err != nil {
 		return nil, fmt.Errorf("dial eth: %w", err)
 	}
 
-	pk, err := crypto.HexToECDSA(strings.TrimPrefix(pkHex, "0x"))
+	pkStr := pkHex
+	if len(pkStr) > 2 && pkStr[:2] == "0x" {
+		pkStr = pkStr[2:]
+	}
+
+	pk, err := crypto.HexToECDSA(pkStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid private key: %w", err)
 	}
@@ -52,144 +56,132 @@ func NewEvmEscrowClient(rawUrl string, pkHex string, contractAddr string, abiPat
 	}
 	fromAddr := crypto.PubkeyToAddress(*publicKeyECDSA)
 
-	auth, err := bind.NewKeyedTransactorWithChainID(pk, chainID)
+	// Load ABI
+	abiData, err := os.ReadFile(abiPath)
 	if err != nil {
-		return nil, fmt.Errorf("create transactor: %w", err)
+		return nil, fmt.Errorf("read abi file: %w", err)
 	}
 
-	// Set reasonable gas price and limit
-	auth.GasLimit = 300000                       // Adjust based on actual gas usage
-	auth.GasPrice = big.NewInt(params.GWei * 20) // 20 Gwei
+	// The ABI might be a raw JSON array or a full Foundry/Hardhat artifact object
+	var abiArray []byte
+	var artifact struct {
+		Abi interface{} `json:"abi"`
+	}
 
-	// Load and parse ABI from JSON file
-	abiBytes, err := os.ReadFile(abiPath)
+	if err := json.Unmarshal(abiData, &artifact); err == nil && artifact.Abi != nil {
+		// It's an artifact, re-marshal the 'abi' field
+		abiArray, _ = json.Marshal(artifact.Abi)
+	} else {
+		// Assume it's a raw ABI array
+		abiArray = abiData
+	}
+
+	parsedABI, err := abi.JSON(strings.NewReader(string(abiArray)))
 	if err != nil {
-		return nil, fmt.Errorf("read ABI file: %w", err)
-	}
-
-	var abiWrapper struct {
-		ABI json.RawMessage `json:"abi"`
-	}
-	if err := json.Unmarshal(abiBytes, &abiWrapper); err != nil {
-		return nil, fmt.Errorf("unmarshal ABI JSON: %w", err)
-	}
-
-	parsedABI, err := abi.JSON(strings.NewReader(string(abiWrapper.ABI)))
-	if err != nil {
-		return nil, fmt.Errorf("parse ABI: %w", err)
+		return nil, fmt.Errorf("parse abi: %w", err)
 	}
 
 	return &EvmEscrowClient{
-		client:     client,
-		privateKey: pk,
-		fromAddr:   fromAddr,
-		contract:   common.HexToAddress(contractAddr),
-		chainID:    chainID,
-		auth:       auth,
-		parsedABI:  &parsedABI,
+		client:          client,
+		privateKey:      pk,
+		fromAddr:        fromAddr,
+		contractAddress: common.HexToAddress(contractAddr),
+		chainID:         chainID,
+		parsedABI:       parsedABI,
 	}, nil
 }
 
-func (c *EvmEscrowClient) Lock(ctx context.Context, trade *trading.Trade) (string, string, error) {
-	// Create contract binding
-	boundContract := bind.NewBoundContract(c.contract, *c.parsedABI, c.client, c.client, c.client)
-
-	// Convert trade ID to bytes32
-	tradeIdBytes := common.HexToHash(trade.TradeID.String())
-
-	// Convert addresses
-	buyerAddr := common.HexToAddress(trade.BuyerID.String())
-	sellerAddr := common.HexToAddress(trade.SellerID.String())
-
-	// For MVP, we assume USDT token address - in production, get from config
-	usdtAddr := common.HexToAddress("0xdAC17F958D2ee523a2206206994597C13D831ec7") // Mainnet USDT
-
-	// Convert amount to wei (USDT has 6 decimals)
-	amount := big.NewInt(int64(trade.CryptoAmount * 1000000)) // Convert to USDT smallest unit
-
-	// Expiry time in seconds (e.g. 1 hour = 3600)
-	expiryTime := big.NewInt(3600) // Default for MVP
-
-	// Call createEscrow
-	auth := *c.auth
-	auth.Context = ctx
-
-	tx, err := boundContract.Transact(&auth, "createEscrow", tradeIdBytes, buyerAddr, sellerAddr, usdtAddr, amount, expiryTime)
+func (c *EvmEscrowClient) Lock(ctx context.Context, trade *tradingdomain.Trade) (string, string, error) {
+	auth, err := bind.NewKeyedTransactorWithChainID(c.privateKey, c.chainID)
 	if err != nil {
-		return "", "", fmt.Errorf("call createEscrow: %w", err)
+		return "", "", fmt.Errorf("create transactor: %w", err)
 	}
 
-	if tx == nil {
-		return "", "", fmt.Errorf("transaction was nil")
+	if trade.BuyerAddress == nil || !common.IsHexAddress(*trade.BuyerAddress) {
+		return "", "", fmt.Errorf("invalid buyer address")
+	}
+	if trade.SellerAddress == nil || !common.IsHexAddress(*trade.SellerAddress) {
+		return "", "", fmt.Errorf("invalid seller address")
+	}
+	if trade.TokenAddress != nil && !common.IsHexAddress(*trade.TokenAddress) {
+		return "", "", fmt.Errorf("invalid token address")
 	}
 
-	return tx.Hash().Hex(), c.contract.Hex(), nil
+	tradeID := common.HexToHash(trade.TradeID.String())
+
+	contract := bind.NewBoundContract(c.contractAddress, c.parsedABI, c.client, c.client, c.client)
+
+	expiry := big.NewInt(time.Now().Add(time.Hour).Unix())
+
+	tokenAddr := common.HexToAddress("0x0000000000000000000000000000000000000000")
+	if trade.TokenAddress != nil {
+		tokenAddr = common.HexToAddress(*trade.TokenAddress)
+	}
+
+	buyerAddr := common.HexToAddress(*trade.BuyerAddress)
+	sellerAddr := common.HexToAddress(*trade.SellerAddress)
+
+	tx, err := contract.Transact(auth, "createEscrow",
+		tradeID,
+		buyerAddr,
+		sellerAddr,
+		tokenAddr,
+		big.NewInt(int64(trade.CryptoAmount*1e18)),
+		expiry,
+	)
+	if err != nil {
+		return "", "", fmt.Errorf("execute createEscrow tx: %w", err)
+	}
+
+	return tx.Hash().Hex(), c.contractAddress.Hex(), nil
 }
 
-func (c *EvmEscrowClient) Release(ctx context.Context, trade *trading.Trade) (string, error) {
-	boundContract := bind.NewBoundContract(c.contract, *c.parsedABI, c.client, c.client, c.client)
-
-	tradeIdBytes := common.HexToHash(trade.TradeID.String())
-
-	auth := *c.auth
-	auth.Context = ctx
-
-	tx, err := boundContract.Transact(&auth, "releaseEscrow", tradeIdBytes)
+func (c *EvmEscrowClient) Release(ctx context.Context, trade *tradingdomain.Trade) (string, error) {
+	auth, err := bind.NewKeyedTransactorWithChainID(c.privateKey, c.chainID)
 	if err != nil {
-		return "", fmt.Errorf("call releaseEscrow: %w", err)
+		return "", fmt.Errorf("create transactor: %w", err)
 	}
 
-	if tx == nil {
-		return "", fmt.Errorf("transaction was nil")
+	tradeID := common.HexToHash(trade.TradeID.String())
+	contract := bind.NewBoundContract(c.contractAddress, c.parsedABI, c.client, c.client, c.client)
+	tx, err := contract.Transact(auth, "releaseEscrow", tradeID)
+	if err != nil {
+		return "", fmt.Errorf("execute releaseEscrow tx: %w", err)
 	}
 
 	return tx.Hash().Hex(), nil
 }
 
-func (c *EvmEscrowClient) Refund(ctx context.Context, trade *trading.Trade) (string, error) {
-	boundContract := bind.NewBoundContract(c.contract, *c.parsedABI, c.client, c.client, c.client)
-
-	tradeIdBytes := common.HexToHash(trade.TradeID.String())
-
-	auth := *c.auth
-	auth.Context = ctx
-
-	tx, err := boundContract.Transact(&auth, "refundEscrow", tradeIdBytes)
+func (c *EvmEscrowClient) Refund(ctx context.Context, trade *tradingdomain.Trade) (string, error) {
+	auth, err := bind.NewKeyedTransactorWithChainID(c.privateKey, c.chainID)
 	if err != nil {
-		return "", fmt.Errorf("call refundEscrow: %w", err)
+		return "", fmt.Errorf("create transactor: %w", err)
 	}
 
-	if tx == nil {
-		return "", fmt.Errorf("transaction was nil")
+	tradeID := common.HexToHash(trade.TradeID.String())
+	contract := bind.NewBoundContract(c.contractAddress, c.parsedABI, c.client, c.client, c.client)
+	tx, err := contract.Transact(auth, "refundEscrow", tradeID)
+	if err != nil {
+		return "", fmt.Errorf("execute refundEscrow tx: %w", err)
 	}
 
 	return tx.Hash().Hex(), nil
 }
 
-func (c *EvmEscrowClient) AdminRefund(ctx context.Context, trade *trading.Trade) (string, error) {
-	return c.Refund(ctx, trade)
-}
-
-// GetEscrowStatus returns the current status of an escrow
-func (c *EvmEscrowClient) GetEscrowStatus(ctx context.Context, tradeId string) (uint8, error) {
-	boundContract := bind.NewBoundContract(c.contract, *c.parsedABI, c.client, c.client, c.client)
-
-	tradeIdBytes := common.HexToHash(tradeId)
-
-	var results []interface{}
-	err := boundContract.Call(nil, &results, "getEscrow", tradeIdBytes)
+func (c *EvmEscrowClient) AdminRefund(ctx context.Context, trade *tradingdomain.Trade) (string, error) {
+	auth, err := bind.NewKeyedTransactorWithChainID(c.privateKey, c.chainID)
 	if err != nil {
-		return 0, fmt.Errorf("call getEscrow: %w", err)
+		return "", fmt.Errorf("create transactor: %w", err)
 	}
 
-	if len(results) < 6 {
-		return 0, fmt.Errorf("unexpected result length")
+	tradeID := common.HexToHash(trade.TradeID.String())
+	contract := bind.NewBoundContract(c.contractAddress, c.parsedABI, c.client, c.client, c.client)
+	// Using forceReleaseEscrow or similar for admin intervention if needed,
+	// but here we'll stick to refundEscrow for now or match ABI if there's a specific admin one.
+	tx, err := contract.Transact(auth, "refundEscrow", tradeID)
+	if err != nil {
+		return "", fmt.Errorf("execute admin refundEscrow tx: %w", err)
 	}
 
-	status, ok := results[5].(uint8)
-	if !ok {
-		return 0, fmt.Errorf("invalid status type")
-	}
-
-	return status, nil
+	return tx.Hash().Hex(), nil
 }

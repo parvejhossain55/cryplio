@@ -10,6 +10,13 @@ export const walletService = {
         return data.wallets || [];
     },
 
+    getDailyLimit: async (): Promise<{ used: number; total: number; remaining: number }> => {
+        const response = await fetchWithRefresh("/api/v1/wallet/limit", {
+            credentials: "include",
+        });
+        return handleResponse(response);
+    },
+
     getDepositAddress: async (cryptoSymbol: string): Promise<{ wallet_id: string; crypto_id: number; address: string }> => {
         const response = await fetchWithRefresh(`/api/v1/wallet/deposit/${encodeURIComponent(cryptoSymbol)}`, {
             credentials: "include",
@@ -22,6 +29,7 @@ export const walletService = {
         address: string; 
         amount: number; 
         two_fa_code: string; 
+        email_code: string;
         fee?: number; 
         memo?: string 
     }): Promise<any> => {

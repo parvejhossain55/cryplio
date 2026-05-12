@@ -1,4 +1,4 @@
-import { BackendUser, BackendSession, UserStats, UserPaymentMethod, CreatePaymentMethodRequest, HeaderProfileResponse } from "@/types/api";
+import { BackendUser, BackendSession, UserStats, UserPaymentMethod, CreatePaymentMethodRequest } from "@/types/api";
 import { fetchWithRefresh, handleResponse, rememberAuthSession } from "./apiClient";
 
 export const userService = {
@@ -9,14 +9,6 @@ export const userService = {
         const data = await handleResponse<{ user: BackendUser }>(response);
         rememberAuthSession();
         return data.user;
-    },
-
-    getHeaderProfile: async (): Promise<HeaderProfileResponse> => {
-        const response = await fetchWithRefresh("/api/v1/users/me/header", {
-            credentials: "include",
-        });
-        const data = await handleResponse<HeaderProfileResponse>(response);
-        return data;
     },
 
     updateCurrentUser: async (updates: {

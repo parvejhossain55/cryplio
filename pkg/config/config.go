@@ -73,6 +73,7 @@ type Config struct {
 	// Blockchain
 	EthRPCURL             string
 	EthPrivateKey         string
+	WalletEncryptionKey   string
 	EscrowContractAddress string
 	EscrowABIPath         string
 
@@ -161,6 +162,7 @@ func Load() (*Config, error) {
 		// Blockchain
 		EthRPCURL:             getEnvCompat("ETH_RPC_URL", "http://localhost:8545"),
 		EthPrivateKey:         getEnvCompat("ETH_PRIVATE_KEY", ""),
+		WalletEncryptionKey:   getEnvCompat("WALLET_ENCRYPTION_KEY", "0123456789abcdef0123456789abcdef"), // 32 bytes default for dev
 		EscrowContractAddress: getEnvCompat("ESCROW_CONTRACT_ADDRESS", ""),
 		EscrowABIPath:         getEnvCompat("ESCROW_ABI_PATH", "contracts/out/CryplioEscrow.sol/CryplioEscrow.json"),
 
@@ -242,6 +244,10 @@ func getEnvCompat(key, defaultValue string) string {
 			if _, err := strconv.Atoi(value); err == nil {
 				return "1m"
 			}
+		}
+	case "ETH_PRIVATE_KEY":
+		if value, exists := os.LookupEnv("PLATFORM_WALLET_PRIVATE_KEY"); exists {
+			return value
 		}
 	}
 

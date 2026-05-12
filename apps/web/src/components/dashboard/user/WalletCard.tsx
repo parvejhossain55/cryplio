@@ -1,23 +1,30 @@
 "use client";
 
-import React from "react";
-import { TrendingUp, ArrowUpRight, ArrowDownLeft } from "lucide-react";
-
-interface Coin {
-    name: string;
-    symbol: string;
-    amount: string;
-    price: string;
-    icon: string;
-}
+import React, { useEffect, useState } from "react";
+import { TrendingUp, ArrowUpRight, ArrowDownLeft, Loader2 } from "lucide-react";
+import { walletService } from "@/services/walletService";
+import { WalletBalance } from "@/types/api";
 
 const WalletCard = () => {
-    const coins: Coin[] = [
-        { name: "Bitcoin", symbol: "BTC", amount: "0.45", price: "$28,450", icon: "₿" },
-        { name: "Ethereum", symbol: "ETH", amount: "12.5", price: "$12,400", icon: "Ξ" },
-        { name: "USDT", symbol: "USDT", amount: "2,000", price: "$2,000", icon: "₮" },
-        { name: "Solana", symbol: "SOL", amount: "450.0", price: "$125", icon: "S" },
-    ];
+    const [wallets, setWallets] = useState<WalletBalance[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchBalances = async () => {
+            try {
+                const balances = await walletService.getBalances();
+                setWallets(balances);
+            } catch (error) {
+                console.error("Failed to fetch balances:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchBalances();
+    }, []);
+
+    const totalBalance = wallets.reduce((acc, wallet) => acc + Number(wallet.balance), 0);
 
     return (
         <div className="relative overflow-hidden bg-surface rounded-[2.5rem] border border-white/10 p-8 group">
@@ -27,9 +34,13 @@ const WalletCard = () => {
                 <div>
                     <p className="text-xs font-black text-text-dim uppercase tracking-[0.2em] mb-2">Total Balance</p>
                     <div className="flex items-baseline space-x-3">
-                        <h2 className="text-5xl font-black text-white">$42,850.24</h2>
+                        {loading ? (
+                            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                        ) : (
+                            <h2 className="text-5xl font-black text-white">{totalBalance.toFixed(8)}</h2>
+                        )}
                         <span className="text-accent font-bold bg-accent/10 px-2 py-0.5 rounded-lg text-sm flex items-center">
-                            <TrendingUp className="w-3 h-3 mr-1" /> +12.5%
+                            <TrendingUp className="w-3 h-3 mr-1" /> +0.0%
                         </span>
                     </div>
                 </div>
@@ -45,16 +56,26 @@ const WalletCard = () => {
             </div>
 
             <div className="relative z-10 mt-10 grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {coins.map((coin) => (
-                    <div key={coin.symbol} className="p-4 rounded-3xl bg-white/5 border border-white/5 hover:border-white/10 transition-all cursor-pointer group/card">
-                        <div className="w-10 h-10 rounded-2xl bg-surface flex items-center justify-center text-lg font-black mb-3 group-hover/card:scale-110 transition-transform">
-                            {coin.icon}
-                        </div>
-                        <p className="text-[10px] font-black text-text-dim uppercase tracking-widest">{coin.symbol}</p>
-                        <p className="text-sm font-bold text-white mt-1">{coin.amount}</p>
-                        <p className="text-[10px] font-medium text-text-dim mt-0.5">{coin.price}</p>
+                {loading ? (
+                    <div className="col-span-full flex justify-center py-4">
+                        <Loader2 className="w-6 h-6 animate-spin text-primary" />
                     </div>
-                ))}
+                ) : wallets.length === 0 ? (
+                    <div className="col-span-full text-center py-4 text-text-dim text-xs">
+                        No active wallets found.
+                    </div>
+                ) : (
+                    wallets.map((wallet) => (
+                        <div key={wallet.wallet_id} className="p-4 rounded-3xl bg-white/5 border border-white/5 hover:border-white/10 transition-all cursor-pointer group/card">
+                            <div className="w-10 h-10 rounded-2xl bg-surface flex items-center justify-center text-lg font-black mb-3 group-hover/card:scale-110 transition-transform">
+                                {wallet.crypto_symbol === 'BTC' ? '₿' : wallet.crypto_symbol === 'ETH' ? 'Ξ' : wallet.crypto_symbol === 'USDT' ? '₮' : 'S'}
+                            </div>
+                            <p className="text-[10px] font-black text-text-dim uppercase tracking-widest">{wallet.crypto_symbol || 'ETH'}</p>
+                            <p className="text-sm font-bold text-white mt-1">{Number(wallet.balance).toFixed(4)}</p>
+                            <p className="text-[10px] font-medium text-text-dim mt-0.5">Primary Wallet</p>
+                        </div>
+                    ))
+                )}
             </div>
         </div>
     );

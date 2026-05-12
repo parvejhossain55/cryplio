@@ -14,9 +14,10 @@ import (
 
 // txColumns is the standard SELECT projection for wallet_transactions.
 const txColumns = `
-	txn_id, wallet_id, user_id, type, status, amount, fee,
-	(amount - fee) AS net_amount, 0::numeric AS balance_after,
-	reference_id, tx_hash, confirmations, to_address, created_at
+	t.txn_id, t.wallet_id, t.user_id, t.type, t.status, t.amount, t.fee,
+	(t.amount - t.fee) AS net_amount, 0::numeric AS balance_after,
+	t.reference_id, t.tx_hash, t.confirmations, t.to_address, t.created_at,
+	ca.symbol AS crypto_symbol
 `
 
 func scanTx(row interface{ Scan(...any) error }, tx *domainwallet.WalletTransaction) error {
@@ -24,6 +25,7 @@ func scanTx(row interface{ Scan(...any) error }, tx *domainwallet.WalletTransact
 		&tx.TxID, &tx.WalletID, &tx.UserID, &tx.Type, &tx.Status, &tx.Amount, &tx.Fee,
 		&tx.NetAmount, &tx.BalanceAfter,
 		&tx.ReferenceID, &tx.TxHash, &tx.Confirmations, &tx.Memo, &tx.CreatedAt,
+		&tx.CryptoSymbol,
 	)
 	if err == nil {
 		tx.UpdatedAt = tx.CreatedAt
@@ -54,7 +56,10 @@ func (r *walletRepository) CreateTransaction(ctx context.Context, tx *domainwall
 func (r *walletRepository) GetTransactionByID(ctx context.Context, txID uuid.UUID) (*domainwallet.WalletTransaction, error) {
 	var tx domainwallet.WalletTransaction
 	err := scanTx(r.db.QueryRowContext(ctx,
-		`SELECT `+txColumns+` FROM wallet_transactions WHERE txn_id = $1`, txID), &tx)
+		`SELECT `+txColumns+` 
+		 FROM wallet_transactions t
+		 JOIN crypto_assets ca ON ca.id = t.crypto_id
+		 WHERE t.txn_id = $1`, txID), &tx)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -73,9 +78,10 @@ func (r *walletRepository) ListTransactionsByUser(ctx context.Context, userID uu
 
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT `+txColumns+`
-		 FROM wallet_transactions
-		 WHERE user_id = $1
-		 ORDER BY created_at DESC
+		 FROM wallet_transactions t
+		 JOIN crypto_assets ca ON ca.id = t.crypto_id
+		 WHERE t.user_id = $1
+		 ORDER BY t.created_at DESC
 		 LIMIT $2 OFFSET $3`, userID, limit, offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list wallet transactions: %w", err)
@@ -91,6 +97,19 @@ func (r *walletRepository) ListTransactionsByUser(ctx context.Context, userID uu
 		txs = append(txs, tx)
 	}
 	return txs, total, nil
+}
+
+func (r *walletRepository) GetPendingDepositTotal(ctx context.Context, userID uuid.UUID, cryptoID int) (float64, error) {
+	var total float64
+	err := r.db.QueryRowContext(ctx, `
+		SELECT COALESCE(SUM(amount), 0)
+		FROM wallet_transactions
+		WHERE user_id = $1 AND crypto_id = $2 AND type = 'deposit' AND status = 'pending'`,
+		userID, cryptoID).Scan(&total)
+	if err != nil {
+		return 0, fmt.Errorf("get pending deposit total: %w", err)
+	}
+	return total, nil
 }
 
 func (r *walletRepository) GetDailyWithdrawalTotal(ctx context.Context, userID uuid.UUID) (float64, error) {

@@ -15,9 +15,11 @@ type Repository interface {
 	ListByUser(ctx context.Context, userID uuid.UUID) ([]Wallet, error)
 	Create(ctx context.Context, wallet *Wallet) error
 	Update(ctx context.Context, wallet *Wallet) error
+	UpdateBalance(ctx context.Context, walletID uuid.UUID, balance float64) error
 	CreateTransaction(ctx context.Context, tx *WalletTransaction) error
 	GetTransactionByID(ctx context.Context, txID uuid.UUID) (*WalletTransaction, error)
 	ListTransactionsByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]WalletTransaction, int, error)
+	GetPendingDepositTotal(ctx context.Context, userID uuid.UUID, cryptoID int) (float64, error)
 	GetDailyWithdrawalTotal(ctx context.Context, userID uuid.UUID) (float64, error)
 	ListPendingWithdrawals(ctx context.Context, limit, offset int) ([]WalletTransaction, int, error)
 	ApproveWithdrawal(ctx context.Context, txID, adminID uuid.UUID, txHash string) error

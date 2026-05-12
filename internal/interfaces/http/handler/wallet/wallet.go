@@ -47,6 +47,25 @@ func (h *WalletHandler) GetBalancesHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"wallets": balances})
 }
 
+func (h *WalletHandler) GetDailyLimitHandler(c *gin.Context) {
+	userID, ok := basehandler.GetUserIDFromContext(c)
+	if !ok {
+		return
+	}
+
+	used, total, err := h.walletService.GetDailyLimitInfo(c.Request.Context(), userID)
+	if err != nil {
+		basehandler.HandleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"used":  used,
+		"total": total,
+		"remaining": total - used,
+	})
+}
+
 func (h *WalletHandler) GetDepositAddressHandler(c *gin.Context) {
 	userID, ok := basehandler.GetUserIDFromContext(c)
 	if !ok {
@@ -74,6 +93,8 @@ type withdrawRequest struct {
 	CryptoSymbol string  `json:"crypto_symbol" binding:"required"`
 	Address      string  `json:"address" binding:"required"`
 	Amount       float64 `json:"amount" binding:"required,gt=0"`
+	TwoFACode    string  `json:"two_fa_code" binding:"required"`
+	EmailCode    string  `json:"email_code" binding:"required"`
 	Fee          float64 `json:"fee"`
 	Memo         *string `json:"memo"`
 }
@@ -101,6 +122,12 @@ func (h *WalletHandler) WithdrawHandler(c *gin.Context) {
 		return
 	}
 
+	// Verify 2FA code
+	if err := h.twoFactorManager.Verify2FA(c.Request.Context(), userID, req.TwoFACode); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid 2FA code"})
+		return
+	}
+
 	tx, err := h.walletService.Withdraw(
 		c.Request.Context(),
 		userID,
@@ -109,6 +136,7 @@ func (h *WalletHandler) WithdrawHandler(c *gin.Context) {
 		req.Amount,
 		req.Fee,
 		req.Memo,
+		req.EmailCode,
 	)
 	if err != nil {
 		basehandler.HandleError(c, err)

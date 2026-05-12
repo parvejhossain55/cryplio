@@ -17,10 +17,11 @@ const tradeColumns = `
 	started_at, payment_marked_at, released_at, cancelled_at,
 	completed_at, expired_at, payment_window_minutes,
 	is_auto_dispute_triggered, cancel_reason, escrow_txn_hash,
-	escrow_contract_address, created_at, updated_at, deleted_at
+	escrow_contract_address, buyer_address, seller_address,
+	token_address, created_at, updated_at, deleted_at
 `
 
-// scanTrade scans the 29-column trade projection into t.
+// scanTrade scans the 32-column trade projection into t.
 func scanTrade(row scanner, t *trading.Trade) error {
 	return row.Scan(
 		&t.TradeID, &t.AdID, &t.BuyerID, &t.SellerID, &t.CryptoID, &t.FiatID,
@@ -29,6 +30,7 @@ func scanTrade(row scanner, t *trading.Trade) error {
 		&t.StartedAt, &t.PaymentMarkedAt, &t.ReleasedAt, &t.CancelledAt,
 		&t.CompletedAt, &t.ExpiredAt, &t.PaymentWindowMinutes,
 		&t.IsAutoDisputeTriggered, &t.CancelReason, &t.EscrowTxnHash,
-		&t.EscrowContractAddress, &t.CreatedAt, &t.UpdatedAt, &t.DeletedAt,
+		&t.EscrowContractAddress, &t.BuyerAddress, &t.SellerAddress,
+		&t.TokenAddress, &t.CreatedAt, &t.UpdatedAt, &t.DeletedAt,
 	)
 }

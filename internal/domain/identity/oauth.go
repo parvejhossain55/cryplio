@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"cryplio/pkg/apperrors"
+	"cryplio/pkg/logger"
 
 	"github.com/google/uuid"
 )
@@ -164,6 +165,16 @@ func (s *authService) findOrCreateOAuthUser(
 		user.AvatarURL = &picture
 		if err := s.userRepo.Create(ctx, user); err != nil {
 			return nil, apperrors.Internal("failed to create user", err)
+		}
+
+		// Auto-create a default wallet for the new user
+		if s.walletService != nil {
+			if _, err := s.walletService.CreateDefaultWallet(ctx, user.UserID); err != nil {
+				logger.Error("failed to auto-create wallet during OAuth registration", logger.Fields{
+					"user_id": user.UserID,
+					"error":   err.Error(),
+				})
+			}
 		}
 	}
 

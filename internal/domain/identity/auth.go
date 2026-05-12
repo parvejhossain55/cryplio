@@ -13,6 +13,7 @@ import (
 	"cryplio/pkg/apperrors"
 	sharedcrypto "cryplio/pkg/crypto"
 	sharedjwt "cryplio/pkg/jwt"
+	"cryplio/pkg/logger"
 
 	"github.com/google/uuid"
 )
@@ -58,7 +59,13 @@ func (s *authService) Register(ctx context.Context, email, username, password st
 
 	// Auto-create a default wallet for the new user
 	if s.walletService != nil {
-		_, _ = s.walletService.CreateDefaultWallet(ctx, user.UserID)
+		if _, err := s.walletService.CreateDefaultWallet(ctx, user.UserID); err != nil {
+			// Log error but don't fail registration.
+			logger.Error("failed to auto-create wallet during registration", logger.Fields{
+				"user_id": user.UserID,
+				"error":   err.Error(),
+			})
+		}
 	}
 
 	return user, nil

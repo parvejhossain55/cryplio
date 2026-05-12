@@ -14,6 +14,7 @@ import (
 	"cryplio/internal/domain/identity"
 	"cryplio/internal/domain/notification"
 	"cryplio/internal/domain/platform"
+	"cryplio/internal/domain/wallet"
 	"cryplio/pkg/config"
 	"time"
 
@@ -70,6 +71,7 @@ type tradeService struct {
 	escrowClient        EscrowContractClient
 	notificationService notification.Service
 	platformRepo        platform.PlatformRepository
+	walletRepo          wallet.Repository
 	cfg                 *config.Config
 }
 
@@ -80,6 +82,7 @@ type TradeServiceConfig struct {
 	EscrowClient        EscrowContractClient
 	NotificationService notification.Service
 	PlatformRepo        platform.PlatformRepository
+	WalletRepo          wallet.Repository
 	Cfg                 *config.Config
 }
 
@@ -92,6 +95,7 @@ func NewTradeService(cfg TradeServiceConfig) TradeService {
 		escrowClient:        cfg.EscrowClient,
 		notificationService: cfg.NotificationService,
 		platformRepo:        cfg.PlatformRepo,
+		walletRepo:          cfg.WalletRepo,
 		cfg:                 cfg.Cfg,
 	}
 }

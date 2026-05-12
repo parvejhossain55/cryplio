@@ -63,42 +63,31 @@ func New() (*App, error) {
 		cfg.FrontendURL,
 	)
 
-	// Blockchain Clients (create first so wallet service can be injected into auth service)
+	// Blockchain Clients (Mandatory for production)
+	if cfg.EthRPCURL == "" || cfg.EthPrivateKey == "" {
+		return nil, fmt.Errorf("blockchain configuration missing: ETH_RPC_URL and ETH_PRIVATE_KEY are required")
+	}
+
+	walletClient, err := blockchain.NewEvmWalletClient(cfg.EthRPCURL, cfg.EthPrivateKey)
+	if err != nil {
+		return nil, fmt.Errorf("initialize EVM Wallet Client: %w", err)
+	}
+
 	var escrowClient domaintrading.EscrowContractClient
-	var walletClient domainwallet.WalletClient
-
-	if cfg.EscrowContractAddress != "" && cfg.EthRPCURL != "" {
-		evmEscrow, err := blockchain.NewEvmEscrowClient(cfg.EthRPCURL, cfg.EthPrivateKey, cfg.EscrowContractAddress, cfg.EscrowABIPath)
-		if err == nil {
-			escrowClient = evmEscrow
-		} else {
-			logger.Warn("failed to init EVM Escrow Client", logger.Fields{"error": err.Error()})
-			escrowClient = blockchain.NewMockEscrowContractClient()
+	if cfg.EscrowContractAddress != "" && cfg.EscrowABIPath != "" {
+		escrowClient, err = blockchain.NewEvmEscrowClient(cfg.EthRPCURL, cfg.EthPrivateKey, cfg.EscrowContractAddress, cfg.EscrowABIPath)
+		if err != nil {
+			return nil, fmt.Errorf("initialize EVM Escrow Client: %w", err)
 		}
 	} else {
-		// Use mock escrow service for MVP without smart contracts
-		escrowClient = blockchain.NewMockEscrowContractClient()
-	}
-
-	if cfg.EthPrivateKey != "" {
-		evmWallet, err := blockchain.NewEvmWalletClient(cfg.EthRPCURL, cfg.EthPrivateKey)
-		if err == nil {
-			walletClient = evmWallet
-		} else {
-			logger.Warn("failed to init EVM Wallet Client", logger.Fields{"error": err.Error()})
-			walletClient = blockchain.NewNoopWalletClient()
-		}
-	} else {
-		walletClient = blockchain.NewNoopWalletClient()
-	}
-
-	if escrowClient == nil {
-		escrowClient = blockchain.NewNoopEscrowContractClient()
+		return nil, fmt.Errorf("escrow configuration missing: ESCROW_CONTRACT_ADDRESS and ESCROW_ABI_PATH are required")
 	}
 
 	// Create wallet service first so it can be injected into auth service
 	walletRepo := walletpostgres.NewWalletRepository(db)
-	walletService := domainwallet.NewService(walletRepo, walletClient)
+	platformRepo := platformpostgres.NewPlatformRepository(db)
+	platformService := platform.NewPlatformService(platformRepo)
+	walletService := domainwallet.NewService(walletRepo, walletClient, platformService, cfg)
 
 	// Create auth service with wallet service for auto-creating wallets on registration
 	authService := domainidentity.NewAuthService(domainidentity.AuthServiceConfig{
@@ -124,7 +113,6 @@ func New() (*App, error) {
 	disputeService := domaindispute.NewService(disputeRepo)
 
 	tradeRepo := tradingpostgres.NewTradeRepository(db)
-	platformRepo := platformpostgres.NewPlatformRepository(db)
 	tradeService := domaintrading.NewTradeService(domaintrading.TradeServiceConfig{
 		TradeRepo:           tradeRepo,
 		IdentityRepo:        userRepo,
@@ -132,9 +120,9 @@ func New() (*App, error) {
 		EscrowClient:        escrowClient,
 		NotificationService: notificationService,
 		PlatformRepo:        platformRepo,
+		WalletRepo:          walletRepo,
 		Cfg:                 cfg,
 	})
-	platformService := platform.NewPlatformService(platformRepo)
 
 	rateService := market.NewRateService()
 

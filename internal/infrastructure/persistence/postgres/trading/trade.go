@@ -18,13 +18,15 @@ func (r *tradeRepository) CreateTrade(ctx context.Context, t *trading.Trade) err
 			trade_id, ad_id, buyer_id, seller_id, crypto_id, fiat_id,
 			crypto_amount, fiat_amount, exchange_rate, payment_method,
 			price_type, agreed_price, status, payment_window_minutes,
+			buyer_address, seller_address, token_address,
 			created_at, updated_at
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14, NOW(), NOW())
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17, NOW(), NOW())
 		RETURNING created_at, updated_at`,
 		t.TradeID, t.AdID, t.BuyerID, t.SellerID,
 		t.CryptoID, t.FiatID, t.CryptoAmount, t.FiatAmount,
 		t.ExchangeRate, t.PaymentMethod, t.PriceType,
 		t.AgreedPrice, t.Status, t.PaymentWindowMinutes,
+		t.BuyerAddress, t.SellerAddress, t.TokenAddress,
 	).Scan(&t.CreatedAt, &t.UpdatedAt)
 }
 

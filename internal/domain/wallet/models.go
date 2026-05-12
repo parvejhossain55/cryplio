@@ -36,17 +36,19 @@ const (
 
 // Wallet represents a user's cryptocurrency wallet
 type Wallet struct {
-	WalletID      uuid.UUID `db:"wallet_id" json:"wallet_id"`
-	UserID        uuid.UUID `db:"user_id" json:"user_id"`
-	CryptoID      *int      `db:"crypto_id" json:"crypto_id,omitempty"`
-	CryptoSymbol  string    `db:"crypto_symbol" json:"crypto_symbol,omitempty"`
-	Address       string    `db:"address" json:"address"`
-	Balance       float64   `db:"balance" json:"balance"`
-	LockedBalance float64   `db:"locked_balance" json:"locked_balance"`
-	IsActive      bool      `db:"is_active" json:"is_active"`
-	IsPrimary     bool      `db:"is_primary" json:"is_primary"`
-	LastUpdated   time.Time `db:"last_updated" json:"last_updated"`
-	CreatedAt     time.Time `db:"created_at" json:"created_at"`
+	WalletID            uuid.UUID `db:"wallet_id" json:"wallet_id"`
+	UserID              uuid.UUID `db:"user_id" json:"user_id"`
+	CryptoID            *int      `db:"crypto_id" json:"crypto_id,omitempty"`
+	CryptoSymbol        string    `db:"crypto_symbol" json:"crypto_symbol,omitempty"`
+	Address             string    `db:"address" json:"address"`
+	EncryptedPrivateKey *string   `db:"encrypted_private_key" json:"-"`
+	Balance             float64   `db:"balance" json:"balance"`
+	LockedBalance       float64   `db:"locked_balance" json:"locked_balance"`
+	PendingBalance      float64   `json:"pending_balance"`
+	IsActive            bool      `db:"is_active" json:"is_active"`
+	IsPrimary           bool      `db:"is_primary" json:"is_primary"`
+	LastUpdated         time.Time `db:"last_updated" json:"last_updated"`
+	CreatedAt           time.Time `db:"created_at" json:"created_at"`
 }
 
 // AvailableBalance returns the available (unlocked) balance
@@ -98,6 +100,7 @@ func (w *Wallet) Unlock(amount float64) {
 type WalletTransaction struct {
 	TxID               uuid.UUID         `db:"tx_id" json:"tx_id"`
 	WalletID           uuid.UUID         `db:"wallet_id" json:"wallet_id"`
+	CryptoSymbol       string            `db:"crypto_symbol" json:"crypto_symbol,omitempty"`
 	UserID             uuid.UUID         `db:"user_id" json:"user_id"`
 	Type               TransactionType   `db:"type" json:"type"`
 	Status             TransactionStatus `db:"status" json:"status"`

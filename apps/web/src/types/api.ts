@@ -8,6 +8,13 @@ export interface BackendUser {
     two_fa_enabled: boolean;
     avatar_url?: string | null;
     is_online: boolean;
+    // Header profile fields
+    trader_badge?: string;
+    unread_notification_count?: number;
+    account_health?: string;
+    account_security?: string;
+    two_factor_status?: string;
+    login_notifications?: string;
 }
 
 export interface BackendSession {
@@ -81,17 +88,24 @@ export interface WalletBalance {
     address: string;
     balance: number;
     locked_balance: number;
+    pending_balance?: number;
     is_active: boolean;
 }
 
 export interface WalletTransaction {
     tx_id: string;
     wallet_id: string;
-    type: string;
-    status: string;
+    crypto_symbol: string;
+    type: "deposit" | "withdrawal" | "escrow_lock" | "escrow_release" | "escrow_refund";
+    status: "pending" | "confirmed" | "completed" | "failed" | "cancelled";
     amount: number;
     fee: number;
+    net_amount: number;
+    tx_hash?: string;
+    confirmations: number;
+    destination_address?: string;
     created_at: string;
+    updated_at: string;
 }
 
 export interface AuthResponse {
@@ -109,4 +123,8 @@ export interface HeaderProfileResponse {
     is_online: boolean;
     trader_badge: string;
     unread_notification_count: number;
+    account_health: string;
+    account_security: string;
+    two_factor_status: string;
+    login_notifications: string;
 }

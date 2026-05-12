@@ -42,10 +42,11 @@ type WithdrawInput struct {
 	Amount       float64
 	Fee          float64
 	Memo         *string
+	EmailCode    string
 }
 
 func (uc *WithdrawUseCase) Execute(ctx context.Context, input WithdrawInput) (*domain.WalletTransaction, error) {
-	return uc.walletService.Withdraw(ctx, input.UserID, input.CryptoSymbol, input.Destination, input.Amount, input.Fee, input.Memo)
+	return uc.walletService.Withdraw(ctx, input.UserID, input.CryptoSymbol, input.Destination, input.Amount, input.Fee, input.Memo, input.EmailCode)
 }
 
 // BalanceUseCase fetches all wallet balances for a user.

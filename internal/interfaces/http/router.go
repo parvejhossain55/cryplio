@@ -114,7 +114,7 @@ func SetupRouter(
 		auth.Use(middleware.AuthMiddleware(cfg.JWTSecret, cfg.CookieName))
 		{
 			auth.GET("/users/me", authHandler.GetUserHandler)
-			auth.GET("/users/me/header", authHandler.GetHeaderProfileHandler)
+			auth.GET("/users/me/header-profile", authHandler.GetHeaderProfileHandler)
 			auth.PUT("/users/me", authHandler.UpdateUserHandler)
 			auth.POST("/users/me/avatar", authHandler.UploadAvatarHandler)
 
@@ -152,6 +152,7 @@ func SetupRouter(
 
 			// Wallet
 			auth.GET("/wallet/balance", walletHandler.GetBalancesHandler)
+			auth.GET("/wallet/limit", walletHandler.GetDailyLimitHandler)
 			auth.GET("/wallet/deposit/:crypto", walletHandler.GetDepositAddressHandler)
 			auth.POST("/wallet/withdraw", walletHandler.WithdrawHandler)
 			auth.GET("/wallet/transactions", walletHandler.GetTransactionsHandler)

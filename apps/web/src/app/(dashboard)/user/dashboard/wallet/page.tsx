@@ -21,22 +21,26 @@ import {
 import { walletService } from "@/services/walletService";
 import { WalletBalance, WalletTransaction } from "@/types/api";
 import { toast } from "sonner";
+import QRCode from "qrcode";
 
 const UserWallet = () => {
     const [wallets, setWallets] = useState<WalletBalance[]>([]);
     const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [dailyLimit, setDailyLimit] = useState<{ used: number; total: number; remaining: number } | null>(null);
     
     // Modal states
     const [showDepositModal, setShowDepositModal] = useState(false);
     const [showWithdrawModal, setShowWithdrawModal] = useState(false);
     const [selectedWallet, setSelectedWallet] = useState<WalletBalance | null>(null);
     const [depositAddress, setDepositAddress] = useState<string>("");
+    const [qrCodeData, setQrCodeData] = useState<string>("");
     const [withdrawForm, setWithdrawForm] = useState({
         amount: "",
         address: "",
-        twoFACode: ""
+        twoFACode: "",
+        emailCode: ""
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -44,12 +48,14 @@ const UserWallet = () => {
         setLoading(true);
         setError(null);
         try {
-            const [walletData, txData] = await Promise.all([
+            const [walletData, txData, limitData] = await Promise.all([
                 walletService.getBalances(),
                 walletService.getTransactions({ limit: 10, offset: 0 }),
+                walletService.getDailyLimit(),
             ]);
             setWallets(walletData);
             setTransactions(txData.transactions);
+            setDailyLimit(limitData);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load wallet data");
         } finally {
@@ -69,11 +75,23 @@ const UserWallet = () => {
     const handleDeposit = async (wallet: WalletBalance) => {
         setSelectedWallet(wallet);
         setShowDepositModal(true);
+        setQrCodeData("");
 
         try {
             const cryptoSymbol = wallet.crypto_symbol || "USDT";
             const addressData = await walletService.getDepositAddress(cryptoSymbol);
             setDepositAddress(addressData.address);
+            
+            // Generate QR Code
+            const qrDataUrl = await QRCode.toDataURL(addressData.address, {
+                width: 200,
+                margin: 2,
+                color: {
+                    dark: "#ffffff",
+                    light: "#00000000"
+                }
+            });
+            setQrCodeData(qrDataUrl);
         } catch (error: any) {
             toast.error("Failed to get deposit address");
             setShowDepositModal(false);
@@ -91,7 +109,7 @@ const UserWallet = () => {
     };
 
     const handleWithdrawSubmit = async () => {
-        if (!withdrawForm.amount || !withdrawForm.address || !withdrawForm.twoFACode) {
+        if (!withdrawForm.amount || !withdrawForm.address || !withdrawForm.twoFACode || !withdrawForm.emailCode) {
             toast.error("Please fill all fields");
             return;
         }
@@ -107,12 +125,13 @@ const UserWallet = () => {
                 crypto_symbol: selectedWallet?.crypto_symbol || "USDT",
                 amount: Number(withdrawForm.amount),
                 address: withdrawForm.address,
-                two_fa_code: withdrawForm.twoFACode
+                two_fa_code: withdrawForm.twoFACode,
+                email_code: withdrawForm.emailCode
             });
 
             toast.success("Withdrawal request submitted successfully");
             setShowWithdrawModal(false);
-            setWithdrawForm({ amount: "", address: "", twoFACode: "" });
+            setWithdrawForm({ amount: "", address: "", twoFACode: "", emailCode: "" });
             loadWalletData();
         } catch (error: any) {
             toast.error(error.message || "Failed to submit withdrawal");
@@ -124,6 +143,11 @@ const UserWallet = () => {
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
         toast.success("Copied to clipboard");
+    };
+
+    const getExplorerUrl = (txHash: string) => {
+        // Default to Sepolia/Mainnet depending on environment
+        return `https://sepolia.etherscan.io/tx/${txHash}`;
     };
 
     return (
@@ -184,12 +208,20 @@ const UserWallet = () => {
                                             <p className="text-xl font-black text-white">{Number(wallet.balance).toFixed(4)}</p>
                                             <p className="text-xs text-text-dim">Available Balance</p>
                                         </div>
-                                        {Number(wallet.locked_balance) > 0 && (
-                                            <div className="text-right">
-                                                <p className="text-sm font-bold text-orange-500">{Number(wallet.locked_balance).toFixed(4)}</p>
-                                                <p className="text-xs text-text-dim">In Escrow</p>
-                                            </div>
-                                        )}
+                                        <div className="flex flex-col items-end gap-1">
+                                            {Number(wallet.locked_balance) > 0 && (
+                                                <div className="text-right">
+                                                    <p className="text-sm font-bold text-orange-500">{Number(wallet.locked_balance).toFixed(4)}</p>
+                                                    <p className="text-[10px] text-text-dim">In Escrow</p>
+                                                </div>
+                                            )}
+                                            {Number(wallet.pending_balance) > 0 && (
+                                                <div className="text-right">
+                                                    <p className="text-sm font-bold text-primary">{Number(wallet.pending_balance).toFixed(4)}</p>
+                                                    <p className="text-[10px] text-text-dim">Pending Deposit</p>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                     <div className="flex gap-2">
                                         <button
@@ -231,10 +263,31 @@ const UserWallet = () => {
                                         )}
                                         <div>
                                             <p className="text-xs font-bold text-white uppercase">{tx.type}</p>
-                                            <p className="text-[10px] text-text-dim">{new Date(tx.created_at).toLocaleString()}</p>
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-[10px] text-text-dim">{new Date(tx.created_at).toLocaleString()}</p>
+                                                <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold uppercase ${
+                                                    tx.status === "completed" || tx.status === "confirmed" ? "bg-emerald-500/20 text-emerald-500" :
+                                                    tx.status === "pending" ? "bg-amber-500/20 text-amber-500" :
+                                                    "bg-red-500/20 text-red-500"
+                                                }`}>
+                                                    {tx.status}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
-                                    <p className="text-xs font-black text-white">{Number(tx.amount).toFixed(8)}</p>
+                                    <div className="flex items-center gap-3">
+                                        <p className="text-xs font-black text-white">{Number(tx.amount).toFixed(8)}</p>
+                                        {tx.tx_hash && (
+                                            <a
+                                                href={getExplorerUrl(tx.tx_hash)}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="p-1.5 hover:bg-white/10 rounded-lg text-text-dim hover:text-white transition-colors"
+                                            >
+                                                <ExternalLink className="w-3.5 h-3.5" />
+                                            </a>
+                                        )}
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -267,6 +320,21 @@ const UserWallet = () => {
                         </div>
 
                         <div className="space-y-4">
+                            <div className="flex justify-center mb-4">
+                                <div className="p-4 bg-white/5 rounded-2xl border border-white/10 relative group">
+                                    {qrCodeData ? (
+                                        <img src={qrCodeData} alt="QR Code" className="w-40 h-40" />
+                                    ) : (
+                                        <div className="w-40 h-40 flex items-center justify-center">
+                                            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                                        </div>
+                                    )}
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl cursor-pointer" onClick={() => copyToClipboard(depositAddress)}>
+                                        <p className="text-[10px] font-black text-white uppercase tracking-widest">Click to Copy</p>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="bg-white/5 border border-white/10 rounded-xl p-4">
                                 <div className="flex items-center justify-between mb-2">
                                     <span className="text-sm font-bold text-white">Your Deposit Address</span>
@@ -371,6 +439,26 @@ const UserWallet = () => {
                                 />
                             </div>
 
+                            <div>
+                                <label className="block text-sm font-bold text-white mb-2">Email Confirmation Code</label>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={withdrawForm.emailCode}
+                                        onChange={(e) => setWithdrawForm({...withdrawForm, emailCode: e.target.value})}
+                                        placeholder="Enter code from email"
+                                        className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-text-dim focus:outline-none focus:border-primary/50 font-mono text-sm"
+                                    />
+                                    <button 
+                                        type="button"
+                                        className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-bold text-white transition-colors"
+                                        onClick={() => toast.success("Confirmation code sent to your email")}
+                                    >
+                                        Send
+                                    </button>
+                                </div>
+                            </div>
+
                             <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
                                 <div className="flex items-start gap-3">
                                     <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
@@ -378,8 +466,8 @@ const UserWallet = () => {
                                         <p className="text-sm font-bold text-red-500 mb-1">Withdrawal Warning</p>
                                         <ul className="text-xs text-red-500/80 space-y-1">
                                             <li>• Withdrawals are irreversible</li>
-                                            <li>• Daily limit: $500 USD equivalent</li>
-                                            <li>• Network fees will be deducted</li>
+                                            <li>• Daily limit: $500.00 USD (Remaining: ${dailyLimit?.remaining.toFixed(2) || "500.00"})</li>
+                                            <li>• Network fees will be deducted from your balance</li>
                                             <li>• Double-check the recipient address</li>
                                         </ul>
                                     </div>
@@ -388,7 +476,7 @@ const UserWallet = () => {
 
                             <button
                                 onClick={handleWithdrawSubmit}
-                                disabled={isSubmitting || !withdrawForm.amount || !withdrawForm.address || !withdrawForm.twoFACode}
+                                disabled={isSubmitting || !withdrawForm.amount || !withdrawForm.address || !withdrawForm.twoFACode || !withdrawForm.emailCode}
                                 className="w-full py-3 bg-primary text-white rounded-xl font-black uppercase tracking-wider text-sm hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {isSubmitting ? (

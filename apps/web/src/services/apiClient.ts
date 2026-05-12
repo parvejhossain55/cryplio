@@ -1,5 +1,7 @@
 // Base API Client for Cryplio Frontend
 
+import { HeaderProfileResponse } from "@/types/api";
+
 let isRefreshing = false;
 let refreshSubscribers: Array<{
     resolve: () => void;
@@ -91,4 +93,15 @@ export const handleResponse = async <T>(response: Response): Promise<T> => {
         throw new Error(data.error || "Request failed");
     }
     return data;
+};
+
+export const fetchHeaderProfile = async (): Promise<HeaderProfileResponse> => {
+    const response = await fetchWithRefresh("/api/v1/users/me/header-profile", {
+        method: "GET",
+        credentials: "include",
+        headers: {
+            "Content-Type": "application/json",
+        },
+    });
+    return handleResponse<HeaderProfileResponse>(response);
 };

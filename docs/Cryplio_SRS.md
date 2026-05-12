@@ -229,11 +229,10 @@ Cryplio MVP is a web-based P2P crypto trading platform. It interfaces with:
 | FR-303 | System detects on-chain USDT deposits and credits wallet after 12 confirmations | Critical |
 | FR-304 | User can withdraw USDT to external address; requires 2FA + email confirmation | Critical |
 | FR-305 | Daily withdrawal limit: $500 USD equivalent (no KYC in MVP) | Critical |
-| FR-306 | Ethereum gas fee + platform withdrawal margin shown to user before confirming | Critical |
 | FR-307 | Wallet shows: Available USDT, In-Escrow USDT, Pending deposits | Critical |
 | FR-308 | Full transaction history: deposits and withdrawals with txn hash + Etherscan link | Critical |
 
-**Excluded from MVP:** BTC, ETH, USDC, BNB wallets; address whitelisting (FR-309); auto-convert (FR-310)
+**Excluded from MVP:** BTC, ETH, USDC, BNB wallets; address whitelisting (FR-309); auto-convert (FR-310); Ethereum gas fee + platform withdrawal margin shown to user before confirming (FR-306)
 
 ---
 

@@ -20,6 +20,13 @@ export interface User {
     twoFAEnabled: boolean;
     lastSeenAt?: string;
     isOnline: boolean;
+    // Header profile fields
+    traderBadge?: string;
+    unreadNotificationCount?: number;
+    accountHealth?: string;
+    accountSecurity?: string;
+    twoFactorStatus?: string;
+    loginNotifications?: string;
 }
 
 interface AuthContextType {
@@ -97,6 +104,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         avatarUrl: backendUser.avatar_url ?? undefined,
         isMerchant: backendUser.is_merchant ?? false,
         isOnline: backendUser.is_online ?? false,
+        // Header profile fields
+        traderBadge: backendUser.trader_badge,
+        unreadNotificationCount: backendUser.unread_notification_count,
+        accountHealth: backendUser.account_health,
+        accountSecurity: backendUser.account_security,
+        twoFactorStatus: backendUser.two_factor_status,
+        loginNotifications: backendUser.login_notifications,
     });
 
     const login = async (email: string, password: string) => {

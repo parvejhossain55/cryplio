@@ -152,6 +152,9 @@ type Trade struct {
 	CancelReason           *string     `db:"cancel_reason" json:"cancel_reason,omitempty"`
 	EscrowTxnHash          *string     `db:"escrow_txn_hash" json:"escrow_txn_hash,omitempty"`
 	EscrowContractAddress  *string     `db:"escrow_contract_address" json:"escrow_contract_address,omitempty"`
+	BuyerAddress           *string     `db:"buyer_address" json:"buyer_address,omitempty"`
+	SellerAddress          *string     `db:"seller_address" json:"seller_address,omitempty"`
+	TokenAddress           *string     `db:"token_address" json:"token_address,omitempty"`
 	CreatedAt              time.Time   `db:"created_at" json:"created_at"`
 	UpdatedAt              time.Time   `db:"updated_at" json:"updated_at"`
 	DeletedAt              *time.Time  `db:"deleted_at" json:"deleted_at,omitempty"`

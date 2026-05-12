@@ -26,6 +26,13 @@ type UserResponse struct {
 	LastSeenAt    string       `json:"last_seen_at,omitempty"`
 	IsOnline      bool         `json:"is_online"`
 	Stats         UserStatsDTO `json:"stats"`
+	// Header profile fields
+	TraderBadge             string `json:"trader_badge,omitempty"` // e.g., "PRO TRADER", "VERIFIED", ""
+	UnreadNotificationCount int    `json:"unread_notification_count,omitempty"`
+	AccountHealth           string `json:"account_health,omitempty"`      // e.g., "EXCELLENT", "GOOD", "FAIR", "POOR"
+	AccountSecurity         string `json:"account_security,omitempty"`    // e.g., "VERIFIED", "UNVERIFIED"
+	TwoFactorStatus         string `json:"two_factor_status,omitempty"`   // e.g., "ENABLED", "DISABLED"
+	LoginNotifications      string `json:"login_notifications,omitempty"` // e.g., "ACTIVE", "INACTIVE"
 }
 
 // AuthResponse is returned from login and registration flows.

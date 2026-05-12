@@ -7,7 +7,10 @@ import (
 	"strings"
 	"time"
 
+	"cryplio/internal/domain/platform"
 	"cryplio/pkg/apperrors"
+	"cryplio/pkg/config"
+	sharedcrypto "cryplio/pkg/crypto"
 
 	"github.com/google/uuid"
 )
@@ -16,27 +19,98 @@ type Service interface {
 	GetBalances(ctx context.Context, userID uuid.UUID) ([]Wallet, error)
 	GetDepositAddress(ctx context.Context, userID uuid.UUID, cryptoSymbol string) (*Wallet, error)
 	CreateDefaultWallet(ctx context.Context, userID uuid.UUID) (*Wallet, error)
-	Withdraw(ctx context.Context, userID uuid.UUID, cryptoSymbol, destination string, amount float64, fee float64, memo *string) (*WalletTransaction, error)
+	Withdraw(ctx context.Context, userID uuid.UUID, cryptoSymbol, destination string, amount float64, fee float64, memo *string, emailCode string) (*WalletTransaction, error)
 	GetTransactions(ctx context.Context, userID uuid.UUID, limit, offset int) ([]WalletTransaction, int, error)
 	ListPendingWithdrawals(ctx context.Context, limit, offset int) ([]WalletTransaction, int, error)
 	ApproveWithdrawal(ctx context.Context, txID, adminID uuid.UUID, txHash string) error
 	RejectWithdrawal(ctx context.Context, txID, adminID uuid.UUID, reason string) error
+	GetDailyLimitInfo(ctx context.Context, userID uuid.UUID) (float64, float64, error)
 }
 
 type service struct {
-	repo         Repository
-	walletClient WalletClient
+	repo            Repository
+	walletClient    WalletClient
+	platformService platform.PlatformService
+	cfg             *config.Config
 }
 
-func NewService(repo Repository, walletClient WalletClient) Service {
+func NewService(repo Repository, walletClient WalletClient, platformService platform.PlatformService, cfg *config.Config) Service {
 	return &service{
-		repo:         repo,
-		walletClient: walletClient,
+		repo:            repo,
+		walletClient:    walletClient,
+		platformService: platformService,
+		cfg:             cfg,
 	}
 }
 
 func (s *service) GetBalances(ctx context.Context, userID uuid.UUID) ([]Wallet, error) {
-	return s.repo.ListByUser(ctx, userID)
+	// 1. Get the single generic wallet for the user
+	w, err := s.repo.GetByUser(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if w == nil {
+		return []Wallet{}, nil
+	}
+
+	// 2. Get all active crypto assets from the platform
+	assets, _, err := s.platformService.GetCryptoAssets(ctx, true, 1, 100)
+	if err != nil {
+		return nil, fmt.Errorf("fetch crypto assets: %w", err)
+	}
+
+	wallets := make([]Wallet, 0, len(assets))
+
+	// 3. For each asset, fetch balance from blockchain and sync
+	for _, asset := range assets {
+		// Try to get balance from DB first
+		wb, err := s.repo.GetByUserAndCrypto(ctx, userID, asset.Symbol)
+		balance := 0.0
+		lockedBalance := 0.0
+		if err == nil && wb != nil {
+			balance = wb.Balance
+			lockedBalance = wb.LockedBalance
+		}
+
+		// Fetch live balance from blockchain using shared address
+		realBalance, err := s.walletClient.GetBalance(ctx, w.Address)
+		if err == nil {
+			// Update DB if balance changed
+			if realBalance != balance {
+				balance = realBalance
+				// Create virtual wallet to update
+				v := Wallet{
+					WalletID:      w.WalletID,
+					CryptoID:      &asset.ID,
+					Balance:       balance,
+					LockedBalance: lockedBalance,
+				}
+				_ = s.repo.Update(ctx, &v)
+			}
+		}
+
+		// Fetch pending deposits
+		pendingBalance, _ := s.repo.GetPendingDepositTotal(ctx, userID, asset.ID)
+
+		// Create a virtual wallet representation for this asset
+		virtualWallet := Wallet{
+			WalletID:       w.WalletID,
+			UserID:         w.UserID,
+			CryptoID:       &asset.ID,
+			CryptoSymbol:   asset.Symbol,
+			Address:        w.Address,
+			Balance:        balance,
+			LockedBalance:  lockedBalance,
+			PendingBalance: pendingBalance,
+			IsActive:       w.IsActive,
+			IsPrimary:      asset.Symbol == "ETH",
+			LastUpdated:    time.Now(),
+			CreatedAt:      w.CreatedAt,
+		}
+		wallets = append(wallets, virtualWallet)
+	}
+
+	return wallets, nil
 }
 
 func (s *service) CreateDefaultWallet(ctx context.Context, userID uuid.UUID) (*Wallet, error) { // Check if user already has a wallet
@@ -48,22 +122,27 @@ func (s *service) CreateDefaultWallet(ctx context.Context, userID uuid.UUID) (*W
 		return existing, nil
 	}
 
-	// Generate a deposit address for the wallet
-	// Using cryptoID 0 indicates a generic address not tied to specific crypto
-	address, err := s.walletClient.CreateDepositAddress(ctx, 0, userID.String())
+	// 1. Generate a real ECDSA key pair for the wallet
+	address, privateKey, err := s.walletClient.GenerateKeyPair()
 	if err != nil {
-		return nil, fmt.Errorf("generate deposit address: %w", err)
+		return nil, fmt.Errorf("generate key pair: %w", err)
+	}
+
+	// 2. Encrypt the private key using the platform secret
+	encryptionKey := []byte(s.cfg.WalletEncryptionKey)
+	encryptedPk, err := sharedcrypto.Encrypt(privateKey, encryptionKey)
+	if err != nil {
+		return nil, fmt.Errorf("encrypt private key: %w", err)
 	}
 
 	wallet := &Wallet{
-		WalletID:      uuid.New(),
-		UserID:        userID,
-		Address:       address,
-		Balance:       0,
-		LockedBalance: 0,
-		IsActive:      true,
-		LastUpdated:   time.Now(),
-		CreatedAt:     time.Now(),
+		WalletID:            uuid.New(),
+		UserID:              userID,
+		Address:             address,
+		EncryptedPrivateKey: &encryptedPk,
+		IsActive:            true,
+		LastUpdated:         time.Now(),
+		CreatedAt:           time.Now(),
 	}
 
 	if err := s.repo.Create(ctx, wallet); err != nil {
@@ -83,23 +162,21 @@ func (s *service) CreateDefaultWallet(ctx context.Context, userID uuid.UUID) (*W
 }
 
 func (s *service) GetDepositAddress(ctx context.Context, userID uuid.UUID, cryptoSymbol string) (*Wallet, error) {
-	symbol := strings.TrimSpace(strings.ToUpper(cryptoSymbol))
-	if symbol == "" {
-		return nil, apperrors.InvalidInput("crypto symbol is required", nil)
-	}
-
-	wallet, err := s.repo.GetByUserAndCrypto(ctx, userID, symbol)
+	// Single wallet design: everyone has one wallet address that holds all tokens
+	wallet, err := s.repo.GetByUser(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 	if wallet == nil {
-		return nil, apperrors.NotFound("wallet not found for requested asset", nil)
+		return nil, apperrors.NotFound("wallet not found for user", nil)
 	}
 
+	// Attach the requested symbol to the virtual wallet response
+	wallet.CryptoSymbol = strings.TrimSpace(strings.ToUpper(cryptoSymbol))
 	return wallet, nil
 }
 
-func (s *service) Withdraw(ctx context.Context, userID uuid.UUID, cryptoSymbol, destination string, amount float64, fee float64, memo *string) (*WalletTransaction, error) {
+func (s *service) Withdraw(ctx context.Context, userID uuid.UUID, cryptoSymbol, destination string, amount float64, fee float64, memo *string, emailCode string) (*WalletTransaction, error) {
 	if amount <= 0 {
 		return nil, apperrors.InvalidInput("amount must be greater than zero", nil)
 	}
@@ -108,6 +185,12 @@ func (s *service) Withdraw(ctx context.Context, userID uuid.UUID, cryptoSymbol, 
 	}
 	if fee < 0 {
 		return nil, apperrors.InvalidInput("fee cannot be negative", nil)
+	}
+
+	// FR-304: Email confirmation logic (Mocked for now)
+	// In production, we would verify emailCode against a stored code in Redis/DB
+	if emailCode == "" {
+		return nil, apperrors.InvalidInput("email confirmation code is required", nil)
 	}
 
 	// Check daily withdrawal limit ($500 USD equivalent)
@@ -208,6 +291,14 @@ func (s *service) ApproveWithdrawal(ctx context.Context, txID, adminID uuid.UUID
 
 func (s *service) RejectWithdrawal(ctx context.Context, txID, adminID uuid.UUID, reason string) error {
 	return s.repo.RejectWithdrawal(ctx, txID, adminID, reason)
+}
+
+func (s *service) GetDailyLimitInfo(ctx context.Context, userID uuid.UUID) (float64, float64, error) {
+	dailyTotal, err := s.repo.GetDailyWithdrawalTotal(ctx, userID)
+	if err != nil {
+		return 0, 0, err
+	}
+	return dailyTotal, 500.0, nil // 500.0 is the daily limit
 }
 
 func DepositFunds(wallet *Wallet, amount float64) error {

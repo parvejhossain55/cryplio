@@ -53,7 +53,23 @@ func (s *tradeService) InitiateTrade(ctx context.Context, adID, buyerID uuid.UUI
 		return nil, errors.New("advertisement has no payment methods configured")
 	}
 
-	// 5. Build Trade record.
+	// 5. Fetch Blockchain Addresses.
+	buyerWallet, err := s.walletRepo.GetByUser(ctx, buyerID)
+	if err != nil || buyerWallet == nil {
+		return nil, fmt.Errorf("buyer wallet not found: %w", err)
+	}
+
+	sellerWallet, err := s.walletRepo.GetByUser(ctx, ad.UserID)
+	if err != nil || sellerWallet == nil {
+		return nil, fmt.Errorf("seller wallet not found: %w", err)
+	}
+
+	asset, err := s.platformRepo.GetCryptoAsset(ctx, ad.CryptoID)
+	if err != nil || asset == nil {
+		return nil, fmt.Errorf("crypto asset not found: %w", err)
+	}
+
+	// 6. Build Trade record.
 	trade := &Trade{
 		TradeID:              uuid.New(),
 		AdID:                 ad.AdID,
@@ -69,9 +85,12 @@ func (s *tradeService) InitiateTrade(ctx context.Context, adID, buyerID uuid.UUI
 		AgreedPrice:          ad.Price,
 		Status:               TradeStatusPending,
 		PaymentWindowMinutes: ad.PaymentWindowMinutes,
+		BuyerAddress:         &buyerWallet.Address,
+		SellerAddress:        &sellerWallet.Address,
+		TokenAddress:         asset.ContractAddress,
 	}
 
-	// 6. Lock Escrow on Blockchain.
+	// 7. Lock Escrow on Blockchain.
 	txHash, contractAddr, err := s.escrowClient.Lock(ctx, trade)
 	if err != nil {
 		return nil, fmt.Errorf("blockchain escrow lock failed: %w", err)
