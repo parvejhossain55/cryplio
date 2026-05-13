@@ -148,16 +148,14 @@ type AuthService interface {
 
 // DashboardStats holds aggregated admin dashboard metrics.
 type DashboardStats struct {
-	TotalUsers      int `json:"total_users"`
-	TotalTrades     int `json:"total_trades"`
-	PendingTrades   int `json:"pending_trades"`
-	ActiveTrades    int `json:"active_trades"`
-	PaidTrades      int `json:"paid_trades"`
-	CompletedTrades int `json:"completed_trades"`
-	DisputedTrades  int `json:"disputed_trades"`
-	CancelledTrades int `json:"cancelled_trades"`
-	TotalDisputes   int `json:"total_disputes"`
-	PendingDisputes int `json:"pending_disputes"`
+	TotalUsers         int     `json:"total_users"`
+	ActiveUsers        int     `json:"active_users"`
+	TotalTrades        int     `json:"total_trades"`
+	ActiveTrades       int     `json:"active_trades"`
+	TotalVolume        float64 `json:"total_volume"`
+	PendingDisputes    int     `json:"pending_disputes"`
+	PendingWithdrawals int     `json:"pending_withdrawals"`
+	SystemHealth       string  `json:"system_health"`
 }
 
 // ─── Concrete service struct ──────────────────────────────────────────────────

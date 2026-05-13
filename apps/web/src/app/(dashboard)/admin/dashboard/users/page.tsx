@@ -94,15 +94,15 @@ const AdminUsersPage = () => {
     
     const handleSuspendUser = async (userId: string) => {
         const reason = prompt("Enter suspension reason:");
-        const duration = prompt("Enter suspension duration in hours (optional):");
+        const duration = prompt("Enter suspension duration in minutes (optional):");
         
         try {
-            const response = await fetch(`/api/admin/users/${userId}/suspend`, {
+            const response = await fetch(`/api/v1/admin/users/${userId}/suspend`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ 
                     reason,
-                    duration: duration ? parseInt(duration) : undefined
+                    duration_minutes: duration ? parseInt(duration) : undefined
                 }),
             });
 
@@ -122,7 +122,7 @@ const AdminUsersPage = () => {
 
     const handleUnsuspendUser = async (userId: string) => {
         try {
-            const response = await fetch(`/api/admin/users/${userId}/unsuspend`, {
+            const response = await fetch(`/api/v1/admin/users/${userId}/unsuspend`, {
                 method: "POST",
             });
 

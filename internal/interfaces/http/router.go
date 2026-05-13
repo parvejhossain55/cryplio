@@ -75,7 +75,7 @@ func SetupRouter(
 			RefreshTokenExpiry: cfg.RefreshTokenExpiry,
 			JWTSecret:          cfg.JWTSecret,
 		}, storage)
-		adminHandler := authh.NewAdminHandler(authService, tradeService, disputeService)
+		adminHandler := authh.NewAdminHandler(authService, tradeService, disputeService, walletService)
 
 		tradeHandler := tradeh.NewTradeHandler(tradeService, storage, wsService)
 		platformHandler := platformh.NewPlatformHandler(platformService)
@@ -164,6 +164,8 @@ func SetupRouter(
 			{
 				// Dashboard Stats
 				admin.GET("/dashboard/stats", adminHandler.GetDashboardStatsHandler)
+				admin.GET("/activity", adminHandler.GetActivityHandler)
+				admin.GET("/alerts", adminHandler.GetAlertsHandler)
 
 				// User Management
 				admin.GET("/users", adminHandler.ListUsersHandler)

@@ -65,7 +65,7 @@ const AdminDashboard = () => {
         setLoading(true);
         try {
             const [statsRes, activityRes, alertsRes] = await Promise.all([
-                fetch("/api/v1/admin/stats", { credentials: "include" }),
+                fetch("/api/v1/admin/dashboard/stats", { credentials: "include" }),
                 fetch("/api/v1/admin/activity", { credentials: "include" }),
                 fetch("/api/v1/admin/alerts", { credentials: "include" })
             ]);

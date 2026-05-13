@@ -69,7 +69,7 @@ const AdminWithdrawalsPage = () => {
         if (!txHash) return;
 
         try {
-            const response = await fetch(`/api/admin/withdrawals/${txnId}/approve`, {
+            const response = await fetch(`/api/v1/admin/withdrawals/${txnId}/approve`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ tx_hash: txHash }),
@@ -94,7 +94,7 @@ const AdminWithdrawalsPage = () => {
         if (!reason) return;
 
         try {
-            const response = await fetch(`/api/admin/withdrawals/${txnId}/reject`, {
+            const response = await fetch(`/api/v1/admin/withdrawals/${txnId}/reject`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ reason }),

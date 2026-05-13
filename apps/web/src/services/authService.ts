@@ -294,4 +294,21 @@ export const authService = {
     unblockUser: async (userId: string): Promise<void> => {
         await ApiClient.delete(`/api/v1/users/block/${userId}`);
     },
+
+    // Admin Methods
+    getAdminDisputes: async (): Promise<any[]> => {
+        const res = await ApiClient.get<{ disputes: any[] }>("/api/v1/admin/disputes");
+        return res.disputes || [];
+    },
+
+    assignDispute: async (disputeId: string): Promise<void> => {
+        await ApiClient.post(`/api/v1/admin/disputes/${disputeId}/assign`);
+    },
+
+    resolveDispute: async (disputeId: string, resolution: string, note: string): Promise<void> => {
+        await ApiClient.post(`/api/v1/admin/disputes/${disputeId}/resolve`, {
+            resolution,
+            note
+        });
+    },
 };

@@ -10,6 +10,7 @@ import (
 	"cryplio/internal/domain/dispute"
 	"cryplio/internal/domain/identity"
 	"cryplio/internal/domain/trading"
+	"cryplio/internal/domain/wallet"
 	"cryplio/internal/interfaces/http/dto"
 
 	"github.com/gin-gonic/gin"
@@ -23,6 +24,7 @@ type AdminHandler struct {
 	authService    identity.AuthService
 	tradeService   trading.TradeService
 	disputeService dispute.Service
+	walletService  wallet.Service
 }
 
 // NewAdminHandler creates a new AdminHandler.
@@ -30,37 +32,60 @@ func NewAdminHandler(
 	authService identity.AuthService,
 	tradeService trading.TradeService,
 	disputeService dispute.Service,
+	walletService wallet.Service,
 ) *AdminHandler {
 	return &AdminHandler{
 		authService:    authService,
 		tradeService:   tradeService,
 		disputeService: disputeService,
+		walletService:  walletService,
 	}
 }
 
 // GetDashboardStatsHandler returns aggregated admin dashboard metrics.
 func (h *AdminHandler) GetDashboardStatsHandler(c *gin.Context) {
 	ctx := c.Request.Context()
-	stats := identity.DashboardStats{}
+	stats := identity.DashboardStats{
+		SystemHealth: "healthy", // Default
+	}
 
 	if h.authService != nil {
 		stats.TotalUsers, _ = h.authService.CountUsers(ctx)
+		// For active users, we could use session count or recent activity.
+		// For now, let's just return a placeholder or total users.
+		stats.ActiveUsers = stats.TotalUsers
 	}
 	if h.tradeService != nil {
 		stats.TotalTrades, _ = h.tradeService.CountTrades(ctx, "")
-		stats.PendingTrades, _ = h.tradeService.CountTrades(ctx, "pending")
 		stats.ActiveTrades, _ = h.tradeService.CountTrades(ctx, "active")
-		stats.PaidTrades, _ = h.tradeService.CountTrades(ctx, "paid")
-		stats.CompletedTrades, _ = h.tradeService.CountTrades(ctx, "completed")
-		stats.DisputedTrades, _ = h.tradeService.CountTrades(ctx, "disputed")
-		stats.CancelledTrades, _ = h.tradeService.CountTrades(ctx, "cancelled")
+		// TotalVolume would require a new service method.
+		// stats.TotalVolume, _ = h.tradeService.GetTotalVolume(ctx)
 	}
 	if h.disputeService != nil {
-		stats.TotalDisputes, _ = h.disputeService.CountDisputes(ctx, "")
 		stats.PendingDisputes, _ = h.disputeService.CountDisputes(ctx, "pending")
+	}
+	if h.walletService != nil {
+		_, totalPending, _ := h.walletService.ListPendingWithdrawals(ctx, 1, 0)
+		stats.PendingWithdrawals = totalPending
 	}
 
 	c.JSON(http.StatusOK, stats)
+}
+
+// GetActivityHandler returns recent system activity.
+func (h *AdminHandler) GetActivityHandler(c *gin.Context) {
+	// Placeholder implementation
+	c.JSON(http.StatusOK, gin.H{
+		"activities": []interface{}{},
+	})
+}
+
+// GetAlertsHandler returns system alerts.
+func (h *AdminHandler) GetAlertsHandler(c *gin.Context) {
+	// Placeholder implementation
+	c.JSON(http.StatusOK, gin.H{
+		"alerts": []interface{}{},
+	})
 }
 
 // ListUsersHandler returns a paginated list of users (admin only).

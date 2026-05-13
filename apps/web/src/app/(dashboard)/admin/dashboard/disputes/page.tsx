@@ -58,14 +58,16 @@ const AdminDisputesPage = () => {
     };
 
     const handleResolve = async (disputeId: string, resolution: string, winnerId: 'buyer' | 'seller') => {
+        const note = prompt(`Enter resolution note for ${winnerId === 'buyer' ? 'Buyer' : 'Seller'}:`);
+        if (note === null) return;
+
         toast(`Resolve in favor of ${winnerId === 'buyer' ? 'Buyer' : 'Seller'}?`, {
             description: "This action will release or refund the escrowed assets. It cannot be undone.",
             action: {
                 label: 'Confirm Resolve',
                 onClick: async () => {
                     try {
-                        const dispute = disputes.find(d => d.dispute_id === disputeId);
-                        await authService.resolveDispute(disputeId, resolution, dispute.raised_by);
+                        await authService.resolveDispute(disputeId, resolution, note);
                         toast.success("Dispute resolved successfully");
                         fetchDisputes();
                     } catch (err: any) {
@@ -87,7 +89,7 @@ const AdminDisputesPage = () => {
             const formData = new FormData();
             formData.append('file', file);
 
-            const response = await fetch(`/api/disputes/${disputeId}/evidence`, {
+            const response = await fetch(`/api/v1/disputes/${disputeId}/evidence`, {
                 method: 'POST',
                 body: formData,
             });
