@@ -55,15 +55,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     useEffect(() => {
         const checkSession = async () => {
             try {
-                const currentUser: BackendUser | null = await authService.getCurrentUser();
+                const currentUser = await authService.getCurrentUser();
                 if (currentUser) {
                     setUser(mapBackendUser(currentUser));
                     localStorage.setItem("user_id", currentUser.id);
                 } else {
+                    // Guest state - no action needed, but ensure storage is clean
                     localStorage.removeItem("user_id");
                 }
-            } catch (error) {
-                console.error("Failed to check session:", error);
+            } catch (error: any) {
+                // Only log unexpected errors, ignore expected auth failures
+                if (!error.message?.includes("Session expired")) {
+                    console.error("Auth session check failed:", error);
+                }
                 localStorage.removeItem("user_id");
             } finally {
                 setIsLoading(false);

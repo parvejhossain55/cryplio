@@ -2,8 +2,16 @@ import { ApiClient } from "./apiClient";
 
 export class NotificationService {
     static async getNotifications(): Promise<any[]> {
-        const data = await ApiClient.get<{ notifications: any[] }>(`/api/v1/notifications`);
-        return data.notifications || [];
+        try {
+            const data = await ApiClient.get<{ notifications: any[] }>(`/api/v1/notifications`);
+            return data?.notifications || [];
+        } catch (error: any) {
+            // Return empty array for unauthorized/not found during initial load
+            if (error.message?.includes("user not found") || error.message?.includes("Unauthorized") || error.message?.includes("Session expired")) {
+                return [];
+            }
+            throw error;
+        }
     }
 
     static async markAsRead(notificationId: string): Promise<any> {

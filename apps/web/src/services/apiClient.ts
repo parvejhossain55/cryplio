@@ -2,6 +2,11 @@ export const fetchWithRefresh = async (url: string, options: RequestInit = {}): 
     let response = await fetch(url, options);
 
     if (response.status === 401) {
+        // Skip auto-refresh for refresh endpoint itself to avoid infinite loop
+        if (url.includes("/api/v1/auth/refresh")) {
+            return response;
+        }
+
         // Import authService dynamically to avoid circular dependency
         const { authService } = await import("./authService");
         
@@ -9,9 +14,10 @@ export const fetchWithRefresh = async (url: string, options: RequestInit = {}): 
             await authService.refreshToken();
             // Retry original request
             response = await fetch(url, options);
-        } catch {
-            console.error("Refresh failed, user must re-login");
-            if (typeof window !== 'undefined') {
+        } catch (error) {
+            console.error("Refresh failed, session likely expired");
+            // Only redirect if we were previously logged in
+            if (typeof window !== 'undefined' && localStorage.getItem('auth_session')) {
                 localStorage.clear();
                 sessionStorage.clear();
                 window.location.href = "/login";

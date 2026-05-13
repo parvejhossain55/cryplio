@@ -85,6 +85,11 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
         // Fetch existing notifications
         const fetchNotifications = async () => {
+            // Only fetch if we have a user_id (session might exist)
+            if (typeof window !== 'undefined' && !localStorage.getItem('user_id')) {
+                return;
+            }
+
             try {
                 const data = await NotificationService.getNotifications();
                 setNotifications(data);

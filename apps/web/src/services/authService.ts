@@ -148,12 +148,20 @@ export const authService = {
         clearAuthSession();
     },
 
-    getCurrentUser: async (): Promise<BackendUser> => {
-        const res = await ApiClient.get<{ user: BackendUser }>("/api/v1/users/me");
-        if (res.user && res.user.id) {
-            localStorage.setItem('user_id', res.user.id);
+    getCurrentUser: async (): Promise<BackendUser | null> => {
+        try {
+            const res = await ApiClient.get<{ user: BackendUser }>("/api/v1/users/me");
+            if (res.user && res.user.id) {
+                localStorage.setItem('user_id', res.user.id);
+            }
+            return res.user;
+        } catch (error: any) {
+            // Return null for "user not found" or unauthorized errors
+            if (error.message?.includes("user not found") || error.message?.includes("Unauthorized")) {
+                return null;
+            }
+            throw error;
         }
-        return res.user;
     },
 
     updateCurrentUser: async (updates: any): Promise<BackendUser> => {
@@ -225,14 +233,24 @@ export const authService = {
         }
 
         isRefreshing = true;
+        let refreshError: any = null;
         try {
-            await fetch("/api/v1/auth/refresh", {
+            const res = await fetch("/api/v1/auth/refresh", {
                 method: "POST",
                 credentials: "include",
             });
+            if (!res.ok) {
+                throw new Error("Refresh token invalid or expired");
+            }
+        } catch (error) {
+            refreshError = error;
+            throw error;
         } finally {
             isRefreshing = false;
-            refreshSubscribers.forEach(({ resolve, reject }) => resolve());
+            refreshSubscribers.forEach(({ resolve, reject }) => {
+                if (refreshError) reject(refreshError);
+                else resolve();
+            });
             refreshSubscribers = [];
         }
     },
