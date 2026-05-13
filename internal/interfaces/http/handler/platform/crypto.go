@@ -16,7 +16,6 @@ type CreateCryptoAssetRequest struct {
 	Blockchain      string  `json:"blockchain" binding:"required"`
 	ContractAddress *string `json:"contract_address,omitempty"`
 	Decimals        int     `json:"decimals" binding:"required,min=0"`
-	MinConfirmation int     `json:"min_confirmation" binding:"required,min=0"`
 }
 
 // UpdateCryptoAssetRequest represents the request to update a crypto asset.
@@ -26,7 +25,6 @@ type UpdateCryptoAssetRequest struct {
 	Blockchain      string  `json:"blockchain" binding:"required"`
 	ContractAddress *string `json:"contract_address,omitempty"`
 	Decimals        int     `json:"decimals" binding:"required,min=0"`
-	MinConfirmation int     `json:"min_confirmation" binding:"required,min=0"`
 	IsActive        bool    `json:"is_active"`
 }
 
@@ -43,7 +41,6 @@ func (h *PlatformHandler) CreateCryptoAssetHandler(c *gin.Context) {
 		Blockchain:      req.Blockchain,
 		ContractAddress: req.ContractAddress,
 		Decimals:        req.Decimals,
-		MinConfirmation: req.MinConfirmation,
 	}
 	asset, err := h.platformService.CreateCryptoAsset(c.Request.Context(), input)
 	if err != nil {
@@ -110,7 +107,6 @@ func (h *PlatformHandler) UpdateCryptoAssetHandler(c *gin.Context) {
 		Blockchain:      req.Blockchain,
 		ContractAddress: req.ContractAddress,
 		Decimals:        req.Decimals,
-		MinConfirmation: req.MinConfirmation,
 		IsActive:        req.IsActive,
 	}
 	asset, err := h.platformService.UpdateCryptoAsset(c.Request.Context(), id, input)

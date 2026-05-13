@@ -16,11 +16,11 @@ func (r *platformRepository) CreateCryptoAsset(ctx context.Context, asset *platf
 	return r.db.QueryRowContext(ctx, `
 		INSERT INTO crypto_assets (
 			symbol, name, blockchain, contract_address,
-			decimals, min_confirmation, is_active, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			decimals, is_active, created_at, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id, created_at, updated_at`,
 		asset.Symbol, asset.Name, asset.Blockchain, asset.ContractAddress,
-		asset.Decimals, asset.MinConfirmation, asset.IsActive, now, now,
+		asset.Decimals, asset.IsActive, now, now,
 	).Scan(&asset.ID, &asset.CreatedAt, &asset.UpdatedAt)
 }
 
@@ -28,10 +28,10 @@ func (r *platformRepository) GetCryptoAsset(ctx context.Context, id int) (*platf
 	asset := &platform.CryptoAsset{}
 	err := r.db.QueryRowContext(ctx, `
 		SELECT id, symbol, name, blockchain, contract_address,
-		       decimals, min_confirmation, is_active, created_at, updated_at
+		       decimals, is_active, created_at, updated_at
 		FROM crypto_assets WHERE id = $1`, id,
 	).Scan(&asset.ID, &asset.Symbol, &asset.Name, &asset.Blockchain, &asset.ContractAddress,
-		&asset.Decimals, &asset.MinConfirmation, &asset.IsActive, &asset.CreatedAt, &asset.UpdatedAt)
+		&asset.Decimals, &asset.IsActive, &asset.CreatedAt, &asset.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("crypto asset not found")
 	}
@@ -51,7 +51,7 @@ func (r *platformRepository) GetCryptoAssets(ctx context.Context, activeOnly boo
 
 	q, a := buildPagedQuery(
 		`SELECT id, symbol, name, blockchain, contract_address,
-		        decimals, min_confirmation, is_active, created_at, updated_at
+		        decimals, is_active, created_at, updated_at
 		 FROM `+base+" ORDER BY symbol", args, limit, offset)
 
 	rows, err := r.db.QueryContext(ctx, q, a...)
@@ -64,7 +64,7 @@ func (r *platformRepository) GetCryptoAssets(ctx context.Context, activeOnly boo
 	for rows.Next() {
 		a := &platform.CryptoAsset{}
 		if err := rows.Scan(&a.ID, &a.Symbol, &a.Name, &a.Blockchain, &a.ContractAddress,
-			&a.Decimals, &a.MinConfirmation, &a.IsActive, &a.CreatedAt, &a.UpdatedAt); err != nil {
+			&a.Decimals, &a.IsActive, &a.CreatedAt, &a.UpdatedAt); err != nil {
 			return nil, 0, fmt.Errorf("scan crypto asset: %w", err)
 		}
 		assets = append(assets, a)
@@ -77,11 +77,11 @@ func (r *platformRepository) UpdateCryptoAsset(ctx context.Context, asset *platf
 	return r.db.QueryRowContext(ctx, `
 		UPDATE crypto_assets SET
 			symbol = $1, name = $2, blockchain = $3, contract_address = $4,
-			decimals = $5, min_confirmation = $6, is_active = $7, updated_at = $8
-		WHERE id = $9
+			decimals = $5, is_active = $6, updated_at = $7
+		WHERE id = $8
 		RETURNING updated_at`,
 		asset.Symbol, asset.Name, asset.Blockchain, asset.ContractAddress,
-		asset.Decimals, asset.MinConfirmation, asset.IsActive, asset.UpdatedAt, asset.ID,
+		asset.Decimals, asset.IsActive, asset.UpdatedAt, asset.ID,
 	).Scan(&asset.UpdatedAt)
 }
 

@@ -209,6 +209,10 @@ func (c *Client) readPump() {
 
 	c.Conn.SetReadLimit(512)
 	c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	c.Conn.SetPongHandler(func(string) error {
+		c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		return nil
+	})
 
 	for {
 		var msg json.RawMessage
@@ -219,6 +223,8 @@ func (c *Client) readPump() {
 			}
 			break
 		}
+		// Reset deadline after receiving a message
+		c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 
 		// Parse message and handle subscriptions
 		var message struct {

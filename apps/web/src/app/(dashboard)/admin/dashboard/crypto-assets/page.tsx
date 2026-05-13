@@ -12,7 +12,6 @@ interface CryptoAsset {
     blockchain: string;
     contract_address?: string;
     decimals: number;
-    min_confirmation: number;
     is_active: boolean;
     created_at: string;
     updated_at: string;
@@ -188,7 +187,6 @@ const AdminCryptoAssets = () => {
                                     <th className="px-6 py-4 text-left text-xs font-black text-text-dim uppercase tracking-widest">Name</th>
                                     <th className="px-6 py-4 text-left text-xs font-black text-text-dim uppercase tracking-widest">Blockchain</th>
                                     <th className="px-6 py-4 text-left text-xs font-black text-text-dim uppercase tracking-widest">Decimals</th>
-                                    <th className="px-6 py-4 text-left text-xs font-black text-text-dim uppercase tracking-widest">Min Confirm</th>
                                     <th className="px-6 py-4 text-left text-xs font-black text-text-dim uppercase tracking-widest">Status</th>
                                     <th className="px-6 py-4 text-right text-xs font-black text-text-dim uppercase tracking-widest">Actions</th>
                                 </tr>
@@ -215,7 +213,6 @@ const AdminCryptoAssets = () => {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-white font-bold">{asset.decimals}</td>
-                                        <td className="px-6 py-4 text-white font-bold">{asset.min_confirmation}</td>
                                         <td className="px-6 py-4">
                                             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${asset.is_active ? 'bg-accent/20 text-accent' : 'bg-red-500/20 text-red-500'
                                                 }`}>
@@ -324,7 +321,6 @@ const CryptoAssetModal: React.FC<CryptoAssetModalProps> = ({ asset, onClose, onS
         blockchain: asset?.blockchain || '',
         contract_address: asset?.contract_address || '',
         decimals: asset?.decimals || 18,
-        min_confirmation: asset?.min_confirmation || 1,
         is_active: asset?.is_active ?? true,
     });
     const [saving, setSaving] = useState(false);
@@ -423,7 +419,7 @@ const CryptoAssetModal: React.FC<CryptoAssetModalProps> = ({ asset, onClose, onS
                             />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4">
                             <div>
                                 <label className="block text-xs font-black text-text-dim uppercase tracking-widest mb-2">
                                     Decimals *
@@ -435,20 +431,6 @@ const CryptoAssetModal: React.FC<CryptoAssetModalProps> = ({ asset, onClose, onS
                                     className="w-full bg-white/5 border border-white/5 py-3 px-4 rounded-xl text-sm font-bold text-white focus:border-primary/50 transition-all"
                                     min="0"
                                     max="18"
-                                    required
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-black text-text-dim uppercase tracking-widest mb-2">
-                                    Min Confirmations *
-                                </label>
-                                <input
-                                    type="number"
-                                    value={formData.min_confirmation}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, min_confirmation: parseInt(e.target.value) || 1 }))}
-                                    className="w-full bg-white/5 border border-white/5 py-3 px-4 rounded-xl text-sm font-bold text-white focus:border-primary/50 transition-all"
-                                    min="1"
                                     required
                                 />
                             </div>

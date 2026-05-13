@@ -12,7 +12,6 @@ type CreateCryptoAssetInput struct {
 	Blockchain      string
 	ContractAddress *string
 	Decimals        int
-	MinConfirmation int
 }
 
 // UpdateCryptoAssetInput holds the parameters for updating a cryptocurrency asset.
@@ -22,7 +21,6 @@ type UpdateCryptoAssetInput struct {
 	Blockchain      string
 	ContractAddress *string
 	Decimals        int
-	MinConfirmation int
 	IsActive        bool
 }
 
@@ -102,8 +100,8 @@ func (s *platformService) CreateCryptoAsset(ctx context.Context, input CreateCry
 	if input.Symbol == "" || input.Name == "" || input.Blockchain == "" {
 		return nil, fmt.Errorf("symbol, name, and blockchain are required")
 	}
-	if input.Decimals < 0 || input.MinConfirmation < 0 {
-		return nil, fmt.Errorf("decimals and minConfirmation must be non-negative")
+	if input.Decimals < 0 {
+		return nil, fmt.Errorf("decimals must be non-negative")
 	}
 
 	asset := &CryptoAsset{
@@ -112,7 +110,6 @@ func (s *platformService) CreateCryptoAsset(ctx context.Context, input CreateCry
 		Blockchain:      input.Blockchain,
 		ContractAddress: input.ContractAddress,
 		Decimals:        input.Decimals,
-		MinConfirmation: input.MinConfirmation,
 		IsActive:        true,
 	}
 
@@ -135,8 +132,8 @@ func (s *platformService) UpdateCryptoAsset(ctx context.Context, id int, input U
 	if input.Symbol == "" || input.Name == "" || input.Blockchain == "" {
 		return nil, fmt.Errorf("symbol, name, and blockchain are required")
 	}
-	if input.Decimals < 0 || input.MinConfirmation < 0 {
-		return nil, fmt.Errorf("decimals and minConfirmation must be non-negative")
+	if input.Decimals < 0 {
+		return nil, fmt.Errorf("decimals must be non-negative")
 	}
 
 	asset := &CryptoAsset{
@@ -146,7 +143,6 @@ func (s *platformService) UpdateCryptoAsset(ctx context.Context, id int, input U
 		Blockchain:      input.Blockchain,
 		ContractAddress: input.ContractAddress,
 		Decimals:        input.Decimals,
-		MinConfirmation: input.MinConfirmation,
 		IsActive:        input.IsActive,
 	}
 

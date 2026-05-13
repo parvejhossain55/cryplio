@@ -5,13 +5,13 @@
 BEGIN;
 
 -- Cryptocurrencies
-INSERT INTO crypto_assets (symbol, name, blockchain, decimals, min_confirmation) VALUES
-('USDT', 'Tether', 'ERC20', 6, 12),
-('USDT', 'Tether', 'TRC20', 6, 1),
-('USDC', 'USD Coin', 'ERC20', 6, 12),
-('ETH', 'Ethereum', 'ETH', 18, 1),
-('BTC', 'Bitcoin', 'BTC', 8, 1),
-('BNB', 'BNB', 'BSC', 18, 1);
+INSERT INTO crypto_assets (symbol, name, blockchain, decimals) VALUES
+('USDT', 'Tether', 'ERC20', 6),
+('USDT', 'Tether', 'TRC20', 6),
+('USDC', 'USD Coin', 'ERC20', 6),
+('ETH', 'Ethereum', 'ETH', 18),
+('BTC', 'Bitcoin', 'BTC', 8),
+('BNB', 'BNB', 'BSC', 18);
 
 -- Fiat Currencies
 INSERT INTO fiat_currencies (code, name, symbol) VALUES

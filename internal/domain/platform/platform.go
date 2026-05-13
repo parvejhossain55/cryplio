@@ -81,7 +81,6 @@ type CryptoAsset struct {
 	Blockchain      string    `db:"blockchain" json:"blockchain"`
 	ContractAddress *string   `db:"contract_address" json:"contract_address,omitempty"`
 	Decimals        int       `db:"decimals" json:"decimals"`
-	MinConfirmation int       `db:"min_confirmation" json:"min_confirmation"`
 	IsActive        bool      `db:"is_active" json:"is_active"`
 	CreatedAt       time.Time `db:"created_at" json:"created_at"`
 	UpdatedAt       time.Time `db:"updated_at" json:"updated_at"`
