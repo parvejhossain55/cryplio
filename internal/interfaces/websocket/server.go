@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	sharedjwt "cryplio/pkg/jwt"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
@@ -39,10 +41,11 @@ type Server struct {
 	broadcast  chan Message
 	mutex      sync.RWMutex
 	upgrader   websocket.Upgrader
+	jwtSecret  string
 }
 
 // NewServer creates a new WebSocket server
-func NewServer() *Server {
+func NewServer(jwtSecret string) *Server {
 	return &Server{
 		clients:    make(map[*Client]bool),
 		register:   make(chan *Client),
@@ -53,6 +56,7 @@ func NewServer() *Server {
 				return true // Allow all origins in development
 			},
 		},
+		jwtSecret: jwtSecret,
 	}
 }
 
@@ -140,9 +144,42 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	// Extract user ID from query parameter or JWT token
 	userIDStr := r.URL.Query().Get("user_id")
-	userID, err := uuid.Parse(userIDStr)
-	if err != nil {
-		log.Printf("Invalid user ID: %v", err)
+	tokenStr := r.URL.Query().Get("token")
+
+	var userID uuid.UUID
+
+	if userIDStr != "" {
+		var parseErr error
+		userID, parseErr = uuid.Parse(userIDStr)
+		if parseErr != nil {
+			log.Printf("Invalid user ID parameter: %v", parseErr)
+			conn.Close()
+			return
+		}
+	} else if tokenStr != "" {
+		claims, parseErr := sharedjwt.Parse(s.jwtSecret, tokenStr)
+		if parseErr != nil {
+			log.Printf("Invalid WebSocket token: %v", parseErr)
+			conn.Close()
+			return
+		}
+
+		uid, ok := claims[sharedjwt.ClaimUserID].(string)
+		if !ok {
+			log.Printf("User ID not found in token")
+			conn.Close()
+			return
+		}
+
+		var uuidErr error
+		userID, uuidErr = uuid.Parse(uid)
+		if uuidErr != nil {
+			log.Printf("Invalid user ID in token: %v", uuidErr)
+			conn.Close()
+			return
+		}
+	} else {
+		log.Printf("WebSocket connection attempted without user_id or token")
 		conn.Close()
 		return
 	}

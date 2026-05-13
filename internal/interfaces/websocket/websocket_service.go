@@ -18,9 +18,9 @@ type websocketService struct {
 }
 
 // NewService creates a new WebSocket service
-func NewService() Service {
+func NewService(jwtSecret string) Service {
 	return &websocketService{
-		server: NewServer(),
+		server: NewServer(jwtSecret),
 	}
 }
 

@@ -136,7 +136,7 @@ func New() (*App, error) {
 	}
 
 	// Create WebSocket service
-	wsService := websocket.NewService()
+	wsService := websocket.NewService(cfg.JWTSecret)
 
 	// Create WebSocket notifier for real-time notifications
 	emailService := notification.NewMockEmailService("noreply@cryplio.com", "Cryplio")

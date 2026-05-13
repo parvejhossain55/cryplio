@@ -11,12 +11,15 @@ class WebSocketService {
             return;
         }
 
+        const userId = this.getUserId();
+        if (!userId) {
+            console.log('WebSocket: No user ID found, skipping connection');
+            return;
+        }
+
         this.isConnecting = true;
         const baseUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080/ws';
-        
-        // Get user_id from authService or localStorage
-        const userId = this.getUserId();
-        const wsUrl = userId ? `${baseUrl}?user_id=${userId}` : baseUrl;
+        const wsUrl = `${baseUrl}?user_id=${userId}`;
         
         try {
             this.ws = new WebSocket(wsUrl);
