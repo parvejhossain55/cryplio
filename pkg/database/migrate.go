@@ -69,6 +69,14 @@ func (m *Migrator) Steps(n int) error {
 	return nil
 }
 
+// Force sets the migration version without running any migrations
+func (m *Migrator) Force(v int) error {
+	if err := m.m.Force(v); err != nil {
+		return fmt.Errorf("force migration version failed: %w", err)
+	}
+	return nil
+}
+
 // AppliedVersionsDB queries the database for applied migration versions.
 // golang-migrate stores the current version as a single row, so all lower
 // contiguous versions are considered applied.

@@ -53,7 +53,7 @@ func (r *disputeRepository) Update(ctx context.Context, d *dispute.Dispute) erro
 		ctx, query,
 		d.Status, d.AssignedAdmin, d.AssignedAt,
 		d.ResolutionType, d.ResolutionNote,
-		d.ResolvedBy, d.ResolvedAt, nil, // TODO: handle closed_at if needed
+		d.ResolvedBy, d.ResolvedAt, d.ClosedAt,
 		d.DisputeID,
 	)
 	if err != nil {
@@ -67,7 +67,7 @@ func (r *disputeRepository) GetByID(ctx context.Context, id uuid.UUID) (*dispute
 		SELECT dispute_id, trade_id, raised_by, reason_code, reason_text,
 		       evidence_links, status, assigned_admin, assigned_at,
 		       resolution_type, resolution_note, resolved_by, resolved_at,
-		       created_at, updated_at
+		       closed_at, created_at, updated_at
 		FROM disputes
 		WHERE dispute_id = $1
 	`
@@ -77,7 +77,7 @@ func (r *disputeRepository) GetByID(ctx context.Context, id uuid.UUID) (*dispute
 		&d.DisputeID, &d.TradeID, &d.RaisedBy, &d.ReasonCode, &d.ReasonText,
 		pq.Array(&evidenceLinks), &d.Status, &d.AssignedAdmin, &d.AssignedAt,
 		&d.ResolutionType, &d.ResolutionNote, &d.ResolvedBy, &d.ResolvedAt,
-		&d.CreatedAt, &d.UpdatedAt,
+		&d.ClosedAt, &d.CreatedAt, &d.UpdatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -106,7 +106,7 @@ func (r *disputeRepository) List(ctx context.Context, status string, limit, offs
 		SELECT dispute_id, trade_id, raised_by, reason_code, reason_text,
 		       evidence_links, status, assigned_admin, assigned_at,
 		       resolution_type, resolution_note, resolved_by, resolved_at,
-		       created_at, updated_at
+		       closed_at, created_at, updated_at
 		FROM disputes
 	`
 	if status != "" && status != "all" {
@@ -131,7 +131,7 @@ func (r *disputeRepository) List(ctx context.Context, status string, limit, offs
 			&d.DisputeID, &d.TradeID, &d.RaisedBy, &d.ReasonCode, &d.ReasonText,
 			pq.Array(&evidenceLinks), &d.Status, &d.AssignedAdmin, &d.AssignedAt,
 			&d.ResolutionType, &d.ResolutionNote, &d.ResolvedBy, &d.ResolvedAt,
-			&d.CreatedAt, &d.UpdatedAt,
+			&d.ClosedAt, &d.CreatedAt, &d.UpdatedAt,
 		); err != nil {
 			return nil, 0, fmt.Errorf("scan dispute: %w", err)
 		}

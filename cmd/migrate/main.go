@@ -19,6 +19,7 @@ type CLI struct {
 	StatusOnly    bool
 	DownOne       bool
 	Steps         int
+	ForceVersion  int
 	Config        *database.Config
 }
 
@@ -31,6 +32,7 @@ func ParseFlags() *CLI {
 	statusOnly := flag.Bool("status", false, "Show migration status only (don't apply)")
 	downOne := flag.Bool("down", false, "Rollback the last migration")
 	steps := flag.Int("steps", 0, "Run a specific number of migration steps (negative for rollback)")
+	forceVersion := flag.Int("force", -1, "Force migration version (set schema_migrations.version)")
 
 	flag.StringVar(&cfg.Host, "host", cfg.Host, "PostgreSQL host")
 	flag.IntVar(&cfg.Port, "port", cfg.Port, "PostgreSQL port")
@@ -45,6 +47,7 @@ func ParseFlags() *CLI {
 		StatusOnly:    *statusOnly,
 		DownOne:       *downOne,
 		Steps:         *steps,
+		ForceVersion:  *forceVersion,
 		Config:        cfg,
 	}
 }
@@ -57,11 +60,30 @@ func main() {
 		return
 	}
 
+	if cli.ForceVersion >= 0 {
+		runForce(cli)
+		return
+	}
+
 	if cli.DownOne {
 		cli.Steps = -1
 	}
 
 	runMigrate(cli)
+}
+
+func runForce(cli *CLI) {
+	migrator, err := database.NewMigrator(cli.Config, cli.MigrationsDir)
+	if err != nil {
+		log.Fatalf("Failed to create migrator: %v", err)
+	}
+
+	fmt.Printf("Forcing migration version to %d...\n", cli.ForceVersion)
+	if err := migrator.Force(cli.ForceVersion); err != nil {
+		log.Fatalf("Force failed: %v", err)
+	}
+
+	fmt.Printf("✓ Migration version forced to %d.\n", cli.ForceVersion)
 }
 
 func runStatus(cli *CLI) {

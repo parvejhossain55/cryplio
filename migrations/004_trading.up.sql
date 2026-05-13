@@ -82,13 +82,18 @@ CREATE TABLE wallet_transactions (
 CREATE TABLE disputes (
     dispute_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     trade_id UUID NOT NULL REFERENCES trades(trade_id) ON DELETE CASCADE,
-    raiser_id UUID NOT NULL REFERENCES users(user_id),
+    raised_by UUID NOT NULL REFERENCES users(user_id),
     reason_code VARCHAR(30) NOT NULL REFERENCES dispute_reasons(code),
-    description TEXT NOT NULL,
+    reason_text TEXT,
+    evidence_links TEXT[],
     status dispute_status NOT NULL DEFAULT 'pending',
-    resolution dispute_resolution,
+    assigned_admin UUID REFERENCES users(user_id),
+    assigned_at TIMESTAMP,
+    resolution_type dispute_resolution,
+    resolution_note TEXT,
     resolved_by UUID REFERENCES users(user_id),
     resolved_at TIMESTAMP,
+    closed_at TIMESTAMP,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );

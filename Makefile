@@ -27,6 +27,7 @@ help:
 	@echo "  make migrate-up       Apply migrations"
 	@echo "  make migrate-down     Roll back the last migration"
 	@echo "  make migrate-status   Show migration status"
+	@echo "  make migrate-force v=7 Force migration to version v"
 	@echo "  make env-up           Start Docker Compose services"
 	@echo "  make env-down         Stop Docker Compose services"
 	@echo "  make seed             Seed the database with initial/dummy data"
@@ -97,6 +98,14 @@ migrate-status:
 	[ -f "$(ENV_FILE)" ] && source "$(ENV_FILE)"; \
 	set +a; \
 	APP_ENV=$(APP_ENV) $(GO) run ./cmd/migrate -status -dir="$(MIGRATIONS_DIR)" \
+		-host="$${DB_HOST}" -port="$${DB_PORT}" -user="$${DB_USER}" -password="$${DB_PASSWORD}" -dbname="$${DB_NAME}"
+
+migrate-force:
+	@test -n "$(v)" || { echo "usage: make migrate-force v=7"; exit 1; }
+	@set -a; \
+	[ -f "$(ENV_FILE)" ] && source "$(ENV_FILE)"; \
+	set +a; \
+	APP_ENV=$(APP_ENV) $(GO) run ./cmd/migrate -force=$(v) -dir="$(MIGRATIONS_DIR)" \
 		-host="$${DB_HOST}" -port="$${DB_PORT}" -user="$${DB_USER}" -password="$${DB_PASSWORD}" -dbname="$${DB_NAME}"
 
 migrate-create:

@@ -43,6 +43,7 @@ type Dispute struct {
 	ResolutionNote *string            `db:"resolution_note" json:"resolution_note,omitempty"`
 	ResolvedBy     *uuid.UUID         `db:"resolved_by" json:"resolved_by,omitempty"` // Admin ID who resolved it
 	ResolvedAt     *time.Time         `db:"resolved_at" json:"resolved_at,omitempty"`
+	ClosedAt       *time.Time         `db:"closed_at" json:"closed_at,omitempty"`
 	CreatedAt      time.Time          `db:"created_at" json:"created_at"`
 	UpdatedAt      time.Time          `db:"updated_at" json:"updated_at"`
 }
@@ -80,6 +81,9 @@ func (d *Dispute) Resolve(adminID uuid.UUID, resolution DisputeResolution, note 
 // Close closes the dispute (after resolution or appeal)
 func (d *Dispute) Close() {
 	d.Status = DisputeStatusClosed
+	now := time.Now()
+	d.ClosedAt = &now
+	d.UpdatedAt = now
 }
 
 // DisputeMessage represents a message in dispute chat
