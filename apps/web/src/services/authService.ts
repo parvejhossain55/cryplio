@@ -694,7 +694,7 @@ export const authService = {
     },
 
     getMyAds: async (): Promise<any> => {
-        const response = await fetch(`/api/v1/marketplace/my-ads`, {
+        const response = await fetchWithRefresh(`/api/v1/marketplace/my-ads`, {
             credentials: "include",
         });
 
@@ -702,11 +702,12 @@ export const authService = {
             throw new Error("Failed to fetch your advertisements");
         }
 
-        return await response.json();
+        const data = await response.json();
+        return data.ads || [];
     },
 
     toggleAdStatus: async (adId: string): Promise<any> => {
-        const response = await fetch(`/api/v1/marketplace/ads/${adId}/status`, {
+        const response = await fetchWithRefresh(`/api/v1/marketplace/ads/${adId}/status`, {
             method: "PATCH",
             credentials: "include",
         });
@@ -720,7 +721,7 @@ export const authService = {
 
     getMyTrades: async (role?: string): Promise<any> => {
         const url = role ? `/api/v1/marketplace/trades?role=${role}` : `/api/v1/marketplace/trades`;
-        const response = await fetch(url, {
+        const response = await fetchWithRefresh(url, {
             credentials: "include",
         });
 
@@ -728,11 +729,12 @@ export const authService = {
             throw new Error("Failed to fetch your trades");
         }
 
-        return await response.json();
+        const data = await response.json();
+        return data.trades || [];
     },
 
     getTradeDetails: async (tradeId: string): Promise<any> => {
-        const response = await fetch(`/api/v1/marketplace/trades/${tradeId}`, {
+        const response = await fetchWithRefresh(`/api/v1/marketplace/trades/${tradeId}`, {
             credentials: "include",
         });
 
@@ -740,11 +742,12 @@ export const authService = {
             throw new Error("Failed to fetch trade details");
         }
 
-        return await response.json();
+        const data = await response.json();
+        return data.trade || null;
     },
 
     updateTradeStatus: async (tradeId: string, action: string, reason?: string): Promise<any> => {
-        const response = await fetch(`/api/v1/marketplace/trades/${tradeId}/status`, {
+        const response = await fetchWithRefresh(`/api/v1/marketplace/trades/${tradeId}/status`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ action, reason }),
@@ -760,7 +763,7 @@ export const authService = {
     },
 
     getTradeMessages: async (tradeId: string): Promise<any> => {
-        const response = await fetch(`/api/v1/marketplace/trades/${tradeId}/messages`, {
+        const response = await fetchWithRefresh(`/api/v1/marketplace/trades/${tradeId}/messages`, {
             credentials: "include",
         });
 
@@ -768,11 +771,12 @@ export const authService = {
             throw new Error("Failed to fetch messages");
         }
 
-        return await response.json();
+        const data = await response.json();
+        return data.messages || [];
     },
 
     sendTradeMessage: async (tradeId: string, content: string): Promise<any> => {
-        const response = await fetch(`/api/v1/marketplace/trades/${tradeId}/messages`, {
+        const response = await fetchWithRefresh(`/api/v1/marketplace/trades/${tradeId}/messages`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ content }),
@@ -787,7 +791,7 @@ export const authService = {
     },
 
     disputeTrade: async (tradeId: string, reasonCode: string, reasonText: string): Promise<any> => {
-        const response = await fetch(`/api/v1/marketplace/trades/${tradeId}/dispute`, {
+        const response = await fetchWithRefresh(`/api/v1/marketplace/trades/${tradeId}/dispute`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ reason_code: reasonCode, reason_text: reasonText }),
@@ -803,7 +807,7 @@ export const authService = {
     },
 
     leaveFeedback: async (tradeId: string, rating: string, comment: string): Promise<any> => {
-        const response = await fetch(`/api/v1/marketplace/trades/${tradeId}/feedback`, {
+        const response = await fetchWithRefresh(`/api/v1/marketplace/trades/${tradeId}/feedback`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ rating, comment }),

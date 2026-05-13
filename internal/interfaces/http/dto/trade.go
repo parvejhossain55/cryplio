@@ -26,32 +26,31 @@ type ListAdsResponse struct {
 }
 
 type CreateAdRequest struct {
-	Type                 string   `json:"type" binding:"required,oneof=buy sell"`
-	CryptoID             int      `json:"crypto_id" binding:"required"`
-	FiatID               int      `json:"fiat_id" binding:"required"`
-	PriceType            string   `json:"price_type" binding:"required,oneof=fixed floating"`
-	Price                float64  `json:"price" binding:"required,gt=0"`
-	FloatingMarkup       *float64 `json:"floating_markup"`
-	MinAmount            float64  `json:"min_amount" binding:"required,gt=0"`
-	MaxAmount            float64  `json:"max_amount" binding:"required,gt=0"`
-	PaymentMethods       []int    `json:"payment_methods" binding:"required,min=1"`
-	TradeTerms           string   `json:"trade_terms"`
-	PaymentWindowMinutes int      `json:"payment_window_minutes" binding:"required"` // Min/max validated in handler using config
+	Type                 string  `json:"type" binding:"required,oneof=buy sell"`
+	CryptoID             int     `json:"crypto_id" binding:"required"`
+	FiatID               int     `json:"fiat_id" binding:"required"`
+	PriceType            string  `json:"price_type" binding:"required,oneof=fixed floating"`
+	Price                float64 `json:"price" binding:"required,gt=0"`
+	MinAmount            float64 `json:"min_amount" binding:"required,gt=0"`
+	MaxAmount            float64 `json:"max_amount" binding:"required,gt=0"`
+	PaymentMethodCode    string  `json:"payment_method_code" binding:"required"`
+	Terms                string  `json:"terms"`
+	Instructions         string  `json:"instructions"`
+	PaymentWindowMinutes int     `json:"payment_window_minutes" binding:"required"`
 }
 
 type UpdateAdRequest struct {
-	Type                 string   `json:"type" binding:"omitempty,oneof=buy sell"`
-	CryptoID             int      `json:"crypto_id"`
-	FiatID               int      `json:"fiat_id"`
-	PriceType            string   `json:"price_type" binding:"omitempty,oneof=fixed floating"`
-	Price                float64  `json:"price" binding:"omitempty,gt=0"`
-	FloatingMarkup       *float64 `json:"floating_markup"`
-	MinAmount            float64  `json:"min_amount" binding:"omitempty,gt=0"`
-	MaxAmount            float64  `json:"max_amount" binding:"omitempty,gt=0"`
-	PaymentMethods       []int    `json:"payment_methods"`
-	TradeTerms           string   `json:"trade_terms"`
-	PaymentWindowMinutes int      `json:"payment_window_minutes"` // Min/max validated in handler using config (0 = no change)
-	Timezone             string   `json:"timezone"`
+	Type                 string  `json:"type" binding:"omitempty,oneof=buy sell"`
+	CryptoID             int     `json:"crypto_id"`
+	FiatID               int     `json:"fiat_id"`
+	PriceType            string  `json:"price_type" binding:"omitempty,oneof=fixed floating"`
+	Price                float64 `json:"price" binding:"omitempty,gt=0"`
+	MinAmount            float64 `json:"min_amount" binding:"omitempty,gt=0"`
+	MaxAmount            float64 `json:"max_amount" binding:"omitempty,gt=0"`
+	PaymentMethodCode    string  `json:"payment_method_code"`
+	Terms                string  `json:"terms"`
+	Instructions         string  `json:"instructions"`
+	PaymentWindowMinutes int     `json:"payment_window_minutes"`
 }
 
 type InitiateTradeRequest struct {

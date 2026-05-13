@@ -4,49 +4,15 @@ import (
 	"context"
 	"errors"
 
-	"cryplio/internal/domain/platform"
-
 	"github.com/google/uuid"
 )
 
-// ListActiveAds returns all active ads that match the given filter, enriched with
-// human-readable payment method names sourced from the platform repository.
+// ListActiveAds returns all active ads that match the given filter.
 func (s *tradeService) ListActiveAds(ctx context.Context, filter AdFilter) ([]TradeAd, int, error) {
 	status := TradeAdStatusActive
 	filter.Status = &status
 
-	ads, total, err := s.tradeRepo.ListAds(ctx, filter)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	// Fetch all payment methods for mapping.
-	paymentMethods, _, err := s.platformRepo.GetPaymentMethods(ctx, true, 100, 0)
-	if err != nil {
-		// Log error but don't fail — ads still work without payment method names.
-		paymentMethods = []*platform.PaymentMethod{}
-	}
-
-	// Build ID -> Name lookup map.
-	pmMap := make(map[int]string, len(paymentMethods))
-	for _, pm := range paymentMethods {
-		pmMap[pm.ID] = pm.Name
-	}
-
-	// Enrich ads with payment method names.
-	for i := range ads {
-		if len(ads[i].PaymentMethods) > 0 {
-			names := make([]string, 0, len(ads[i].PaymentMethods))
-			for _, id := range ads[i].PaymentMethods {
-				if name, ok := pmMap[id]; ok {
-					names = append(names, name)
-				}
-			}
-			ads[i].PaymentMethodNames = names
-		}
-	}
-
-	return ads, total, nil
+	return s.tradeRepo.ListAds(ctx, filter)
 }
 
 // GetAd returns a single ad by its ID.
@@ -99,20 +65,20 @@ func (s *tradeService) UpdateAd(ctx context.Context, adID, userID uuid.UUID, upd
 	if updates.Price > 0 {
 		ad.Price = updates.Price
 	}
-	if updates.FloatingMarkup != nil {
-		ad.FloatingMarkup = updates.FloatingMarkup
-	}
 	if updates.MinAmount > 0 {
 		ad.MinAmount = updates.MinAmount
 	}
 	if updates.MaxAmount > 0 {
 		ad.MaxAmount = updates.MaxAmount
 	}
-	if len(updates.PaymentMethods) > 0 {
-		ad.PaymentMethods = updates.PaymentMethods
+	if updates.PaymentMethodCode != "" {
+		ad.PaymentMethodCode = updates.PaymentMethodCode
 	}
-	if updates.TradeTerms != nil {
-		ad.TradeTerms = updates.TradeTerms
+	if updates.Terms != nil {
+		ad.Terms = updates.Terms
+	}
+	if updates.Instructions != nil {
+		ad.Instructions = updates.Instructions
 	}
 	if updates.PaymentWindowMinutes > 0 {
 		// Validate payment window against configured limits
@@ -125,9 +91,6 @@ func (s *tradeService) UpdateAd(ctx context.Context, adID, userID uuid.UUID, upd
 			}
 		}
 		ad.PaymentWindowMinutes = updates.PaymentWindowMinutes
-	}
-	if updates.Timezone != "" {
-		ad.Timezone = updates.Timezone
 	}
 
 	return s.tradeRepo.UpdateAd(ctx, ad)
@@ -170,6 +133,10 @@ func (s *tradeService) ToggleAdStatus(ctx context.Context, adID, userID uuid.UUI
 		return errors.New("unauthorized")
 	}
 
-	ad.IsPaused = !ad.IsPaused
+	if ad.Status == TradeAdStatusActive {
+		ad.Pause()
+	} else {
+		ad.Resume()
+	}
 	return s.tradeRepo.UpdateAd(ctx, ad)
 }

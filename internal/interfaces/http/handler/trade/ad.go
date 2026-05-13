@@ -78,12 +78,12 @@ func (h *TradeHandler) ListAdsHandler(c *gin.Context) {
 			Price:                ad.Price,
 			MinAmount:            ad.MinAmount,
 			MaxAmount:            ad.MaxAmount,
-			PaymentMethods:       ad.PaymentMethodNames,
+			PaymentMethods:       []string{}, // TODO: map IDs to names
 			PaymentWindowMinutes: ad.PaymentWindowMinutes,
 			IsOnline:             isOnline,
 			TradeTerms: func() string {
-				if ad.TradeTerms != nil {
-					return *ad.TradeTerms
+				if ad.Terms != nil {
+					return *ad.Terms
 				}
 				return ""
 			}(),
@@ -114,15 +114,12 @@ func (h *TradeHandler) CreateAdHandler(c *gin.Context) {
 		FiatID:               req.FiatID,
 		PriceType:            trading.PriceType(req.PriceType),
 		Price:                req.Price,
-		FloatingMarkup:       req.FloatingMarkup,
 		MinAmount:            req.MinAmount,
 		MaxAmount:            req.MaxAmount,
-		PaymentMethods:       req.PaymentMethods,
-		TradeTerms:           &req.TradeTerms,
+		PaymentMethodCode:    req.PaymentMethodCode,
+		Terms:                &req.Terms,
+		Instructions:         &req.Instructions,
 		PaymentWindowMinutes: req.PaymentWindowMinutes,
-		IsPublic:             true,
-		IsPaused:             false,
-		Timezone:             "UTC",
 		Status:               trading.TradeAdStatusActive,
 	}
 
@@ -159,13 +156,12 @@ func (h *TradeHandler) UpdateAdHandler(c *gin.Context) {
 		FiatID:               req.FiatID,
 		PriceType:            trading.PriceType(req.PriceType),
 		Price:                req.Price,
-		FloatingMarkup:       req.FloatingMarkup,
 		MinAmount:            req.MinAmount,
 		MaxAmount:            req.MaxAmount,
-		PaymentMethods:       req.PaymentMethods,
-		TradeTerms:           &req.TradeTerms,
+		PaymentMethodCode:    req.PaymentMethodCode,
+		Terms:                &req.Terms,
+		Instructions:         &req.Instructions,
 		PaymentWindowMinutes: req.PaymentWindowMinutes,
-		Timezone:             req.Timezone,
 	}
 
 	if err := h.tradeService.UpdateAd(c.Request.Context(), adID, userID, updates); err != nil {

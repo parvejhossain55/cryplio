@@ -6,10 +6,13 @@ import {
     Bell,
     Menu,
     ChevronDown,
-    User,
+    User as UserIcon,
     Activity
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useAuth } from "@/context/AuthContext";
+import { useNotifications } from "@/context/NotificationContext";
+import Link from "next/link";
 
 interface DashboardHeaderProps {
     title: string;
@@ -17,6 +20,9 @@ interface DashboardHeaderProps {
 }
 
 const DashboardHeader = ({ title, onMenuClick }: DashboardHeaderProps) => {
+    const { user } = useAuth();
+    const { unreadCount, isConnected } = useNotifications();
+
     return (
         <header className="sticky top-0 z-30 flex items-center justify-between px-6 md:px-10 py-4 bg-background/80 backdrop-blur-xl border-b border-white/5">
             <div className="flex items-center space-x-4">
@@ -45,8 +51,10 @@ const DashboardHeader = ({ title, onMenuClick }: DashboardHeaderProps) => {
                 {/* Global Stats */}
                 <div className="hidden sm:flex items-center space-x-4 px-4 py-2 bg-surface-light rounded-xl border border-white/5">
                     <div className="flex items-center space-x-2">
-                        <Activity className="w-3.5 h-3.5 text-accent" />
-                        <span className="text-[10px] font-black text-white tracking-widest uppercase">Escrow Live</span>
+                        <Activity className={`w-3.5 h-3.5 ${isConnected ? 'text-accent' : 'text-primary animate-pulse'}`} />
+                        <span className="text-[10px] font-black text-white tracking-widest uppercase">
+                            {isConnected ? 'Escrow Live' : 'Connecting...'}
+                        </span>
                     </div>
                     <div className="w-[1px] h-3 bg-white/10" />
                     <div className="flex items-center space-x-1">
@@ -55,26 +63,22 @@ const DashboardHeader = ({ title, onMenuClick }: DashboardHeaderProps) => {
                     </div>
                 </div>
 
-                {/* Notifications */}
-                <button className="relative p-2.5 hover:bg-surface-light rounded-xl transition-all border border-white/5 group">
-                    <Bell className="w-5 h-5 text-text-dim group-hover:text-white transition-colors" />
-                    <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full border-2 border-background animate-pulse" />
-                </button>
-
                 {/* Profile Dropdown */}
                 <div className="flex items-center space-x-2 pl-2">
                     <div className="relative cursor-pointer group">
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 border border-white/10 flex items-center justify-center overflow-hidden">
-                            <User className="w-5 h-5 text-text-dim group-hover:text-white transition-colors" />
+                            {user?.avatarUrl ? (
+                                <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+                            ) : (
+                                <UserIcon className="w-5 h-5 text-text-dim group-hover:text-white transition-colors" />
+                            )}
                         </div>
-                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-accent border-4 border-background rounded-full" />
+                        <div className={`absolute -bottom-1 -right-1 w-4 h-4 ${user?.isOnline ? 'bg-accent' : 'bg-text-dim'} border-4 border-background rounded-full`} />
                     </div>
                     <div className="hidden lg:block">
                         <div className="flex items-center space-x-1 cursor-pointer">
-                            <span className="text-sm font-bold text-white">Alex Morgan</span>
-                            <ChevronDown className="w-4 h-4 text-text-dim" />
+                            <span className="text-sm font-bold text-white">{user?.name || "Guest"}</span>
                         </div>
-                        <p className="text-[10px] font-medium text-text-dim uppercase tracking-widest leading-none">Pro Trader</p>
                     </div>
                 </div>
             </div>

@@ -52,18 +52,19 @@ func (s *Seeder) SeedTradeAds(ctx context.Context, users []*domainidentity.User,
 				price *= 1450.0
 			}
 
+			pmCode := "bkash"
+			if fiatCode == "USD" {
+				pmCode = "wise"
+			}
+
 			ad := &domaintrading.TradeAd{
 				AdID: uuid.New(), UserID: user.UserID, Type: adType,
 				CryptoID: cryptoMap[cryptoSym], FiatID: fiatMap[fiatCode],
 				PriceType: domaintrading.PriceTypeFixed, Price: price,
 				MinAmount: 10.0, MaxAmount: 2000.0,
-				PaymentMethods:       []int{pmMap["bkash"], pmMap["bank_transfer"]},
+				PaymentMethodCode:    pmCode,
 				PaymentWindowMinutes: 15,
-				IsPublic:             true, IsPaused: false, Timezone: "UTC", Status: domaintrading.TradeAdStatusActive,
-				PublishedAt: time.Now(),
-			}
-			if fiatCode == "USD" {
-				ad.PaymentMethods = []int{pmMap["wise"], pmMap["paypal"]}
+				Status:               domaintrading.TradeAdStatusActive,
 			}
 
 			if err := s.tradeRepo.CreateAd(ctx, ad); err != nil {
@@ -101,8 +102,8 @@ func (s *Seeder) SeedTrades(ctx context.Context, users []*domainidentity.User, a
 			TradeID: uuid.New(), AdID: ad.AdID, BuyerID: buyerID, SellerID: sellerID,
 			CryptoID: ad.CryptoID, FiatID: ad.FiatID,
 			CryptoAmount: 150.0 / ad.Price, FiatAmount: 150.0,
-			ExchangeRate: ad.Price, PaymentMethod: ad.PaymentMethods[0],
-			PriceType: ad.PriceType, AgreedPrice: ad.Price, Status: status,
+			Rate: ad.Price, Status: status,
+			PaymentMethodCode:    ad.PaymentMethodCode,
 			PaymentWindowMinutes: ad.PaymentWindowMinutes, CreatedAt: time.Now().Add(-time.Duration(i*2) * time.Hour),
 		}
 		if status == domaintrading.TradeStatusCompleted {

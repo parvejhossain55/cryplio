@@ -15,7 +15,6 @@ import (
 	"cryplio/internal/domain/notification"
 	"cryplio/internal/domain/platform"
 	"cryplio/pkg/config"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -40,7 +39,6 @@ type TradeService interface {
 	CancelTrade(ctx context.Context, tradeID, userID uuid.UUID, reason string) error
 	DisputeTrade(ctx context.Context, tradeID, userID uuid.UUID, reasonCode string, reasonText string) (*Trade, error)
 	ReconcileExpiredTrades(ctx context.Context) (int, error)
-	FlagAutoDisputesForOverduePaidTrades(ctx context.Context, gracePeriod time.Duration) (int, error)
 
 	// Messages
 	SendMessage(ctx context.Context, tradeID, senderID uuid.UUID, content string) (*TradeMessage, error)

@@ -80,27 +80,12 @@ func (h *TradeHandler) SendMessageHandler(c *gin.Context) {
 		}
 
 		// Broadcast message to trade participants via WebSocket
-		if h.wsService != nil && msg.MessageID != uuid.Nil {
-			var fileURL, mimeType string
-			var fileSize int
-
-			if msg.FileURL != nil {
-				fileURL = *msg.FileURL
-			}
-			if msg.FileMimeType != nil {
-				mimeType = *msg.FileMimeType
-			}
-			if msg.FileSize != nil {
-				fileSize = *msg.FileSize
-			}
-
+		if h.wsService != nil && msg.ID != uuid.Nil {
 			chatMessage := websocket.ChatMessage{
-				ID:        msg.MessageID.String(),
+				ID:        msg.ID.String(),
 				TradeID:   msg.TradeID.String(),
 				SenderID:  msg.SenderID.String(),
-				FileURL:   fileURL,
-				MimeType:  mimeType,
-				FileSize:  fileSize,
+				Content:   msg.Message,
 				CreatedAt: msg.CreatedAt.Format(time.RFC3339),
 			}
 
@@ -132,17 +117,12 @@ func (h *TradeHandler) SendMessageHandler(c *gin.Context) {
 	}
 
 	// Broadcast message to trade participants via WebSocket
-	if h.wsService != nil && msg.MessageID != uuid.Nil {
-		var content string
-		if msg.Content != nil {
-			content = *msg.Content
-		}
-
+	if h.wsService != nil && msg.ID != uuid.Nil {
 		chatMessage := websocket.ChatMessage{
-			ID:        msg.MessageID.String(),
+			ID:        msg.ID.String(),
 			TradeID:   msg.TradeID.String(),
 			SenderID:  msg.SenderID.String(),
-			Content:   content,
+			Content:   msg.Message,
 			CreatedAt: msg.CreatedAt.Format(time.RFC3339),
 		}
 

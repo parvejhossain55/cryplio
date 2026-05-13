@@ -3,7 +3,6 @@ package worker
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"cryplio/internal/domain/trading"
 	"cryplio/pkg/config"
@@ -12,8 +11,7 @@ import (
 )
 
 const (
-	TaskTradeReconcile   = "trade:reconcile"
-	TaskTradeAutoDispute = "trade:auto_dispute"
+	TaskTradeReconcile = "trade:reconcile"
 )
 
 type Worker struct {
@@ -49,7 +47,6 @@ func NewWorker(cfg *config.Config, tradeService trading.TradeService) *Worker {
 func (w *Worker) Start() error {
 	mux := asynq.NewServeMux()
 	mux.HandleFunc(TaskTradeReconcile, w.handleTradeReconcile)
-	mux.HandleFunc(TaskTradeAutoDispute, w.handleTradeAutoDispute)
 
 	if err := w.server.Run(mux); err != nil {
 		return fmt.Errorf("failed to start asynq server: %w", err)
@@ -64,18 +61,6 @@ func (w *Worker) handleTradeReconcile(ctx context.Context, t *asynq.Task) error 
 	}
 	if count > 0 {
 		fmt.Printf("Reconciled %d expired trades\n", count)
-	}
-	return nil
-}
-
-func (w *Worker) handleTradeAutoDispute(ctx context.Context, t *asynq.Task) error {
-	// 2 hour grace period for auto-dispute
-	count, err := w.tradeService.FlagAutoDisputesForOverduePaidTrades(ctx, 2*time.Hour)
-	if err != nil {
-		return err
-	}
-	if count > 0 {
-		fmt.Printf("Flagged %d trades for auto-dispute\n", count)
 	}
 	return nil
 }
@@ -99,12 +84,6 @@ func NewScheduler(cfg *config.Config) *Scheduler {
 func (s *Scheduler) Start() error {
 	// Every 5 minutes
 	_, err := s.inspector.Register("@every 5m", asynq.NewTask(TaskTradeReconcile, nil))
-	if err != nil {
-		return err
-	}
-
-	// Every 15 minutes
-	_, err = s.inspector.Register("@every 15m", asynq.NewTask(TaskTradeAutoDispute, nil))
 	if err != nil {
 		return err
 	}

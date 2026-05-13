@@ -49,10 +49,6 @@ func (s *tradeService) InitiateTrade(ctx context.Context, adID, buyerID uuid.UUI
 		return nil, fmt.Errorf("amount must be between %.2f and %.2f", ad.MinAmount, ad.MaxAmount)
 	}
 
-	if len(ad.PaymentMethods) == 0 {
-		return nil, errors.New("advertisement has no payment methods configured")
-	}
-
 	// 5. Build Trade record.
 	trade := &Trade{
 		TradeID:              uuid.New(),
@@ -63,24 +59,20 @@ func (s *tradeService) InitiateTrade(ctx context.Context, adID, buyerID uuid.UUI
 		FiatID:               ad.FiatID,
 		CryptoAmount:         amount / ad.Price, // Simple calculation for now.
 		FiatAmount:           amount,
-		ExchangeRate:         ad.Price,
-		PaymentMethod:        ad.PaymentMethods[0], // Use first method for now.
-		PriceType:            ad.PriceType,
-		AgreedPrice:          ad.Price,
+		Rate:                 ad.Price,
 		Status:               TradeStatusPending,
+		PaymentMethodCode:    ad.PaymentMethodCode,
 		PaymentWindowMinutes: ad.PaymentWindowMinutes,
+		ExpiresAt:            time.Now().Add(time.Duration(ad.PaymentWindowMinutes) * time.Minute),
 	}
 
-	// 6. Lock Escrow on Blockchain.
-	txHash, contractAddr, err := s.escrowClient.Lock(ctx, trade)
+	// 6. Lock Escrow on Blockchain (Mock or real client)
+	txHash, _, err := s.escrowClient.Lock(ctx, trade)
 	if err != nil {
 		return nil, fmt.Errorf("blockchain escrow lock failed: %w", err)
 	}
-	now := time.Now()
-	trade.EscrowTxnHash = &txHash
-	trade.EscrowContractAddress = &contractAddr
+	trade.TxHash = &txHash
 	trade.Status = TradeStatusActive // Active once locked.
-	trade.StartedAt = &now
 
 	if err = s.tradeRepo.CreateTrade(ctx, trade); err != nil {
 		return nil, fmt.Errorf("save trade: %w", err)
@@ -174,7 +166,7 @@ func (s *tradeService) ReleaseEscrow(ctx context.Context, tradeID, userID uuid.U
 	if err != nil {
 		return fmt.Errorf("blockchain escrow release failed: %w", err)
 	}
-	trade.EscrowTxnHash = &txHash
+	trade.TxHash = &txHash
 
 	// Auto-complete trade after escrow release.
 	trade.Complete()
@@ -259,8 +251,9 @@ func (s *tradeService) DisputeTrade(ctx context.Context, tradeID, userID uuid.UU
 	}
 
 	// Update Trade status.
+	now := time.Now()
 	trade.Status = TradeStatusDisputed
-	trade.DisputeID = &d.DisputeID
+	trade.DisputedAt = &now
 	if err := s.tradeRepo.UpdateTrade(ctx, trade); err != nil {
 		return nil, fmt.Errorf("update trade status: %w", err)
 	}
@@ -295,45 +288,7 @@ func (s *tradeService) ReconcileExpiredTrades(ctx context.Context) (int, error) 
 		}
 
 		trade.Status = TradeStatusExpired
-		trade.ExpiredAt = &now
-		reason := "auto-cancelled: payment window expired"
-		trade.CancelReason = &reason
 
-		if err := s.tradeRepo.UpdateTrade(ctx, &trade); err != nil {
-			return updated, err
-		}
-		updated++
-	}
-
-	return updated, nil
-}
-
-// FlagAutoDisputesForOverduePaidTrades sets IsAutoDisputeTriggered on trades that have been
-// in the Paid state longer than the provided gracePeriod. Uses configured default if not specified.
-func (s *tradeService) FlagAutoDisputesForOverduePaidTrades(ctx context.Context, gracePeriod time.Duration) (int, error) {
-	if gracePeriod <= 0 {
-		// Use configured grace period or default to 1 hour
-		if s.cfg != nil && s.cfg.TradeAutoDisputeGracePeriod > 0 {
-			gracePeriod = s.cfg.TradeAutoDisputeGracePeriod
-		} else {
-			gracePeriod = time.Hour
-		}
-	}
-
-	threshold := time.Now().Add(-gracePeriod)
-	trades, err := s.tradeRepo.ListPaidTradesPastGrace(ctx, threshold)
-	if err != nil {
-		return 0, err
-	}
-
-	updated := 0
-	for i := range trades {
-		trade := trades[i]
-		if trade.IsAutoDisputeTriggered {
-			continue
-		}
-
-		trade.IsAutoDisputeTriggered = true
 		if err := s.tradeRepo.UpdateTrade(ctx, &trade); err != nil {
 			return updated, err
 		}

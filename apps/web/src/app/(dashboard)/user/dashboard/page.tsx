@@ -20,7 +20,7 @@ import { motion } from "framer-motion";
 const UserDashboard = () => {
     return (
         <DashboardLayout title="Overview" role="user">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1">
                 {/* Left Column: Stats & Wallet */}
                 <div className="lg:col-span-2 space-y-8">
                     {/* Main Wallet Card */}
@@ -113,80 +113,6 @@ const UserDashboard = () => {
                                 </div>
                             ))}
                         </div>
-                    </div>
-                </div>
-
-                {/* Right Column: Cards & Offers */}
-                <div className="space-y-8">
-                    {/* Cryplio Card Preview */}
-                    <div className="bg-gradient-to-br from-primary to-secondary p-8 rounded-[2.5rem] relative overflow-hidden group shadow-2xl shadow-primary/20 h-64">
-                        <div className="absolute top-0 right-0 p-8">
-                            <Wallet className="w-10 h-10 text-white/50 group-hover:rotate-12 transition-transform duration-500" />
-                        </div>
-                        <div className="absolute bottom-0 left-0 p-8 w-full">
-                            <div className="flex justify-between items-end">
-                                <div>
-                                    <p className="text-[10px] font-black text-white/60 uppercase tracking-[0.2em] mb-1">Virtual Card</p>
-                                    <p className="text-2xl font-black text-white tracking-widest">•••• 4820</p>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-[10px] font-black text-white/60 uppercase tracking-[0.2em] mb-1">Exp</p>
-                                    <p className="text-lg font-black text-white italic">08/28</p>
-                                </div>
-                            </div>
-                        </div>
-                        {/* Card visual elements */}
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] border border-white/20 rounded-full opacity-20 group-hover:scale-110 transition-transform duration-700" />
-                    </div>
-
-                    {/* Quick Actions */}
-                    <div className="bg-surface rounded-[2.5rem] border border-white/10 p-8">
-                        <h3 className="text-lg font-black text-white mb-6">Quick Actions</h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            {[
-                                { name: "P2P Marketplace", icon: Store, color: "text-primary", bg: "bg-primary/10" },
-                                { name: "Instant Swap", icon: ArrowLeftRight, color: "text-secondary", bg: "bg-secondary/10" },
-                                { name: "Card Services", icon: CreditCard, color: "text-accent", bg: "bg-accent/10" },
-                                { name: "Refer & Earn", icon: TrendingUp, color: "text-primary", bg: "bg-primary/10" },
-                            ].map((action, i) => (
-                                <button key={i} className="flex flex-col items-center justify-center p-6 rounded-3xl bg-white/5 border border-white/5 hover:border-white/10 hover:bg-white/[0.08] transition-all group">
-                                    <div className={`w-12 h-12 rounded-2xl ${action.bg} ${action.color} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
-                                        <action.icon className="w-6 h-6" />
-                                    </div>
-                                    <span className="text-[10px] font-black text-white text-center uppercase tracking-widest leading-tight">{action.name}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Security Status */}
-                    <div className="bg-surface rounded-[2.5rem] border border-white/10 p-8">
-                        <div className="flex items-center space-x-4 mb-6">
-                            <div className="w-12 h-12 rounded-2xl bg-accent/20 flex items-center justify-center">
-                                <ShieldCheck className="w-6 h-6 text-accent" />
-                            </div>
-                            <div>
-                                <h4 className="font-black text-white uppercase text-xs tracking-widest">Account Health</h4>
-                                <p className="text-[10px] font-bold text-accent uppercase tracking-widest">Excellent</p>
-                            </div>
-                        </div>
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <span className="text-xs text-text-dim font-medium">Account Security</span>
-                                <span className="text-[10px] bg-accent/10 text-accent px-2 py-0.5 rounded font-black uppercase tracking-widest">Verified</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <span className="text-xs text-text-dim font-medium">2FA Status</span>
-                                <span className="text-[10px] bg-accent/10 text-accent px-2 py-0.5 rounded font-black uppercase tracking-widest">Enabled</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <span className="text-xs text-text-dim font-medium">Login Notifications</span>
-                                <span className="text-[10px] bg-accent/10 text-accent px-2 py-0.5 rounded font-black uppercase tracking-widest">Active</span>
-                            </div>
-                        </div>
-                        <button className="w-full mt-8 py-4 bg-white/5 border border-white/5 rounded-2xl text-[10px] font-black text-white uppercase tracking-[0.2em] hover:bg-white/10 transition-all">
-                            Security Hub
-                        </button>
                     </div>
                 </div>
             </div>

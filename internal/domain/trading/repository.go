@@ -23,7 +23,6 @@ type TradeRepository interface {
 	ListAllTrades(ctx context.Context, status string) ([]Trade, error)
 	CountTrades(ctx context.Context, status string) (int, error)
 	ListExpiredPendingTrades(ctx context.Context, now time.Time) ([]Trade, error)
-	ListPaidTradesPastGrace(ctx context.Context, threshold time.Time) ([]Trade, error)
 	UpdateTrade(ctx context.Context, trade *Trade) error
 
 	// Messages

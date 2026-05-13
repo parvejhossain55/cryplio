@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/google/uuid"
 )
@@ -23,11 +22,11 @@ func (s *tradeService) SendMessage(ctx context.Context, tradeID, senderID uuid.U
 	}
 
 	msg := &TradeMessage{
-		MessageID:   uuid.New(),
-		TradeID:     tradeID,
-		SenderID:    senderID,
-		MessageType: TradeMessageTypeText,
-		Content:     &content,
+		ID:       uuid.New(),
+		TradeID:  tradeID,
+		SenderID: senderID,
+		Message:  content,
+		IsSystem: false,
 	}
 
 	if err = s.tradeRepo.CreateTradeMessage(ctx, msg); err != nil {
@@ -51,19 +50,12 @@ func (s *tradeService) SendFileMessage(ctx context.Context, tradeID, senderID uu
 		return nil, errors.New("unauthorized")
 	}
 
-	messageType := TradeMessageTypeFile
-	if strings.HasPrefix(mimeType, "image/") {
-		messageType = TradeMessageTypeImage
-	}
-
 	msg := &TradeMessage{
-		MessageID:    uuid.New(),
-		TradeID:      tradeID,
-		SenderID:     senderID,
-		MessageType:  messageType,
-		FileURL:      &fileURL,
-		FileMimeType: &mimeType,
-		FileSize:     &fileSize,
+		ID:       uuid.New(),
+		TradeID:  tradeID,
+		SenderID: senderID,
+		Message:  fmt.Sprintf("[File: %s]", fileURL),
+		IsSystem: false,
 	}
 
 	if err = s.tradeRepo.CreateTradeMessage(ctx, msg); err != nil {

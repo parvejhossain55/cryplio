@@ -162,9 +162,8 @@ func (h *TradeHandler) DisputeTradeHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":    "Dispute raised successfully",
-		"trade_id":   trade.TradeID.String(),
-		"dispute_id": trade.DisputeID,
-		"status":     trade.Status,
+		"message":  "Dispute raised successfully",
+		"trade_id": trade.TradeID.String(),
+		"status":   trade.Status,
 	})
 }
