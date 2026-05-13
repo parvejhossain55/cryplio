@@ -89,26 +89,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const login = async (email: string, password: string) => {
         setIsLoading(true);
         try {
-            const backendUser: BackendUser = await authService.login(email, password);
-            setUser(mapBackendUser(backendUser));
-            localStorage.setItem("user_id", backendUser.id);
-            router.push("/user/dashboard");
-        } catch (error) {
-            const loginError = error as TwoFactorLoginError;
-            // Check for 2FA requirement
-            if (loginError.requires2FA || loginError.message === "2FA_REQUIRED") {
+            const result = await authService.login({ email, password });
+            if ('id' in result) {
+                const backendUser = result as BackendUser;
+                setUser(mapBackendUser(backendUser));
+                localStorage.setItem("user_id", backendUser.id);
+                router.push("/user/dashboard");
+            } else {
+                setTemp2FAToken(result.temp_token);
                 setRequires2FA(true);
-                setTemp2FAToken(loginError.tempToken || sessionStorage.getItem("2fa_temp_token") || null);
-                // Store in sessionStorage as backup
-                if (loginError.tempToken && loginError.user) {
-                    sessionStorage.setItem("2fa_temp_token", loginError.tempToken);
-                    sessionStorage.setItem("2fa_user_id", loginError.user.id);
-                    localStorage.setItem("user_id", loginError.user.id);
-                }
-                // Redirect to 2FA verification page
-                router.push("/2fa-verify");
-                return;
             }
+        } catch (error) {
             throw error;
         } finally {
             setIsLoading(false);
@@ -140,20 +131,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         authService.loginWithGoogle();
     };
 
-    const register = async (
-        email: string,
-        username: string,
-        password: string
-    ) => {
+    const register = async (email: string, username: string, password: string) => {
         setIsLoading(true);
         try {
-            const backendUser: BackendUser = await authService.register(
-                email,
-                username,
-                password
-            );
+            const backendUser = await authService.register({ email, username, password });
             setUser(mapBackendUser(backendUser));
+            localStorage.setItem("user_id", backendUser.id);
             router.push("/user/dashboard");
+        } catch (error) {
+            throw error;
         } finally {
             setIsLoading(false);
         }

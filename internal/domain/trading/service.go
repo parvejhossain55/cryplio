@@ -21,14 +21,22 @@ import (
 
 // TradeService is the primary service interface for the trading domain.
 type TradeService interface {
-	// Ads
-	ListActiveAds(ctx context.Context, filter AdFilter) ([]TradeAd, int, error)
-	GetAd(ctx context.Context, id uuid.UUID) (*TradeAd, error)
+	AdService
+	ExecutionService
+	ChatService
+}
+
+type AdService interface {
 	CreateAd(ctx context.Context, ad *TradeAd) error
+	GetAd(ctx context.Context, id uuid.UUID) (*TradeAd, error)
+	ListActiveAds(ctx context.Context, filter AdFilter) ([]TradeAd, int, error)
+	ListUserAds(ctx context.Context, userID uuid.UUID) ([]TradeAd, int, error)
 	UpdateAd(ctx context.Context, adID, userID uuid.UUID, updates *TradeAd) error
 	DeleteAd(ctx context.Context, adID, userID uuid.UUID) error
+	ToggleAdStatus(ctx context.Context, adID, userID uuid.UUID) error
+}
 
-	// Trades
+type ExecutionService interface {
 	InitiateTrade(ctx context.Context, adID, buyerID uuid.UUID, amount float64) (*Trade, error)
 	ListTrades(ctx context.Context, userID uuid.UUID, role string) ([]Trade, error)
 	ListAllTrades(ctx context.Context, status string) ([]Trade, error)
@@ -39,18 +47,13 @@ type TradeService interface {
 	CancelTrade(ctx context.Context, tradeID, userID uuid.UUID, reason string) error
 	DisputeTrade(ctx context.Context, tradeID, userID uuid.UUID, reasonCode string, reasonText string) (*Trade, error)
 	ReconcileExpiredTrades(ctx context.Context) (int, error)
+}
 
-	// Messages
+type ChatService interface {
 	SendMessage(ctx context.Context, tradeID, senderID uuid.UUID, content string) (*TradeMessage, error)
 	SendFileMessage(ctx context.Context, tradeID, senderID uuid.UUID, fileURL, mimeType string, fileSize int) (*TradeMessage, error)
 	GetChatHistory(ctx context.Context, tradeID, userID uuid.UUID) ([]TradeMessage, error)
-
-	// Feedback
 	LeaveFeedback(ctx context.Context, tradeID, userID uuid.UUID, rating FeedbackRating, comment string) error
-
-	// Ad Management
-	ListUserAds(ctx context.Context, userID uuid.UUID) ([]TradeAd, int, error)
-	ToggleAdStatus(ctx context.Context, adID, userID uuid.UUID) error
 }
 
 type tradeService struct {
