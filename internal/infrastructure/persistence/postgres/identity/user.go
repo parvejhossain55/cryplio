@@ -78,11 +78,10 @@ func (r *userRepository) GetByUsernameWithStats(ctx context.Context, username st
 			u.phone_country_code, u.phone_number, u.phone_verified, u.email_verified,
 			u.status, u.role,
 			u.avatar_url, u.bio, u.timezone, u.locale,
-			u.is_merchant, u.is_suspended,
+			u.is_suspended,
 			u.suspension_reason, u.suspended_at, u.suspended_until,
 			u.last_login_at, u.last_seen_at,
 			u.login_count, u.failed_login_attempts, u.locked_until,
-			u.referral_code, u.referred_by,
 			u.two_fa_secret, u.remember_2fa, u.remember_2fa_expiry,
 			u.created_at, u.updated_at, u.deleted_at,
 			COALESCE(s.total_trades, 0),
@@ -105,17 +104,15 @@ func (r *userRepository) GetByUsernameWithStats(ctx context.Context, username st
 	var statsUpdatedAt sql.NullTime
 
 	row := r.db.QueryRowContext(ctx, query, username)
-	var referredBy sql.NullString
 	err := row.Scan(
 		&u.UserID, &u.Email, &u.Username, &u.PasswordHash,
 		&u.PhoneCountryCode, &u.PhoneNumber, &u.PhoneVerified, &u.EmailVerified,
 		&u.Status, &u.Role,
 		&u.AvatarURL, &u.Bio, &u.Timezone, &u.Locale,
-		&u.IsMerchant, &u.IsSuspended,
+		&u.IsSuspended,
 		&u.SuspensionReason, &u.SuspendedAt, &u.SuspendedUntil,
 		&u.LastLoginAt, &u.LastSeenAt,
 		&u.LoginCount, &u.FailedLoginAttempts, &u.LockedUntil,
-		&u.ReferralCode, &referredBy,
 		&u.TwoFASecret, &u.Remember2FA, &u.Remember2FAExpiry,
 		&u.CreatedAt, &u.UpdatedAt, &u.DeletedAt,
 		&stats.TotalTrades, &stats.SuccessfulTrades, &stats.DisputeRate,
@@ -129,11 +126,6 @@ func (r *userRepository) GetByUsernameWithStats(ctx context.Context, username st
 			return nil, nil, nil
 		}
 		return nil, nil, fmt.Errorf("query user by username with stats: %w", err)
-	}
-	if referredBy.Valid {
-		if parsed, err := uuid.Parse(referredBy.String); err == nil {
-			u.ReferredBy = NullUUID{UUID: parsed, Valid: true}
-		}
 	}
 	if lastTradeAt.Valid {
 		stats.LastTradeAt = &lastTradeAt.Time
@@ -154,25 +146,21 @@ func (r *userRepository) Create(ctx context.Context, u *User) error {
 			user_id, email, username, password_hash,
 			phone_country_code, phone_number, phone_verified, email_verified,
 			status, role, timezone, locale,
-			is_merchant, login_count, failed_login_attempts,
-			referral_code, remember_2fa, referred_by,
+			login_count, failed_login_attempts,
+			remember_2fa,
 			created_at, updated_at
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-			$13, $14, $15, $16, $17, $18,
+			$13, $14, $15,
 			NOW(), NOW()
 		) RETURNING created_at, updated_at
 	`
-	var referredBy sql.NullString
-	if u.ReferredBy.Valid {
-		referredBy = sql.NullString{String: u.ReferredBy.UUID.String(), Valid: true}
-	}
 	return r.db.QueryRowContext(ctx, query,
 		u.UserID, u.Email, u.Username, u.PasswordHash,
 		u.PhoneCountryCode, u.PhoneNumber, u.PhoneVerified, u.EmailVerified,
 		u.Status, u.Role, u.Timezone, u.Locale,
-		u.IsMerchant, u.LoginCount, u.FailedLoginAttempts,
-		u.ReferralCode, u.Remember2FA, referredBy,
+		u.LoginCount, u.FailedLoginAttempts,
+		u.Remember2FA,
 	).Scan(&u.CreatedAt, &u.UpdatedAt)
 }
 
@@ -184,28 +172,24 @@ func (r *userRepository) Update(ctx context.Context, u *User) error {
 		    phone_country_code = $3, phone_number = $4,
 		    phone_verified = $5, email_verified = $6,
 		    avatar_url = $7, bio = $8, timezone = $9, locale = $10,
-		    is_merchant = $11, is_suspended = $12,
-		    suspension_reason = $13, suspended_at = $14, suspended_until = $15,
-		    last_login_at = $16, login_count = $17, failed_login_attempts = $18,
-		    locked_until = $19, referral_code = $20, referred_by = $21,
-		    two_fa_secret = $22, remember_2fa = $23, remember_2fa_expiry = $24,
+		    is_suspended = $11,
+		    suspension_reason = $12, suspended_at = $13, suspended_until = $14,
+		    last_login_at = $15, login_count = $16, failed_login_attempts = $17,
+		    locked_until = $18,
+		    two_fa_secret = $19, remember_2fa = $20, remember_2fa_expiry = $21,
 		    updated_at = NOW()
-		WHERE user_id = $25 AND deleted_at IS NULL
+		WHERE user_id = $22 AND deleted_at IS NULL
 		RETURNING updated_at
 	`
-	var referredBy sql.NullString
-	if u.ReferredBy.Valid {
-		referredBy = sql.NullString{String: u.ReferredBy.UUID.String(), Valid: true}
-	}
 	err := r.db.QueryRowContext(ctx, query,
 		u.Email, u.Username,
 		u.PhoneCountryCode, u.PhoneNumber,
 		u.PhoneVerified, u.EmailVerified,
 		u.AvatarURL, u.Bio, u.Timezone, u.Locale,
-		u.IsMerchant, u.IsSuspended,
+		u.IsSuspended,
 		u.SuspensionReason, u.SuspendedAt, u.SuspendedUntil,
 		u.LastLoginAt, u.LoginCount, u.FailedLoginAttempts,
-		u.LockedUntil, u.ReferralCode, referredBy,
+		u.LockedUntil,
 		u.TwoFASecret, u.Remember2FA, u.Remember2FAExpiry,
 		u.UserID,
 	).Scan(&u.UpdatedAt)

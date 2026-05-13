@@ -50,7 +50,7 @@ type TradeService interface {
 	// Feedback
 	LeaveFeedback(ctx context.Context, tradeID, userID uuid.UUID, rating FeedbackRating, comment string) error
 
-	// Merchant Management
+	// Ad Management
 	ListUserAds(ctx context.Context, userID uuid.UUID) ([]TradeAd, int, error)
 	ToggleAdStatus(ctx context.Context, adID, userID uuid.UUID) error
 }

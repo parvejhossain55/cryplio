@@ -23,19 +23,3 @@ func (s *Seeder) SeedNotifications(ctx context.Context, users []*domainidentity.
 	}
 	return nil
 }
-
-func (s *Seeder) SeedReferrals(ctx context.Context, users []*domainidentity.User) error {
-	if len(users) < 4 {
-		return nil
-	}
-	referrer := users[1] // CryptoKing
-	referee := users[3]  // AliceTrader
-
-	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO referrals (referral_id, referrer_id, referee_id, referral_code, status, reward_percentage, created_at)
-		VALUES ($1, $2, $3, $4, 'pending', 0.20, NOW())
-		ON CONFLICT DO NOTHING`,
-		uuid.New(), referrer.UserID, referee.UserID, "REF_COMPREHENSIVE",
-	)
-	return err
-}

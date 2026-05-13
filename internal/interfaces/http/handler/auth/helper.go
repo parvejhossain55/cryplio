@@ -45,7 +45,6 @@ func mapUser(u *identity.User) dto.UserResponse {
 		Email:         u.Email,
 		Username:      u.Username,
 		EmailVerified: u.EmailVerified,
-		IsMerchant:    u.IsMerchant,
 		TwoFAEnabled:  u.TwoFASecret != nil,
 		AvatarURL:     u.AvatarURL,
 		Bio:           u.Bio,

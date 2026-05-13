@@ -14,7 +14,7 @@ import (
 func (s *Seeder) SeedTradeAds(ctx context.Context, users []*domainidentity.User, cryptoMap, fiatMap, pmMap map[string]int) ([]*domaintrading.TradeAd, error) {
 	var ads []*domaintrading.TradeAd
 	for _, user := range users {
-		if !user.IsMerchant && user.Username != "AliceTrader" && user.Username != "DianaCoin" {
+		if user.Username == "admin" {
 			continue
 		}
 
@@ -118,7 +118,7 @@ func (s *Seeder) SeedTrades(ctx context.Context, users []*domainidentity.User, a
 		if status == domaintrading.TradeStatusCompleted {
 			comment := "Fast and reliable!"
 			if i%2 == 0 {
-				comment = "Highly recommended merchant."
+				comment = "Highly recommended trader."
 			}
 			_, _ = s.db.ExecContext(ctx, `
 				INSERT INTO trade_feedback (feedback_id, trade_id, from_user_id, to_user_id, rating, comment, created_at)

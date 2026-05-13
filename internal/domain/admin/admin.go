@@ -6,88 +6,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// MerchantStatus represents merchant application status
-type MerchantStatus string
-
-const (
-	MerchantStatusNone      MerchantStatus = "none"
-	MerchantStatusPending   MerchantStatus = "pending"
-	MerchantStatusApproved  MerchantStatus = "approved"
-	MerchantStatusRejected  MerchantStatus = "rejected"
-	MerchantStatusSuspended MerchantStatus = "suspended"
-)
-
-// MerchantApplication represents a merchant verification application
-type MerchantApplication struct {
-	ApplicationID  uuid.UUID      `db:"application_id" json:"application_id"`
-	UserID         uuid.UUID      `db:"user_id" json:"user_id"`
-	BusinessName   string         `db:"business_name" json:"business_name"`
-	BusinessType   string         `db:"business_type" json:"business_type"`
-	TaxID          *string        `db:"tax_id" json:"tax_id,omitempty"`
-	Website        *string        `db:"website" json:"website,omitempty"`
-	Documents      []string       `db:"documents" json:"documents"` // JSONB array of document URLs
-	Status         MerchantStatus `db:"status" json:"status"`
-	RejectedReason *string        `db:"rejected_reason" json:"rejected_reason,omitempty"`
-	ReviewedBy     *uuid.UUID     `db:"reviewed_by" json:"reviewed_by,omitempty"`
-	ReviewedAt     *time.Time     `db:"reviewed_at" json:"reviewed_at,omitempty"`
-	CreatedAt      time.Time      `db:"created_at" json:"created_at"`
-	UpdatedAt      time.Time      `db:"updated_at" json:"updated_at"`
-}
-
-// IsPending checks if the application is pending review
-func (m *MerchantApplication) IsPending() bool {
-	return m.Status == MerchantStatusPending
-}
-
-// IsApproved checks if the application is approved
-func (m *MerchantApplication) IsApproved() bool {
-	return m.Status == MerchantStatusApproved
-}
-
-// IsRejected checks if the application is rejected
-func (m *MerchantApplication) IsRejected() bool {
-	return m.Status == MerchantStatusRejected
-}
-
-// Approve approves the merchant application
-func (m *MerchantApplication) Approve(adminID uuid.UUID) {
-	m.Status = MerchantStatusApproved
-	now := time.Now()
-	m.ReviewedBy = &adminID
-	m.ReviewedAt = &now
-}
-
-// Reject rejects the merchant application with a reason
-func (m *MerchantApplication) Reject(adminID uuid.UUID, reason string) {
-	m.Status = MerchantStatusRejected
-	now := time.Now()
-	m.ReviewedBy = &adminID
-	m.ReviewedAt = &now
-	m.RejectedReason = &reason
-}
-
-// Suspend suspends the merchant
-func (m *MerchantApplication) Suspend() {
-	m.Status = MerchantStatusSuspended
-}
-
-// MerchantAnalytics represents daily merchant metrics
-type MerchantAnalytics struct {
-	ID            uuid.UUID `db:"id" json:"id"`
-	MerchantID    uuid.UUID `db:"merchant_id" json:"merchant_id"`
-	Date          time.Time `db:"date" json:"date"`
-	TotalSales    float64   `db:"total_sales" json:"total_sales"`
-	TotalVolume   float64   `db:"total_volume" json:"total_volume"`
-	TradeCount    int       `db:"trade_count" json:"trade_count"`
-	CustomerCount int       `db:"customer_count" json:"customer_count"`
-	CreatedAt     time.Time `db:"created_at" json:"created_at"`
-}
-
-// IsEmpty checks if analytics has no data
-func (m *MerchantAnalytics) IsEmpty() bool {
-	return m.TradeCount == 0 && m.TotalSales == 0
-}
-
 // AdminActionType represents types of admin actions
 type AdminActionType string
 
@@ -100,8 +18,6 @@ const (
 	AdminActionWithdrawalReject  AdminActionType = "withdrawal_reject"
 	AdminActionAnnouncementPost  AdminActionType = "announcement_post"
 	AdminActionFeeUpdate         AdminActionType = "fee_update"
-	AdminActionMerchantApprove   AdminActionType = "merchant_approve"
-	AdminActionMerchantReject    AdminActionType = "merchant_reject"
 	AdminActionConfigChange      AdminActionType = "config_change"
 	AdminActionBulkMessage       AdminActionType = "bulk_message"
 	AdminActionReportGenerate    AdminActionType = "report_generate"

@@ -136,11 +136,6 @@ const PublicProfilePage = () => {
                                                 <User className="w-16 h-16 text-white/20" />
                                             )}
                                         </div>
-                                        {user.is_merchant && (
-                                            <div className="absolute -bottom-2 -right-2 bg-accent text-background p-2 rounded-xl shadow-xl border border-accent/20">
-                                                <ShieldCheck className="w-5 h-5" />
-                                            </div>
-                                        )}
                                     </div>
 
                                     <h1 className="text-3xl font-black text-white tracking-tight mb-2 flex items-center gap-2">
@@ -321,7 +316,7 @@ const PublicProfilePage = () => {
                                 <div className="text-center py-16 border-2 border-dashed border-white/5 rounded-[2rem]">
                                     <TrendingUp className="w-12 h-12 text-white/5 mx-auto mb-4" />
                                     <p className="text-text-dim font-bold">No active public offers at this moment.</p>
-                                    <p className="text-[10px] uppercase font-black text-white/20 tracking-widest mt-1">This merchant might be trading privately</p>
+                                    <p className="text-[10px] uppercase font-black text-white/20 tracking-widest mt-1">This user might be trading privately</p>
                                 </div>
                             </motion.div>
                         </div>

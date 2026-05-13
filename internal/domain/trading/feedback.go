@@ -15,15 +15,7 @@ const (
 	FeedbackNegative FeedbackRating = "negative"
 )
 
-// ReferralStatus represents the status of a referral reward.
-type ReferralStatus string
-
-const (
-	ReferralStatusPending ReferralStatus = "pending"
-	ReferralStatusPaid    ReferralStatus = "paid"
-)
-
-// TradeFeedback represents trade feedback/rating
+// TradeFeedback represents user feedback for a trade
 type TradeFeedback struct {
 	FeedbackID uuid.UUID      `db:"feedback_id" json:"feedback_id"`
 	TradeID    uuid.UUID      `db:"trade_id" json:"trade_id"`
@@ -47,27 +39,4 @@ func (f *TradeFeedback) IsNegative() bool {
 // IsNeutral checks if the feedback is neutral
 func (f *TradeFeedback) IsNeutral() bool {
 	return f.Rating == FeedbackNeutral
-}
-
-// Referral represents a user referral
-type Referral struct {
-	ReferralID   uuid.UUID      `db:"referral_id" json:"referral_id"`
-	ReferrerID   uuid.UUID      `db:"referrer_id" json:"referrer_id"`
-	RefereeID    uuid.UUID      `db:"referee_id" json:"referee_id"`
-	CodeUsed     string         `db:"code_used" json:"code_used"`
-	RewardAmount float64        `db:"reward_amount" json:"reward_amount"`
-	RewardType   string         `db:"reward_type" json:"reward_type"` // crypto, fiat, fee_discount
-	Status       ReferralStatus `db:"status" json:"status"`           // pending, paid
-	PaidAt       *time.Time     `db:"paid_at" json:"paid_at,omitempty"`
-	CreatedAt    time.Time      `db:"created_at" json:"created_at"`
-}
-
-// IsPaid checks if the referral reward has been paid
-func (r *Referral) IsPaid() bool {
-	return r.Status == ReferralStatusPaid && r.PaidAt != nil
-}
-
-// IsPending checks if the referral reward is pending
-func (r *Referral) IsPending() bool {
-	return r.Status == ReferralStatusPending
 }

@@ -93,11 +93,8 @@ Launch a working P2P trading platform within 6 months with:
 | KYC / Identity Verification | Phase 2 |
 | Multi-chain support (TRON, BNB Chain) | Phase 2 |
 | BTC, ETH, BNB wallets | Phase 2 |
-| Merchant System | Phase 2 |
-| Referral Program | Phase 2 |
 | Mobile App (iOS & Android) | Phase 2 |
 | Premium Membership | Phase 2 |
-| API Access for merchants | Phase 2 |
 | Advanced Admin Analytics | Phase 2 |
 | Address Whitelisting | Phase 2 |
 | CSV Export | Phase 2 |
@@ -118,10 +115,8 @@ Launch a working P2P trading platform within 6 months with:
 
 | Revenue Stream | Description | Rate |
 |----------------|-------------|------|
-| Merchant Subscription | Verified merchant badge + features | $30–$100/month |
 | Premium Membership | Lower fees, priority support | $10–$50/month |
 | Advertisement | Banner ads from crypto projects | Custom CPM |
-| API Access | Third-party integration | $200–$500/month |
 | Native Token (future) | Utility token for fee discounts | Token sale |
 
 ## Revenue Projection
@@ -171,8 +166,6 @@ Launch a working P2P trading platform within 6 months with:
 | Community | Telegram, Facebook groups in BD crypto communities | 25% |
 | SEO / Content | Crypto guides and tutorials for local markets | 20% |
 | Paid Ads | Google & Facebook targeting crypto keywords | 20% |
-
-> **Note:** Referral program launches in Phase 2 with 20% commission for 90 days.
 
 ---
 
@@ -254,7 +247,7 @@ Launch a working P2P trading platform within 6 months with:
 
 | Phase | Timeline | Deliverables |
 |-------|----------|-------------|
-| Phase 6 — Grow | Month 7–12 | KYC, TRON/BNB chain, merchant system, referral program, mobile app |
+| Phase 6 — Grow | Month 7–12 | KYC, TRON/BNB chain, mobile app |
 | Phase 7 — Scale | Year 2 | Global expansion, 50,000 users, native token |
 | Phase 8 — Dominate | Year 3 | 1M users, $10M monthly volume, Series A funding |
 

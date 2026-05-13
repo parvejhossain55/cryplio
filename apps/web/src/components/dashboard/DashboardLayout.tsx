@@ -10,7 +10,7 @@ import Link from "next/link";
 interface DashboardLayoutProps {
     children: React.ReactNode;
     title: string;
-    role: "user" | "merchant" | "admin";
+    role: "user" | "admin";
 }
 
 const DashboardLayout = ({ children, title, role }: DashboardLayoutProps) => {

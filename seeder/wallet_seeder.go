@@ -18,12 +18,7 @@ func (s *Seeder) SeedWallets(ctx context.Context, users []*domainidentity.User, 
 				address = fmt.Sprintf("bc1q%s%d", user.Username, rand.Intn(10000))
 			}
 
-			balance := 0.0
-			if user.IsMerchant {
-				balance = 5000.0 + rand.Float64()*10000.0
-			} else {
-				balance = 500.0 + rand.Float64()*1000.0
-			}
+			balance := 500.0 + rand.Float64()*1000.0
 
 			_, err := s.db.ExecContext(ctx, `
 				INSERT INTO wallets (wallet_id, user_id, crypto_id, address, address_label, balance, created_at, updated_at)

@@ -43,7 +43,7 @@ type Announcement struct {
 	Message        string     `db:"message" json:"message"`
 	Type           string     `db:"type" json:"type"` // info, warning, critical
 	IsActive       bool       `db:"is_active" json:"is_active"`
-	TargetAudience *string    `db:"target_audience" json:"target_audience,omitempty"` // all, merchants, verified_users
+	TargetAudience *string    `db:"target_audience" json:"target_audience,omitempty"` // all, verified_users
 	ExpiresAt      *time.Time `db:"expires_at" json:"expires_at,omitempty"`
 	CreatedBy      *uuid.UUID `db:"created_by" json:"created_by,omitempty"` // admin user ID
 	CreatedAt      time.Time  `db:"created_at" json:"created_at"`
@@ -66,11 +66,6 @@ func (a *Announcement) IsActiveNow() bool {
 // IsForAll checks if the announcement targets all users
 func (a *Announcement) IsForAll() bool {
 	return a.TargetAudience == nil || *a.TargetAudience == "all"
-}
-
-// IsForMerchants checks if the announcement targets merchants
-func (a *Announcement) IsForMerchants() bool {
-	return a.TargetAudience != nil && *a.TargetAudience == "merchants"
 }
 
 // IsForVerifiedUsers checks if the announcement targets verified users

@@ -64,7 +64,7 @@ const CommunityPage = () => {
                                 icon: MessagesSquare,
                                 title: "Discord",
                                 stats: "120K+ Traders",
-                                desc: "The official hub for merchant support, developer discussion, and market calls.",
+                                desc: "The official hub for trader support, developer discussion, and market calls.",
                                 color: "bg-[#5865F2]/10 text-[#5865F2]",
                                 link: "discord.gg/cryplio"
                             },
@@ -138,7 +138,7 @@ const CommunityPage = () => {
                             A <span className="text-primary">PULSE.</span>
                         </h2>
                         <p className="max-w-xl mx-auto text-text-dim text-lg font-medium mb-10">
-                            Weekly insights on P2P market trends, platform updates, and exclusive merchant offers. Join 500k+ subscribers.
+                            Weekly insights on P2P market trends, platform updates, and exclusive trading offers. Join 500k+ subscribers.
                         </p>
                         <form className="max-w-md mx-auto flex flex-col sm:flex-row gap-4">
                             <input

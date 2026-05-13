@@ -36,8 +36,6 @@ Cryplio is a global P2P crypto exchange where buyers and sellers trade directly 
 - Google OAuth 2.0 login alongside email/password
 - TOTP two-factor authentication
 - Admin dispute resolution with evidence upload
-- Merchant portal for high-volume traders
-- Referral programme with commission tracking
 - Rate-limited, session-based API with HttpOnly cookie + Bearer token support
 
 ---
@@ -133,7 +131,6 @@ cryplio/
 │   │   ├── notification/           # In-app notifications + preferences
 │   │   ├── platform/               # CryptoAsset, FiatCurrency, PaymentMethod catalogue
 │   │   ├── market/                 # Exchange rate feed
-│   │   ├── referral/               # Referral tracking + payouts
 │   │   └── events/                 # Domain event types + dispatcher interface
 │   │
 │   ├── application/                # Layer 2 — use cases
@@ -142,8 +139,6 @@ cryplio/
 │   │   ├── trade/                  # initiate_trade, create_ad, mark_paid, release_escrow, cancel_trade
 │   │   ├── dispute/                # raise, assign, resolve
 │   │   ├── wallet/                 # deposit, withdraw, balance
-│   │   ├── merchant/               # apply, verify (scaffolded)
-│   │   ├── referral/               # track, payout
 │   │   └── identity/               # (reserved)
 │   │
 │   ├── interfaces/                 # Layer 3 — delivery
@@ -255,7 +250,7 @@ make migrate-up
 
 ```bash
 make seed
-# Creates: 1 admin, 2 merchants, 5 traders, wallets, ads, trades, disputes
+# Creates: 1 admin, 7 traders, wallets, ads, trades, disputes
 ```
 
 ### 6 — Start the API server
@@ -377,10 +372,6 @@ make migrate-down
 # Show current migration status
 make migrate-status
 
-# Create a new migration pair
-make migrate-create name=add_merchant_tier_column
-# → migrations/026_add_merchant_tier_column.up.sql
-# → migrations/026_add_merchant_tier_column.down.sql
 ```
 
 ### Schema overview
@@ -397,14 +388,12 @@ make migrate-create name=add_merchant_tier_column
 | 007 | `disputes`, `dispute_messages` |
 | 008 | `wallets`, `wallet_transactions` |
 | 009 | `notifications`, `notification_preferences` |
-| 010 | `referrals` |
-| 011 | `merchant_applications`, `merchant_analytics` |
-| 012 | `audit_logs`, `admin_actions`, `platform_config`, `announcements` |
-| 013 | `rate_limit_counts`, `login_attempts`, `api_request_logs` |
-| 014 | Database views (`active_trade_ads`, `completed_trades`, etc.) |
-| 015 | Auto-update triggers for `updated_at` columns |
-| 016 | Seed data (crypto assets, fiat currencies, payment methods, config) |
-| 017–025 | OAuth, 2FA, user payment methods, withdrawal approvals, notification type fix |
+| 011 | `audit_logs`, `admin_actions`, `platform_config`, `announcements` |
+| 012 | `rate_limit_counts`, `login_attempts`, `api_request_logs` |
+| 013 | Database views (`active_trade_ads`, `completed_trades`, etc.) |
+| 014 | Auto-update triggers for `updated_at` columns |
+| 015 | Seed data (crypto assets, fiat currencies, payment methods, config) |
+| 016–024 | OAuth, 2FA, user payment methods, withdrawal approvals, notification type fix |
 
 ---
 

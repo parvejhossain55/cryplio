@@ -39,7 +39,7 @@ interface SidebarItem {
 }
 
 interface SidebarProps {
-    role: "user" | "merchant" | "admin";
+    role: "user" | "admin";
     isMobile?: boolean;
 }
 
@@ -78,17 +78,9 @@ const Sidebar = ({ role, isMobile }: SidebarProps) => {
             { name: "Wallet", href: "/user/dashboard/wallet", icon: CreditCard },
             { name: "Settings", href: "/user/dashboard/settings", icon: Settings },
         ],
-        merchant: [
-            { name: "Dashboard", href: "/merchant/dashboard", icon: BarChart3 },
-            { name: "My Ads", href: "/merchant/dashboard/ads", icon: Store },
-            { name: "Client Orders", href: "/merchant/dashboard/orders", icon: ArrowLeftRight },
-            { name: "Earnings", href: "/merchant/dashboard/earnings", icon: TrendingUp },
-            { name: "Settings", href: "/merchant/dashboard/settings", icon: Settings },
-        ],
         admin: [
             { name: "Admin Panel", href: "/admin/dashboard", icon: Shield },
             { name: "User Management", href: "/admin/dashboard/users", icon: Users },
-            { name: "Merchants", href: "/admin/dashboard/merchants", icon: Store },
             { name: "System Stats", href: "/admin/dashboard/stats", icon: BarChart3 },
             { name: "Payment Methods", href: "/admin/dashboard/payment-methods", icon: CreditCard },
             { name: "Crypto Assets", href: "/admin/dashboard/crypto-assets", icon: Coins },

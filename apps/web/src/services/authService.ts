@@ -5,7 +5,6 @@ export interface BackendUser {
     username: string;
     bio?: string;
     email_verified: boolean;
-    is_merchant: boolean;
     two_fa_enabled: boolean;
     avatar_url?: string | null;
     is_online: boolean;

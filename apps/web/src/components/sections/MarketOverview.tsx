@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Filter, ArrowUpRight, ChevronDown, CheckCircle2, ShieldCheck, Clock, Star, TrendingUp } from "lucide-react";
+import { Search, Filter, ArrowUpRight, ChevronDown, Clock, Star, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import Pagination from "@/components/ui/Pagination";
@@ -216,7 +216,7 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-dim w-5 h-5" />
                         <input
                             type="text"
-                            placeholder="Find merchant or payment method..."
+                            placeholder="Find offer or payment method..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full bg-surface/50 border border-border rounded-2xl py-4 pl-12 pr-4 text-base outline-none focus:border-primary transition-all font-medium placeholder:text-text-dim/50"
@@ -328,7 +328,7 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
                                                         </div>
                                                         <div>
                                                             <Link href={`/u/${ad.username}`} className="font-black text-lg text-white flex items-center gap-2 mb-1 hover:text-primary transition-colors cursor-pointer">
-                                                                {ad.username} <CheckCircle2 className="w-4 h-4 text-accent fill-accent/10" />
+                                                                {ad.username}
                                                             </Link>
                                                             <div className="flex items-center space-x-3 text-xs font-bold text-text-dim">
                                                                 <span className="flex items-center gap-1"><Star className="w-3 h-3 text-amber-500 fill-amber-500" /> {ad.user_rating}{ad.user_rating > 10 ? "%" : ""}</span>
@@ -347,8 +347,7 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
                                                 <td className="px-8 py-10">
                                                     <p className="text-sm font-bold text-white mb-2">Limits: {ad.min_amount.toLocaleString()} - {ad.max_amount.toLocaleString()} {ad.fiat_symbol}</p>
                                                     <div className="flex items-center space-x-2">
-                                                        <ShieldCheck className="w-3.5 h-3.5 text-accent" />
-                                                        <span className="text-xs font-medium text-text-dim">Verified Merchant</span>
+                                                        <span className="text-xs font-medium text-text-dim">Offer Available</span>
                                                     </div>
                                                 </td>
                                                 <td className="px-8 py-10">
@@ -401,7 +400,7 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
                                             <div className="w-12 h-12 rounded-xl bg-surface border border-border flex items-center justify-center font-black text-primary">{ad.username[0]}</div>
                                             <div>
                                                 <Link href={`/u/${ad.username}`} className="font-black text-white flex items-center gap-1 hover:text-primary transition-colors">
-                                                    {ad.username} <CheckCircle2 className="w-4 h-4 text-accent" />
+                                                    {ad.username}
                                                 </Link>
                                                 <p className="text-[10px] font-bold text-text-dim uppercase tracking-wider">{ad.user_trades} TRADES | {ad.user_rating}{ad.user_rating > 10 ? "%" : ""} RATING</p>
                                             </div>

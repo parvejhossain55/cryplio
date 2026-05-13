@@ -157,22 +157,6 @@ func (w *WebSocketNotifier) NotifyUserSuspended(ctx context.Context, userID uuid
 	log.Printf("User suspension notification sent for user %s", userID)
 }
 
-// NotifyReferralBonus sends a referral bonus notification
-func (w *WebSocketNotifier) NotifyReferralBonus(ctx context.Context, userID uuid.UUID, referralID uuid.UUID, bonusAmount float64, crypto string) {
-	notificationData := map[string]interface{}{
-		"referral_id":  referralID.String(),
-		"bonus_amount": bonusAmount,
-		"crypto":       crypto,
-		"timestamp":    fmt.Sprintf("%d", uuid.New().Time()),
-	}
-
-	w.sendNotificationToUser(userID, "referral_bonus", "Referral Bonus Earned",
-		fmt.Sprintf("You earned %.6f %s from a referral!", bonusAmount, crypto),
-		notificationData)
-
-	log.Printf("Referral bonus notification sent for user %s", userID)
-}
-
 // NotifyUser sends a notification to a specific user (implements WebSocketNotifier interface)
 func (w *WebSocketNotifier) NotifyUser(ctx context.Context, userID uuid.UUID, nType domainNotification.NotificationType, title, message string, data map[string]interface{}) {
 	w.sendNotificationToUser(userID, string(nType), title, message, data)

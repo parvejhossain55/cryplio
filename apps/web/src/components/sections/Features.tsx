@@ -31,7 +31,7 @@ const features = [
     },
     {
         title: "Global Liquidity",
-        description: "Connect with thousands of verified traders from 50+ countries.",
+        description: "Connect with thousands of traders from 50+ countries.",
         icon: Globe2,
         color: "text-cyan-500",
         className: "md:col-span-2 lg:col-span-2 h-[300px]",

@@ -20,9 +20,8 @@ const (
 	NotificationTypeNewMessage          NotificationType = "new_message"
 	NotificationTypeDepositReceived     NotificationType = "deposit_received"
 	NotificationTypeWithdrawalCompleted NotificationType = "withdrawal_completed"
-	NotificationTypeMerchantApproved    NotificationType = "merchant_approved"
-	NotificationTypeReferralEarned      NotificationType = "referral_earned"
 	NotificationTypeSystemAnnouncement  NotificationType = "system_announcement"
+	NotificationTypeWithdrawalReject    NotificationType = "withdrawal_reject"
 )
 
 // Notification represents an in-app notification

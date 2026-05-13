@@ -23,9 +23,8 @@ const (
 type UserRole string
 
 const (
-	UserRoleUser     UserRole = "user"
-	UserRoleMerchant UserRole = "merchant"
-	UserRoleAdmin    UserRole = "admin"
+	UserRoleUser  UserRole = "user"
+	UserRoleAdmin UserRole = "admin"
 )
 
 // NullUUID wraps uuid.UUID to handle NULL values
@@ -115,7 +114,6 @@ type User struct {
 	Bio                 *string    `db:"bio" json:"bio,omitempty"`
 	Timezone            string     `db:"timezone" json:"timezone"`
 	Locale              string     `db:"locale" json:"locale"`
-	IsMerchant          bool       `db:"is_merchant" json:"is_merchant"`
 	IsSuspended         bool       `db:"is_suspended" json:"is_suspended"`
 	SuspensionReason    *string    `db:"suspension_reason" json:"suspension_reason,omitempty"`
 	SuspendedAt         *time.Time `db:"suspended_at" json:"suspended_at,omitempty"`
@@ -126,8 +124,6 @@ type User struct {
 	LoginCount          int        `db:"login_count" json:"login_count"`
 	FailedLoginAttempts int        `db:"failed_login_attempts" json:"failed_login_attempts"`
 	LockedUntil         *time.Time `db:"locked_until" json:"locked_until,omitempty"`
-	ReferralCode        *string    `db:"referral_code" json:"referral_code,omitempty"`
-	ReferredBy          NullUUID   `db:"referred_by" json:"referred_by,omitempty"`
 	TwoFASecret         *string    `db:"two_fa_secret" json:"-"`
 	Remember2FA         bool       `db:"remember_2fa" json:"remember_2fa"`
 	Remember2FAExpiry   *time.Time `db:"remember_2fa_expiry" json:"remember_2fa_expiry,omitempty"`
@@ -226,7 +222,6 @@ func NewUser(email, username, passwordHash string) *User {
 		Locale:              "en",
 		PhoneVerified:       false,
 		EmailVerified:       false,
-		IsMerchant:          false,
 		IsSuspended:         false,
 		LoginCount:          0,
 		FailedLoginAttempts: 0,

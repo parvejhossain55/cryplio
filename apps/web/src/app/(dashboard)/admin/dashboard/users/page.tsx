@@ -8,7 +8,6 @@ import {
     Filter,
     Loader2,
     Shield,
-    ShieldOff,
     UserCheck,
     Calendar,
     Mail,
@@ -26,7 +25,6 @@ interface User {
     email: string;
     status: string;
     is_suspended: boolean;
-    is_merchant: boolean;
     created_at: string;
     last_login_at?: string;
     phone_verified: boolean;
@@ -117,8 +115,7 @@ const AdminUsersPage = () => {
         const matchesFilter = 
             filter === "all" || 
             (filter === "active" && !user.is_suspended && user.status === 'active') ||
-            (filter === "suspended" && user.is_suspended) ||
-            (filter === "merchants" && user.is_merchant);
+            (filter === "suspended" && user.is_suspended);
         
         const matchesSearch = 
             user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -192,12 +189,12 @@ const AdminUsersPage = () => {
                     <div className="bg-surface border border-white/10 rounded-2xl p-6">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-text-dim text-sm font-medium">Merchants</p>
+                                <p className="text-text-dim text-sm font-medium">Verified Emails</p>
                                 <p className="text-2xl font-bold text-white mt-1">
-                                    {users.filter(u => u.is_merchant).length}
+                                    {users.filter(u => u.email_verified).length}
                                 </p>
                             </div>
-                            <ShieldOff className="w-8 h-8 text-purple-500 opacity-50" />
+                            <CheckCircle2 className="w-8 h-8 text-green-500 opacity-50" />
                         </div>
                     </div>
                 </div>
@@ -223,7 +220,6 @@ const AdminUsersPage = () => {
                         <option value="all">All Users</option>
                         <option value="active">Active</option>
                         <option value="suspended">Suspended</option>
-                        <option value="merchants">Merchants</option>
                     </select>
                 </div>
 
@@ -269,11 +265,6 @@ const AdminUsersPage = () => {
                                                         <span className="text-sm font-medium text-white">
                                                             {user.username}
                                                         </span>
-                                                        {user.is_merchant && (
-                                                            <span className="px-2 py-1 bg-purple-500/20 text-purple-400 text-xs rounded-full">
-                                                                Merchant
-                                                            </span>
-                                                        )}
                                                     </div>
                                                     <div className="text-xs text-text-dim">
                                                         {user.email}

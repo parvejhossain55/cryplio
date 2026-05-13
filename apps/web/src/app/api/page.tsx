@@ -131,7 +131,7 @@ const ApiDocsPage = () => {
                             {
                                 icon: Globe,
                                 title: "Global Liquidity",
-                                desc: "Access verified merchants and payment methods across 50+ countries through a single unified interface."
+                                desc: "Access verified traders and payment methods across 50+ countries through a single unified interface."
                             },
                             {
                                 icon: BookOpen,

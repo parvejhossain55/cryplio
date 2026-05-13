@@ -1,26 +1,24 @@
 -- ============================================
--- Migration 001: Core User & Auth Tables
--- User accounts, sessions, password resets, email verification
+-- Migration 002: Identity & Access
 -- ============================================
 
 BEGIN;
 
--- Users table (core identity)
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE users (
     user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) NOT NULL UNIQUE,
     username VARCHAR(30) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
+    role user_role NOT NULL DEFAULT 'user',
+    status user_status NOT NULL DEFAULT 'active',
     phone_country_code VARCHAR(5),
     phone_number VARCHAR(20),
     phone_verified BOOLEAN NOT NULL DEFAULT false,
     email_verified BOOLEAN NOT NULL DEFAULT false,
-    status user_status NOT NULL DEFAULT 'pending',
     avatar_url VARCHAR(500),
     bio VARCHAR(200),
     timezone VARCHAR(50) DEFAULT 'UTC',
     locale VARCHAR(10) DEFAULT 'en',
-    is_merchant BOOLEAN NOT NULL DEFAULT false,
     is_suspended BOOLEAN NOT NULL DEFAULT false,
     suspension_reason TEXT,
     suspended_at TIMESTAMP,
@@ -30,8 +28,6 @@ CREATE TABLE IF NOT EXISTS users (
     login_count INT NOT NULL DEFAULT 0,
     failed_login_attempts INT NOT NULL DEFAULT 0,
     locked_until TIMESTAMP,
-    referral_code VARCHAR(15) UNIQUE,
-    referred_by UUID REFERENCES users(user_id),
     two_fa_secret VARCHAR(255),
     remember_2fa BOOLEAN NOT NULL DEFAULT false,
     remember_2fa_expiry TIMESTAMP,
@@ -40,8 +36,7 @@ CREATE TABLE IF NOT EXISTS users (
     deleted_at TIMESTAMP
 );
 
--- User statistics (denormalized aggregates)
-CREATE TABLE IF NOT EXISTS user_stats (
+CREATE TABLE user_stats (
     user_id UUID PRIMARY KEY REFERENCES users(user_id) ON DELETE CASCADE,
     total_trades INT NOT NULL DEFAULT 0,
     successful_trades INT NOT NULL DEFAULT 0,
@@ -55,8 +50,7 @@ CREATE TABLE IF NOT EXISTS user_stats (
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- User sessions (device management)
-CREATE TABLE IF NOT EXISTS user_sessions (
+CREATE TABLE user_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     token_id VARCHAR(255) UNIQUE NOT NULL,
@@ -71,8 +65,7 @@ CREATE TABLE IF NOT EXISTS user_sessions (
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Password reset tokens
-CREATE TABLE IF NOT EXISTS password_reset_tokens (
+CREATE TABLE password_reset_tokens (
     id SERIAL PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     token_hash VARCHAR(255) NOT NULL,
@@ -82,8 +75,7 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Email verification tokens
-CREATE TABLE IF NOT EXISTS email_verification_tokens (
+CREATE TABLE email_verification_tokens (
     id SERIAL PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     token_hash VARCHAR(255) NOT NULL,
@@ -92,37 +84,28 @@ CREATE TABLE IF NOT EXISTS email_verification_tokens (
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- User blocked users
-CREATE TABLE IF NOT EXISTS user_blocks (
+CREATE TABLE user_oauth (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    blocker_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    blocked_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    reason VARCHAR(200),
-    is_permanent BOOLEAN NOT NULL DEFAULT true,
-    expires_at TIMESTAMP,
+    user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    provider VARCHAR(50) NOT NULL,
+    provider_user_id VARCHAR(255) NOT NULL,
+    provider_email VARCHAR(255),
+    provider_username VARCHAR(255),
+    access_token TEXT,
+    refresh_token TEXT,
+    token_expiry TIMESTAMP,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    UNIQUE(blocker_id, blocked_id)
+    UNIQUE(provider, provider_user_id),
+    UNIQUE(user_id, provider)
 );
 
--- Indexes for user tables
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_username ON users(username);
-CREATE INDEX idx_users_status ON users(status);
-CREATE INDEX idx_users_referral_code ON users(referral_code);
-CREATE INDEX idx_users_referred_by ON users(referred_by);
-CREATE INDEX idx_users_deleted_at ON users(deleted_at) WHERE deleted_at IS NOT NULL;
-
-CREATE INDEX idx_user_sessions_user_id ON user_sessions(user_id);
-CREATE INDEX idx_user_sessions_token_id ON user_sessions(token_id);
-CREATE INDEX idx_user_sessions_expires_at ON user_sessions(expires_at);
-
-CREATE INDEX idx_password_reset_token ON password_reset_tokens(token_hash);
-CREATE INDEX idx_password_reset_user ON password_reset_tokens(user_id);
-
-CREATE INDEX idx_email_verification_token ON email_verification_tokens(token_hash);
-
-CREATE INDEX idx_user_blocks_blocker ON user_blocks(blocker_id);
-CREATE INDEX idx_user_blocks_blocked ON user_blocks(blocked_id);
+CREATE TABLE two_factor_pending (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL UNIQUE REFERENCES users(user_id) ON DELETE CASCADE,
+    secret VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMP NOT NULL
+);
 
 COMMIT;

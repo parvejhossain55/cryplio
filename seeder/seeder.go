@@ -82,12 +82,6 @@ func (s *Seeder) SeedAll(ctx context.Context) error {
 	}
 	fmt.Println("✅ Seeded notifications")
 
-	// 7. Referrals
-	if err := s.SeedReferrals(ctx, users); err != nil {
-		return fmt.Errorf("referrals: %w", err)
-	}
-	fmt.Println("✅ Seeded referrals")
-
 	fmt.Printf("✨ Seeding completed successfully in %v!\n", time.Since(start))
 	return nil
 }

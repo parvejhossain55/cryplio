@@ -12,7 +12,7 @@
 
 ---
 
-> **MVP Scope Statement:** This SRS covers only the features required to launch Cryplio MVP. KYC, multi-chain support, merchant system, referral program, mobile app, SMS notifications, and premium membership are **excluded from MVP**.
+> **MVP Scope Statement:** This SRS covers only the features required to launch Cryplio MVP. KYC, multi-chain support, mobile app, SMS notifications, and premium membership are **excluded from MVP**.
 
 ---
 
@@ -36,8 +36,6 @@ The MVP includes:
 **Explicitly out of MVP scope:**
 - KYC / identity verification
 - TRON, BNB Chain, BTC, ETH, USDC support
-- Merchant system
-- Referral program
 - Mobile app (iOS/Android)
 - SMS notifications
 - Premium membership
@@ -288,8 +286,6 @@ Cryplio MVP is a web-based P2P crypto trading platform. It interfaces with:
 | Module | Reason |
 |--------|--------|
 | KYC / AML verification | Adds friction, not needed for MVP trust model |
-| Merchant system | Complex — requires enough user base first |
-| Referral program | Nice-to-have — post-launch growth tool |
 | Premium membership | Revenue model expansion — Phase 2 |
 | Native token | Phase 3 — needs platform maturity |
 | Mobile app | Web-first; responsive design covers mobile MVP |
