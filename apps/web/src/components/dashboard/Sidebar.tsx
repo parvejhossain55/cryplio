@@ -11,6 +11,7 @@ import {
     History,
     Settings,
     Shield,
+    ShieldAlert,
     LogOut,
     ChevronRight,
     TrendingUp,
@@ -21,7 +22,8 @@ import {
     UserCheck,
     X,
     Coins,
-    DollarSign
+    DollarSign,
+    ArrowUpRight
 } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -79,9 +81,10 @@ const Sidebar = ({ role, isMobile }: SidebarProps) => {
             { name: "Settings", href: "/user/dashboard/settings", icon: Settings },
         ],
         admin: [
-            { name: "Admin Panel", href: "/admin/dashboard", icon: Shield },
+            { name: "Overview", href: "/admin/dashboard", icon: LayoutDashboard },
             { name: "User Management", href: "/admin/dashboard/users", icon: Users },
-            { name: "System Stats", href: "/admin/dashboard/stats", icon: BarChart3 },
+            { name: "Withdrawals", href: "/admin/dashboard/withdrawals", icon: ArrowUpRight },
+            { name: "Disputes", href: "/admin/dashboard/disputes", icon: ShieldAlert },
             { name: "Payment Methods", href: "/admin/dashboard/payment-methods", icon: CreditCard },
             { name: "Crypto Assets", href: "/admin/dashboard/crypto-assets", icon: Coins },
             { name: "Fiat Currencies", href: "/admin/dashboard/fiat-currencies", icon: DollarSign },

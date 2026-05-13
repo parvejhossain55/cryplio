@@ -36,10 +36,11 @@ func mapUser(u *identity.User) dto.UserResponse {
 	if u == nil {
 		return dto.UserResponse{}
 	}
-	var lastSeenAt string
+	var lastSeenAt, createdAt string
 	if u.LastSeenAt != nil {
 		lastSeenAt = u.LastSeenAt.Format(time.RFC3339)
 	}
+	createdAt = u.CreatedAt.Format(time.RFC3339)
 	return dto.UserResponse{
 		ID:            u.UserID.String(),
 		Email:         u.Email,
@@ -49,6 +50,8 @@ func mapUser(u *identity.User) dto.UserResponse {
 		AvatarURL:     u.AvatarURL,
 		Bio:           u.Bio,
 		LastSeenAt:    lastSeenAt,
+		CreatedAt:     createdAt,
+		Role:          string(u.Role),
 		IsOnline:      u.IsOnline(),
 		Stats:         dto.UserStatsDTO{},
 	}

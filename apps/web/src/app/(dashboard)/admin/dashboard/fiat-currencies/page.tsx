@@ -95,26 +95,35 @@ const AdminFiatCurrencies = () => {
     };
 
     const handleDelete = async (id: number) => {
-        const confirmDelete = window.confirm("Are you sure you want to delete this fiat currency? This may affect existing trades.");
-        if (!confirmDelete) return;
+        toast("Delete Fiat Currency", {
+            description: "Are you sure you want to delete this fiat currency? This may affect existing trades.",
+            action: {
+                label: 'Delete',
+                onClick: async () => {
+                    try {
+                        const response = await fetch(`/api/v1/admin/fiat-currencies/${id}`, {
+                            method: "DELETE",
+                            credentials: "include",
+                        });
 
-        try {
-            const response = await fetch(`/api/v1/admin/fiat-currencies/${id}`, {
-                method: "DELETE",
-                credentials: "include",
-            });
-
-            if (response.ok) {
-                toast.success("Fiat currency deleted");
-                await fetchFiatCurrencies(pagination.page);
-            } else {
-                const errorData = await response.json();
-                toast.error(errorData.error || "Failed to delete fiat currency");
+                        if (response.ok) {
+                            toast.success("Fiat currency deleted");
+                            await fetchFiatCurrencies(pagination.page);
+                        } else {
+                            const errorData = await response.json();
+                            toast.error(errorData.error || "Failed to delete fiat currency");
+                        }
+                    } catch (error) {
+                        console.error("Failed to delete fiat currency:", error);
+                        toast.error("Failed to delete fiat currency");
+                    }
+                }
+            },
+            cancel: {
+                label: 'Cancel',
+                onClick: () => { }
             }
-        } catch (error) {
-            console.error("Failed to delete fiat currency:", error);
-            toast.error("Failed to delete fiat currency");
-        }
+        });
     };
 
     const filteredCurrencies = fiatCurrencies.filter(currency => {
@@ -208,19 +217,24 @@ const AdminFiatCurrencies = () => {
                                                 {currency.is_active ? 'Active' : 'Inactive'}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-right space-x-2">
+                                        <td className="px-6 py-4 text-right space-x-2 relative z-10">
                                             <button
-                                                onClick={() => {
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
                                                     setEditingCurrency(currency);
                                                     setIsModalOpen(true);
                                                 }}
-                                                className="inline-flex items-center px-3 py-2 bg-blue-500/20 text-blue-500 rounded-lg hover:bg-blue-500/30 transition-all"
+                                                className="inline-flex items-center px-3 py-2 bg-blue-500/20 text-blue-500 rounded-lg hover:bg-blue-500/30 transition-all pointer-events-auto"
                                             >
                                                 <Edit className="w-4 h-4" />
                                             </button>
                                             <button
-                                                onClick={() => handleDelete(currency.id)}
-                                                className="inline-flex items-center px-3 py-2 bg-red-500/20 text-red-500 rounded-lg hover:bg-red-500/30 transition-all"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDelete(currency.id);
+                                                }}
+                                                className="inline-flex items-center px-3 py-2 bg-red-500/20 text-red-500 rounded-lg hover:bg-red-500/30 transition-all pointer-events-auto"
+                                                title="Delete Currency"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>

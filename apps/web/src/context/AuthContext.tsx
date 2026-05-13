@@ -82,7 +82,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         name: backendUser.username || backendUser.email.split("@")[0],
         email: backendUser.email,
         username: backendUser.username || backendUser.email.split("@")[0],
-        role: backendUser.username === "admin" ? "admin" : "user",
+        role: (backendUser.role as "user" | "admin"),
         emailVerified: backendUser.email_verified ?? false,
         twoFAEnabled: backendUser.two_fa_enabled ?? false,
         bio: backendUser.bio ?? "",
@@ -96,9 +96,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             const result = await authService.login({ email, password });
             if ('id' in result) {
                 const backendUser = result as BackendUser;
-                setUser(mapBackendUser(backendUser));
+                const mappedUser = mapBackendUser(backendUser);
+                setUser(mappedUser);
                 localStorage.setItem("user_id", backendUser.id);
-                router.push("/user/dashboard");
+                
+                if (mappedUser.role === "admin") {
+                    router.push("/admin/dashboard");
+                } else {
+                    router.push("/user/dashboard");
+                }
             } else {
                 setTemp2FAToken(result.temp_token);
                 setRequires2FA(true);
@@ -119,13 +125,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             }
 
             const backendUser: BackendUser = await authService.complete2FALogin(tempToken, code);
-            setUser(mapBackendUser(backendUser));
+            const mappedUser = mapBackendUser(backendUser);
+            setUser(mappedUser);
             localStorage.setItem("user_id", backendUser.id);
             setRequires2FA(false);
             setTemp2FAToken(null);
             sessionStorage.removeItem("2fa_temp_token");
             sessionStorage.removeItem("2fa_user_id");
-            router.push("/user/dashboard");
+            
+            if (mappedUser.role === "admin") {
+                router.push("/admin/dashboard");
+            } else {
+                router.push("/user/dashboard");
+            }
         } finally {
             setIsLoading(false);
         }
@@ -139,9 +151,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setIsLoading(true);
         try {
             const backendUser = await authService.register({ email, username, password });
-            setUser(mapBackendUser(backendUser));
+            const mappedUser = mapBackendUser(backendUser);
+            setUser(mappedUser);
             localStorage.setItem("user_id", backendUser.id);
-            router.push("/user/dashboard");
+            
+            if (mappedUser.role === "admin") {
+                router.push("/admin/dashboard");
+            } else {
+                router.push("/user/dashboard");
+            }
         } catch (error) {
             throw error;
         } finally {

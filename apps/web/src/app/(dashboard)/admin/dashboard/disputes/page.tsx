@@ -5,19 +5,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
     AlertTriangle,
     ShieldAlert,
-    Gavel,
     User,
     Clock,
     CheckCircle2,
     XCircle,
     ChevronRight,
     Loader2,
-    Search,
-    Filter,
-    Upload,
-    FileText,
-    Eye,
-    Download
+    X
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { authService } from "@/services/authService";
@@ -29,7 +23,12 @@ const AdminDisputesPage = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [filter, setFilter] = useState("all");
     const [uploadingEvidence, setUploadingEvidence] = useState<string | null>(null);
-    const [selectedDispute, setSelectedDispute] = useState<any | null>(null);
+
+    const [isResolveModalOpen, setIsResolveModalOpen] = useState(false);
+    const [selectedDisputeId, setSelectedDisputeId] = useState<string | null>(null);
+    const [resolution, setResolution] = useState<string>("");
+    const [winnerRole, setWinnerRole] = useState<'buyer' | 'seller'>('buyer');
+    const [resolutionNote, setResolutionNote] = useState("");
 
     useEffect(() => {
         fetchDisputes();
@@ -57,29 +56,25 @@ const AdminDisputesPage = () => {
         }
     };
 
-    const handleResolve = async (disputeId: string, resolution: string, winnerId: 'buyer' | 'seller') => {
-        const note = prompt(`Enter resolution note for ${winnerId === 'buyer' ? 'Buyer' : 'Seller'}:`);
-        if (note === null) return;
+    const handleResolve = async () => {
+        if (!selectedDisputeId || !resolution || !resolutionNote) return;
 
-        toast(`Resolve in favor of ${winnerId === 'buyer' ? 'Buyer' : 'Seller'}?`, {
-            description: "This action will release or refund the escrowed assets. It cannot be undone.",
-            action: {
-                label: 'Confirm Resolve',
-                onClick: async () => {
-                    try {
-                        await authService.resolveDispute(disputeId, resolution, note);
-                        toast.success("Dispute resolved successfully");
-                        fetchDisputes();
-                    } catch (err: any) {
-                        toast.error(err.message || "Failed to resolve dispute");
-                    }
-                }
-            },
-            cancel: {
-                label: 'Cancel',
-                onClick: () => { }
-            }
-        });
+        try {
+            await authService.resolveDispute(selectedDisputeId, resolution, resolutionNote);
+            toast.success("Dispute resolved successfully");
+            setIsResolveModalOpen(false);
+            setResolutionNote("");
+            fetchDisputes();
+        } catch (err: any) {
+            toast.error(err.message || "Failed to resolve dispute");
+        }
+    };
+
+    const openResolveModal = (disputeId: string, res: string, role: 'buyer' | 'seller') => {
+        setSelectedDisputeId(disputeId);
+        setResolution(res);
+        setWinnerRole(role);
+        setIsResolveModalOpen(true);
     };
 
     const handleEvidenceUpload = async (disputeId: string, file: File) => {
@@ -208,13 +203,13 @@ const AdminDisputesPage = () => {
                                         {dispute.status === 'assigned' && (
                                             <div className="flex items-center gap-2">
                                                 <button
-                                                    onClick={() => handleResolve(dispute.dispute_id, 'release_to_buyer', 'buyer')}
+                                                    onClick={() => openResolveModal(dispute.dispute_id, 'release_to_buyer', 'buyer')}
                                                     className="px-4 py-3 bg-accent text-white rounded-xl text-[8px] font-black uppercase tracking-widest hover:bg-accent/80 transition-all"
                                                 >
                                                     Refund Buyer
                                                 </button>
                                                 <button
-                                                    onClick={() => handleResolve(dispute.dispute_id, 'return_to_seller', 'seller')}
+                                                    onClick={() => openResolveModal(dispute.dispute_id, 'return_to_seller', 'seller')}
                                                     className="px-4 py-3 bg-white text-background rounded-xl text-[8px] font-black uppercase tracking-widest hover:bg-white/80 transition-all"
                                                 >
                                                     Release Seller
@@ -234,6 +229,67 @@ const AdminDisputesPage = () => {
                     )}
                 </div>
             </div>
+
+            {/* Resolve Dispute Modal */}
+            <AnimatePresence>
+                {isResolveModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-surface border border-white/10 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl"
+                        >
+                            <div className="p-6 border-b border-white/5 flex items-center justify-between">
+                                <h3 className="text-xl font-bold text-white italic uppercase tracking-tight">
+                                    Resolve for <span className={winnerRole === 'buyer' ? 'text-primary' : 'text-accent'}>{winnerRole}</span>
+                                </h3>
+                                <button
+                                    onClick={() => setIsResolveModalOpen(false)}
+                                    className="p-2 hover:bg-white/5 rounded-lg transition-colors"
+                                >
+                                    <X className="w-5 h-5 text-text-dim" />
+                                </button>
+                            </div>
+
+                            <div className="p-6 space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-text-dim uppercase tracking-[0.2em]">Resolution Note</label>
+                                    <textarea
+                                        value={resolutionNote}
+                                        onChange={(e) => setResolutionNote(e.target.value)}
+                                        placeholder={`Explain why you are resolving this in favor of the ${winnerRole}...`}
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-text-dim/50 focus:outline-none focus:border-primary/50 min-h-[120px] resize-none text-xs leading-relaxed"
+                                    />
+                                </div>
+
+                                <div className="p-4 bg-white/5 border border-white/5 rounded-2xl flex gap-3 italic">
+                                    <AlertTriangle className="w-5 h-5 text-text-dim shrink-0 mt-0.5" />
+                                    <p className="text-[10px] text-text-dim leading-relaxed font-medium">
+                                        This protocol-level decision will finalize the trade. Assets will be {winnerRole === 'buyer' ? 'refunded' : 'released'} accordingly.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="p-6 bg-white/5 flex gap-3">
+                                <button
+                                    onClick={() => setIsResolveModalOpen(false)}
+                                    className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/10 transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleResolve}
+                                    disabled={!resolutionNote}
+                                    className={`flex-1 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed ${winnerRole === 'buyer' ? 'bg-primary hover:bg-primary/80' : 'bg-accent hover:bg-accent/80'}`}
+                                >
+                                    Confirm Resolution
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </DashboardLayout>
     );
 };

@@ -5,22 +5,19 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
     Users,
     Search,
-    Filter,
     Loader2,
     Shield,
     UserCheck,
-    Calendar,
-    Mail,
-    MoreVertical,
     AlertTriangle,
     CheckCircle2,
-    XCircle
+    MoreVertical,
+    X
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { toast } from "sonner";
 
 interface User {
-    user_id: string;
+    id: string;
     username: string;
     email: string;
     status: string;
@@ -45,6 +42,11 @@ const AdminUsersPage = () => {
         total: 0,
         pages: 0,
     });
+
+    const [isSuspendModalOpen, setIsSuspendModalOpen] = useState(false);
+    const [suspendingUser, setSuspendingUser] = useState<string | null>(null);
+    const [suspensionReason, setSuspensionReason] = useState("");
+    const [suspensionDuration, setSuspensionDuration] = useState("");
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -92,17 +94,16 @@ const AdminUsersPage = () => {
     };
 
     
-    const handleSuspendUser = async (userId: string) => {
-        const reason = prompt("Enter suspension reason:");
-        const duration = prompt("Enter suspension duration in minutes (optional):");
+    const handleSuspendUser = async () => {
+        if (!suspendingUser || !suspensionReason) return;
         
         try {
-            const response = await fetch(`/api/v1/admin/users/${userId}/suspend`, {
+            const response = await fetch(`/api/v1/admin/users/${suspendingUser}/suspend`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ 
-                    reason,
-                    duration_minutes: duration ? parseInt(duration) : undefined
+                    reason: suspensionReason,
+                    duration_minutes: suspensionDuration ? parseInt(suspensionDuration) : undefined
                 }),
             });
 
@@ -113,11 +114,20 @@ const AdminUsersPage = () => {
             }
 
             toast.success("User suspended successfully");
+            setIsSuspendModalOpen(false);
+            setSuspendingUser(null);
+            setSuspensionReason("");
+            setSuspensionDuration("");
             fetchUsers();
         } catch (error) {
             console.error("Error suspending user:", error);
             toast.error("Failed to suspend user");
         }
+    };
+
+    const confirmSuspendUser = (userId: string) => {
+        setSuspendingUser(userId);
+        setIsSuspendModalOpen(true);
     };
 
     const handleUnsuspendUser = async (userId: string) => {
@@ -282,7 +292,7 @@ const AdminUsersPage = () => {
                                 <AnimatePresence>
                                     {users.map((user) => (
                                         <motion.tr
-                                            key={user.user_id}
+                                            key={user.id}
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
                                             exit={{ opacity: 0 }}
@@ -336,23 +346,29 @@ const AdminUsersPage = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="text-sm text-text-dim">
-                                                    {new Date(user.created_at).toLocaleDateString()}
+                                                    {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <div className="flex items-center space-x-2">
+                                                <div className="flex items-center space-x-2 relative z-10">
                                                     {user.is_suspended ? (
                                                         <button
-                                                            onClick={() => handleUnsuspendUser(user.user_id)}
-                                                            className="p-2 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 transition-colors"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleUnsuspendUser(user.id);
+                                                            }}
+                                                            className="p-2 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 transition-colors pointer-events-auto"
                                                             title="Unsuspend User"
                                                         >
                                                             <CheckCircle2 className="w-4 h-4" />
                                                         </button>
                                                     ) : (
                                                         <button
-                                                            onClick={() => handleSuspendUser(user.user_id)}
-                                                            className="p-2 bg-orange-500/20 text-orange-400 rounded-lg hover:bg-orange-500/30 transition-colors"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                confirmSuspendUser(user.id);
+                                                            }}
+                                                            className="p-2 bg-orange-500/20 text-orange-400 rounded-lg hover:bg-orange-500/30 transition-colors pointer-events-auto"
                                                             title="Suspend User"
                                                         >
                                                             <Shield className="w-4 h-4" />
@@ -360,7 +376,8 @@ const AdminUsersPage = () => {
                                                     )}
                                                     
                                                     <button
-                                                        className="p-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="p-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors pointer-events-auto"
                                                         title="More Options"
                                                     >
                                                         <MoreVertical className="w-4 h-4" />
@@ -424,6 +441,76 @@ const AdminUsersPage = () => {
                     </div>
                 )}
             </div>
+
+            {/* Suspend User Modal */}
+            <AnimatePresence>
+                {isSuspendModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-surface border border-white/10 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl"
+                        >
+                            <div className="p-6 border-b border-white/5 flex items-center justify-between">
+                                <h3 className="text-xl font-bold text-white">Suspend User</h3>
+                                <button
+                                    onClick={() => setIsSuspendModalOpen(false)}
+                                    className="p-2 hover:bg-white/5 rounded-lg transition-colors"
+                                >
+                                    <X className="w-5 h-5 text-text-dim" />
+                                </button>
+                            </div>
+
+                            <div className="p-6 space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-text-dim">Reason for Suspension</label>
+                                    <textarea
+                                        value={suspensionReason}
+                                        onChange={(e) => setSuspensionReason(e.target.value)}
+                                        placeholder="e.g. Violation of terms, Suspicious activity..."
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-text-dim/50 focus:outline-none focus:border-primary/50 min-h-[100px] resize-none"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-text-dim">Duration (minutes, optional)</label>
+                                    <input
+                                        type="number"
+                                        value={suspensionDuration}
+                                        onChange={(e) => setSuspensionDuration(e.target.value)}
+                                        placeholder="Leave empty for permanent"
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-text-dim/50 focus:outline-none focus:border-primary/50"
+                                    />
+                                </div>
+
+                                <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl flex gap-3">
+                                    <AlertTriangle className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
+                                    <p className="text-xs text-orange-200/80 leading-relaxed">
+                                        Suspending this user will prevent them from trading and accessing their account features.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="p-6 bg-white/5 flex gap-3">
+                                <button
+                                    onClick={() => setIsSuspendModalOpen(false)}
+                                    className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-bold hover:bg-white/10 transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSuspendUser}
+                                    disabled={!suspensionReason}
+                                    className="flex-1 px-4 py-3 bg-orange-500 text-white rounded-xl font-bold hover:bg-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Suspend User
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </DashboardLayout>
     );
 };

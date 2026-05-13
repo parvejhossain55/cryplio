@@ -64,54 +64,70 @@ const AdminWithdrawalsPage = () => {
         }
     };
 
-    const handleApprove = async (txnId: string) => {
-        const txHash = prompt("Enter transaction hash:");
-        if (!txHash) return;
+    const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
+    const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+    const [selectedTxnId, setSelectedTxnId] = useState<string | null>(null);
+    const [txHash, setTxHash] = useState("");
+    const [rejectReason, setRejectReason] = useState("");
+
+    const handleApprove = async () => {
+        if (!selectedTxnId || !txHash) return;
 
         try {
-            const response = await fetch(`/api/v1/admin/withdrawals/${txnId}/approve`, {
+            const response = await fetch(`/api/v1/admin/withdrawals/${selectedTxnId}/approve`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ tx_hash: txHash }),
             });
 
-            const data = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(data.error || "Failed to approve withdrawal");
+            if (response.ok) {
+                toast.success("Withdrawal approved");
+                setIsApproveModalOpen(false);
+                setTxHash("");
+                fetchWithdrawals();
+            } else {
+                const errorData = await response.json();
+                toast.error(errorData.error || "Failed to approve withdrawal");
             }
-
-            toast.success("Withdrawal approved successfully");
-            fetchWithdrawals();
         } catch (error) {
-            console.error("Error approving withdrawal:", error);
+            console.error("Failed to approve withdrawal:", error);
             toast.error("Failed to approve withdrawal");
         }
     };
 
-    const handleReject = async (txnId: string) => {
-        const reason = prompt("Enter rejection reason:");
-        if (!reason) return;
+    const handleReject = async () => {
+        if (!selectedTxnId || !rejectReason) return;
 
         try {
-            const response = await fetch(`/api/v1/admin/withdrawals/${txnId}/reject`, {
+            const response = await fetch(`/api/v1/admin/withdrawals/${selectedTxnId}/reject`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ reason }),
+                body: JSON.stringify({ reason: rejectReason }),
             });
 
-            const data = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(data.error || "Failed to reject withdrawal");
+            if (response.ok) {
+                toast.success("Withdrawal rejected");
+                setIsRejectModalOpen(false);
+                setRejectReason("");
+                fetchWithdrawals();
+            } else {
+                const errorData = await response.json();
+                toast.error(errorData.error || "Failed to reject withdrawal");
             }
-
-            toast.success("Withdrawal rejected successfully");
-            fetchWithdrawals();
         } catch (error) {
-            console.error("Error rejecting withdrawal:", error);
+            console.error("Failed to reject withdrawal:", error);
             toast.error("Failed to reject withdrawal");
         }
+    };
+
+    const openApproveModal = (txnId: string) => {
+        setSelectedTxnId(txnId);
+        setIsApproveModalOpen(true);
+    };
+
+    const openRejectModal = (txnId: string) => {
+        setSelectedTxnId(txnId);
+        setIsRejectModalOpen(true);
     };
 
     const toggleAddressVisibility = (txnId: string) => {
@@ -320,27 +336,34 @@ const AdminWithdrawalsPage = () => {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <div className="flex items-center space-x-2">
+                                                <div className="flex items-center space-x-2 relative z-10">
                                                     {withdrawal.status === 'pending' && (
                                                         <>
                                                             <button
-                                                                onClick={() => handleApprove(withdrawal.txn_id)}
-                                                                className="p-2 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 transition-colors"
-                                                                title="Approve"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    openApproveModal(withdrawal.txn_id);
+                                                                }}
+                                                                className="p-2 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 transition-colors pointer-events-auto"
+                                                                title="Approve Withdrawal"
                                                             >
                                                                 <CheckCircle2 className="w-4 h-4" />
                                                             </button>
                                                             <button
-                                                                onClick={() => handleReject(withdrawal.txn_id)}
-                                                                className="p-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors"
-                                                                title="Reject"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    openRejectModal(withdrawal.txn_id);
+                                                                }}
+                                                                className="p-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors pointer-events-auto"
+                                                                title="Reject Withdrawal"
                                                             >
                                                                 <XCircle className="w-4 h-4" />
                                                             </button>
                                                         </>
                                                     )}
                                                     <button
-                                                        className="p-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="p-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors pointer-events-auto"
                                                         title="View Details"
                                                     >
                                                         <ExternalLink className="w-4 h-4" />
@@ -362,6 +385,125 @@ const AdminWithdrawalsPage = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Approve Withdrawal Modal */}
+            <AnimatePresence>
+                {isApproveModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-surface border border-white/10 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl"
+                        >
+                            <div className="p-6 border-b border-white/5 flex items-center justify-between">
+                                <h3 className="text-xl font-bold text-white">Approve Withdrawal</h3>
+                                <button
+                                    onClick={() => setIsApproveModalOpen(false)}
+                                    className="p-2 hover:bg-white/5 rounded-lg transition-colors"
+                                >
+                                    <XCircle className="w-5 h-5 text-text-dim" />
+                                </button>
+                            </div>
+
+                            <div className="p-6 space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-text-dim">Transaction Hash (TXID)</label>
+                                    <input
+                                        type="text"
+                                        value={txHash}
+                                        onChange={(e) => setTxHash(e.target.value)}
+                                        placeholder="Enter the blockchain transaction hash..."
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-text-dim/50 focus:outline-none focus:border-primary/50 font-mono text-sm"
+                                    />
+                                </div>
+
+                                <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-2xl flex gap-3">
+                                    <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
+                                    <p className="text-xs text-green-200/80 leading-relaxed">
+                                        Please ensure the transaction hash is correct. This will mark the withdrawal as completed and notify the user.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="p-6 bg-white/5 flex gap-3">
+                                <button
+                                    onClick={() => setIsApproveModalOpen(false)}
+                                    className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-bold hover:bg-white/10 transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleApprove}
+                                    disabled={!txHash}
+                                    className="flex-1 px-4 py-3 bg-green-500 text-white rounded-xl font-bold hover:bg-green-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Complete Approval
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Reject Withdrawal Modal */}
+            <AnimatePresence>
+                {isRejectModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-surface border border-white/10 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl"
+                        >
+                            <div className="p-6 border-b border-white/5 flex items-center justify-between">
+                                <h3 className="text-xl font-bold text-white">Reject Withdrawal</h3>
+                                <button
+                                    onClick={() => setIsRejectModalOpen(false)}
+                                    className="p-2 hover:bg-white/5 rounded-lg transition-colors"
+                                >
+                                    <XCircle className="w-5 h-5 text-text-dim" />
+                                </button>
+                            </div>
+
+                            <div className="p-6 space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-text-dim">Reason for Rejection</label>
+                                    <textarea
+                                        value={rejectReason}
+                                        onChange={(e) => setRejectReason(e.target.value)}
+                                        placeholder="e.g. Invalid destination address, Suspicious activity..."
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-text-dim/50 focus:outline-none focus:border-primary/50 min-h-[100px] resize-none"
+                                    />
+                                </div>
+
+                                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex gap-3">
+                                    <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                                    <p className="text-xs text-red-200/80 leading-relaxed">
+                                        Rejecting this withdrawal will return the funds (minus fees) to the user's wallet.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="p-6 bg-white/5 flex gap-3">
+                                <button
+                                    onClick={() => setIsRejectModalOpen(false)}
+                                    className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-bold hover:bg-white/10 transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleReject}
+                                    disabled={!rejectReason}
+                                    className="flex-1 px-4 py-3 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Confirm Rejection
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </DashboardLayout>
     );
 };

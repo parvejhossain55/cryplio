@@ -23,6 +23,8 @@ type UserResponse struct {
 	AvatarURL     *string      `json:"avatar_url,omitempty"`
 	Bio           *string      `json:"bio,omitempty"`
 	LastSeenAt    string       `json:"last_seen_at,omitempty"`
+	CreatedAt     string       `json:"created_at"`
+	Role          string       `json:"role"`
 	IsOnline      bool         `json:"is_online"`
 	Stats         UserStatsDTO `json:"stats"`
 }

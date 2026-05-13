@@ -98,26 +98,35 @@ const AdminPaymentMethods = () => {
     };
 
     const handleDelete = async (id: number) => {
-        const confirmDelete = window.confirm("Are you sure you want to delete this payment method?");
-        if (!confirmDelete) return;
+        toast("Delete Payment Method", {
+            description: "Are you sure you want to delete this payment method?",
+            action: {
+                label: 'Delete',
+                onClick: async () => {
+                    try {
+                        const response = await fetch(`/api/v1/admin/payment-methods/${id}`, {
+                            method: "DELETE",
+                            credentials: "include",
+                        });
 
-        try {
-            const response = await fetch(`/api/v1/admin/payment-methods/${id}`, {
-                method: "DELETE",
-                credentials: "include",
-            });
-
-            if (response.ok) {
-                toast.success("Payment method deleted");
-                await fetchPaymentMethods(pagination.page);
-            } else {
-                const errorData = await response.json();
-                toast.error(errorData.error || "Failed to delete payment method");
+                        if (response.ok) {
+                            toast.success("Payment method deleted");
+                            await fetchPaymentMethods(pagination.page);
+                        } else {
+                            const errorData = await response.json();
+                            toast.error(errorData.error || "Failed to delete payment method");
+                        }
+                    } catch (error) {
+                        console.error("Failed to delete payment method:", error);
+                        toast.error("Failed to delete payment method");
+                    }
+                }
+            },
+            cancel: {
+                label: 'Cancel',
+                onClick: () => { }
             }
-        } catch (error) {
-            console.error("Failed to delete payment method:", error);
-            toast.error("Failed to delete payment method");
-        }
+        });
     };
 
     const filteredMethods = paymentMethods.filter(method => {

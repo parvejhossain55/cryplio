@@ -35,7 +35,10 @@ func (h *NotificationHandler) GetNotificationsHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, notifications)
+	if notifications == nil {
+		notifications = []notificationdomain.Notification{}
+	}
+	c.JSON(http.StatusOK, gin.H{"notifications": notifications})
 }
 
 func (h *NotificationHandler) MarkReadHandler(c *gin.Context) {

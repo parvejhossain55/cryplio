@@ -251,8 +251,8 @@ const AdminDashboard = () => {
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-semibold text-white">Recent Activity</h3>
                             <button
-                                onClick={() => router.push("/admin/activity")}
-                                className="text-primary hover:text-primary/80 text-sm font-medium"
+                                onClick={() => {}}
+                                className="text-primary hover:text-primary/80 text-sm font-medium opacity-50 cursor-not-allowed"
                             >
                                 View All
                             </button>
@@ -336,8 +336,8 @@ const AdminDashboard = () => {
                         </div>
                         {alerts.length > 5 && (
                             <button
-                                onClick={() => router.push("/admin/alerts")}
-                                className="w-full mt-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-text-dim hover:text-white hover:bg-white/10 transition-colors"
+                                onClick={() => {}}
+                                className="w-full mt-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-text-dim hover:text-white hover:bg-white/10 transition-colors opacity-50 cursor-not-allowed"
                             >
                                 View All Alerts
                             </button>
@@ -348,34 +348,27 @@ const AdminDashboard = () => {
                 {/* Quick Actions */}
                 <div className="bg-surface border border-white/10 rounded-2xl p-6">
                     <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <button
-                            onClick={() => router.push("/admin/users")}
+                            onClick={() => router.push("/admin/dashboard/users")}
                             className="p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors text-center"
                         >
                             <Users className="w-6 h-6 mx-auto mb-2 text-primary" />
                             <p className="text-white text-sm font-medium">Manage Users</p>
                         </button>
                         <button
-                            onClick={() => router.push("/admin/disputes")}
+                            onClick={() => router.push("/admin/dashboard/disputes")}
                             className="p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors text-center"
                         >
                             <AlertTriangle className="w-6 h-6 mx-auto mb-2 text-yellow-500" />
                             <p className="text-white text-sm font-medium">Disputes</p>
                         </button>
                         <button
-                            onClick={() => router.push("/admin/withdrawals")}
+                            onClick={() => router.push("/admin/dashboard/withdrawals")}
                             className="p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors text-center"
                         >
                             <ArrowUpRight className="w-6 h-6 mx-auto mb-2 text-orange-500" />
                             <p className="text-white text-sm font-medium">Withdrawals</p>
-                        </button>
-                        <button
-                            onClick={() => router.push("/admin/settings")}
-                            className="p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors text-center"
-                        >
-                            <Shield className="w-6 h-6 mx-auto mb-2 text-accent" />
-                            <p className="text-white text-sm font-medium">Settings</p>
                         </button>
                     </div>
                 </div>

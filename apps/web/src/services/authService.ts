@@ -5,6 +5,7 @@ export interface BackendUser {
     id: string;
     email: string;
     username: string;
+    role: string;
     bio?: string;
     email_verified: boolean;
     two_fa_enabled: boolean;

@@ -98,26 +98,35 @@ const AdminCryptoAssets = () => {
     };
 
     const handleDelete = async (id: number) => {
-        const confirmDelete = window.confirm("Are you sure you want to delete this crypto asset? This may affect existing trades.");
-        if (!confirmDelete) return;
+        toast("Delete Crypto Asset", {
+            description: "Are you sure you want to delete this crypto asset? This may affect existing trades.",
+            action: {
+                label: 'Delete',
+                onClick: async () => {
+                    try {
+                        const response = await fetch(`/api/v1/admin/crypto-assets/${id}`, {
+                            method: "DELETE",
+                            credentials: "include",
+                        });
 
-        try {
-            const response = await fetch(`/api/v1/admin/crypto-assets/${id}`, {
-                method: "DELETE",
-                credentials: "include",
-            });
-
-            if (response.ok) {
-                toast.success("Crypto asset deleted");
-                await fetchCryptoAssets(pagination.page);
-            } else {
-                const errorData = await response.json();
-                toast.error(errorData.error || "Failed to delete crypto asset");
+                        if (response.ok) {
+                            toast.success("Crypto asset deleted");
+                            await fetchCryptoAssets(pagination.page);
+                        } else {
+                            const errorData = await response.json();
+                            toast.error(errorData.error || "Failed to delete crypto asset");
+                        }
+                    } catch (error) {
+                        console.error("Failed to delete crypto asset:", error);
+                        toast.error("Failed to delete crypto asset");
+                    }
+                }
+            },
+            cancel: {
+                label: 'Cancel',
+                onClick: () => { }
             }
-        } catch (error) {
-            console.error("Failed to delete crypto asset:", error);
-            toast.error("Failed to delete crypto asset");
-        }
+        });
     };
 
 
@@ -222,22 +231,30 @@ const AdminCryptoAssets = () => {
                                                 {asset.is_active ? 'Active' : 'Inactive'}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-right space-x-2">
-                                            <button
-                                                onClick={() => {
-                                                    setEditingAsset(asset);
-                                                    setIsModalOpen(true);
-                                                }}
-                                                className="inline-flex items-center px-3 py-2 bg-blue-500/20 text-blue-500 rounded-lg hover:bg-blue-500/30 transition-all"
-                                            >
-                                                <Edit className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(asset.id)}
-                                                className="inline-flex items-center px-3 py-2 bg-red-500/20 text-red-500 rounded-lg hover:bg-red-500/30 transition-all"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex items-center justify-end space-x-2 relative z-10">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setEditingAsset(asset);
+                                                        setIsModalOpen(true);
+                                                    }}
+                                                    className="inline-flex items-center px-3 py-2 bg-blue-500/20 text-blue-500 rounded-lg hover:bg-blue-500/30 transition-all pointer-events-auto"
+                                                    title="Edit Asset"
+                                                >
+                                                    <Edit className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleDelete(asset.id);
+                                                    }}
+                                                    className="inline-flex items-center px-3 py-2 bg-red-500/20 text-red-500 rounded-lg hover:bg-red-500/30 transition-all pointer-events-auto"
+                                                    title="Delete Asset"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
