@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"cryplio/pkg/apperrors"
+	"cryplio/pkg/logger"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -18,6 +19,14 @@ func handleError(c *gin.Context, err error) {
 
 	if apperrors.IsAppError(err) {
 		appErr, _ := apperrors.GetAppError(err)
+		// Log internal errors with details
+		if appErr.Code == apperrors.ErrCodeInternal {
+			logger.Error("Internal server error", logger.Fields{
+				"error":   appErr.Err,
+				"message": appErr.Message,
+				"path":    c.Request.URL.Path,
+			})
+		}
 		switch appErr.Code {
 		case apperrors.ErrCodeNotFound:
 			status = http.StatusNotFound

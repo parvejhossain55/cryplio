@@ -18,7 +18,7 @@ class WebSocketService {
         }
 
         this.isConnecting = true;
-        const baseUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080/ws';
+        const baseUrl = process.env.NEXT_PUBLIC_WS_URL || (typeof window !== 'undefined' ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws` : 'ws://localhost:8080/ws');
         const wsUrl = `${baseUrl}?user_id=${userId}`;
         
         try {

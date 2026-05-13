@@ -2,8 +2,12 @@ export const fetchWithRefresh = async (url: string, options: RequestInit = {}): 
     let response = await fetch(url, options);
 
     if (response.status === 401) {
-        // Skip auto-refresh for refresh endpoint itself to avoid infinite loop
-        if (url.includes("/api/v1/auth/refresh")) {
+        // Skip auto-refresh for auth endpoints to avoid loops or incorrect refresh attempts
+        if (
+            url.includes("/api/v1/auth/refresh") ||
+            url.includes("/api/v1/auth/login") ||
+            url.includes("/api/v1/auth/register")
+        ) {
             return response;
         }
 
