@@ -49,9 +49,10 @@ func (h *PlatformHandler) CreateFiatCurrencyHandler(c *gin.Context) {
 // GetFiatCurrenciesHandler handles GET /admin/fiat-currencies.
 func (h *PlatformHandler) GetFiatCurrenciesHandler(c *gin.Context) {
 	activeOnly := c.Query("active_only") == "true"
+	searchQuery := c.Query("search")
 	page, limit := parsePlatformPage(c)
 
-	currencies, total, err := h.platformService.GetFiatCurrencies(c.Request.Context(), activeOnly, page, limit)
+	currencies, total, err := h.platformService.GetFiatCurrencies(c.Request.Context(), activeOnly, searchQuery, page, limit)
 	if err != nil {
 		basehandler.HandleError(c, err)
 		return

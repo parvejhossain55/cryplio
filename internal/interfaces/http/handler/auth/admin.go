@@ -78,7 +78,10 @@ func (h *AdminHandler) ListUsersHandler(c *gin.Context) {
 		fmt.Sscanf(o, "%d", &offset)
 	}
 
-	users, err := h.authService.ListUsers(c.Request.Context(), limit, offset)
+	searchQuery := c.Query("search")
+	status := c.Query("status")
+
+	users, total, err := h.authService.ListUsers(c.Request.Context(), limit, offset, searchQuery, status)
 	if err != nil {
 		basehandler.HandleError(c, err)
 		return
@@ -88,7 +91,12 @@ func (h *AdminHandler) ListUsersHandler(c *gin.Context) {
 	for _, u := range users {
 		response = append(response, mapUser(&u))
 	}
-	c.JSON(http.StatusOK, gin.H{"users": response, "limit": limit, "offset": offset})
+	c.JSON(http.StatusOK, gin.H{
+		"users":  response,
+		"limit":  limit,
+		"offset": offset,
+		"total":  total,
+	})
 }
 
 // SuspendUserHandler suspends a user account (admin only).

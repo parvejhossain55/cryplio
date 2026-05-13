@@ -39,14 +39,37 @@ const AdminUsersPage = () => {
     const [filter, setFilter] = useState("all");
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
+    const [pagination, setPagination] = useState({
+        page: 1,
+        limit: 20,
+        total: 0,
+        pages: 0,
+    });
 
     useEffect(() => {
-        fetchUsers();
-    }, []);
+        const timer = setTimeout(() => {
+            fetchUsers(1);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchTerm, filter]);
 
-    const fetchUsers = async () => {
+    useEffect(() => {
+        fetchUsers(pagination.page);
+    }, [pagination.page]);
+
+    const fetchUsers = async (page = 1) => {
+        setIsLoading(true);
         try {
-            const response = await fetch("/api/v1/admin/users");
+            const offset = (page - 1) * pagination.limit;
+            const params = new URLSearchParams({
+                limit: pagination.limit.toString(),
+                offset: offset.toString(),
+            });
+
+            if (searchTerm) params.append("search", searchTerm);
+            if (filter !== "all") params.append("status", filter);
+
+            const response = await fetch(`/api/v1/admin/users?${params}`);
             const data = await response.json();
             
             if (!response.ok) {
@@ -54,6 +77,12 @@ const AdminUsersPage = () => {
             }
             
             setUsers(data.users || []);
+            setPagination(prev => ({
+                ...prev,
+                page,
+                total: data.total || 0,
+                pages: Math.ceil((data.total || 0) / prev.limit)
+            }));
         } catch (error) {
             console.error("Error fetching users:", error);
             toast.error("Failed to load users");
@@ -251,7 +280,7 @@ const AdminUsersPage = () => {
                             </thead>
                             <tbody className="divide-y divide-white/5">
                                 <AnimatePresence>
-                                    {filteredUsers.map((user) => (
+                                    {users.map((user) => (
                                         <motion.tr
                                             key={user.user_id}
                                             initial={{ opacity: 0 }}
@@ -344,7 +373,7 @@ const AdminUsersPage = () => {
                             </tbody>
                         </table>
                         
-                        {filteredUsers.length === 0 && (
+                        {users.length === 0 && (
                             <div className="text-center py-12">
                                 <AlertTriangle className="w-12 h-12 text-text-dim mx-auto mb-4" />
                                 <p className="text-text-dim">No users found</p>
@@ -352,6 +381,48 @@ const AdminUsersPage = () => {
                         )}
                     </div>
                 </div>
+
+                {/* Pagination */}
+                {pagination.pages > 1 && (
+                    <div className="flex items-center justify-between pt-6 border-t border-white/5">
+                        <div className="text-sm text-text-dim">
+                            Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} users
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <button
+                                onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                                disabled={pagination.page <= 1}
+                                className="px-3 py-2 bg-white/5 border border-white/5 rounded-lg text-sm font-bold text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/10 transition-all"
+                            >
+                                Previous
+                            </button>
+
+                            {Array.from({ length: Math.min(5, pagination.pages) }, (_, i) => {
+                                const pageNum = i + 1;
+                                return (
+                                    <button
+                                        key={pageNum}
+                                        onClick={() => setPagination(prev => ({ ...prev, page: pageNum }))}
+                                        className={`px-3 py-2 rounded-lg text-sm font-bold transition-all ${pagination.page === pageNum
+                                            ? 'bg-primary text-white'
+                                            : 'bg-white/5 border border-white/5 text-text-dim hover:bg-white/10'
+                                            }`}
+                                    >
+                                        {pageNum}
+                                    </button>
+                                );
+                            })}
+
+                            <button
+                                onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                                disabled={pagination.page >= pagination.pages}
+                                className="px-3 py-2 bg-white/5 border border-white/5 rounded-lg text-sm font-bold text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/10 transition-all"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
         </DashboardLayout>
     );

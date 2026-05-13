@@ -32,8 +32,15 @@ const AdminPaymentMethods = () => {
     });
 
     useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchPaymentMethods(1);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery, showInactive]);
+
+    useEffect(() => {
         fetchPaymentMethods(pagination.page);
-    }, [pagination.page, showInactive]);
+    }, [pagination.page]);
 
     const fetchPaymentMethods = async (page = 1) => {
         setLoading(true);
@@ -43,6 +50,10 @@ const AdminPaymentMethods = () => {
                 page: page.toString(),
                 limit: pagination.limit.toString(),
             });
+
+            if (searchQuery) {
+                params.append('search', searchQuery);
+            }
 
             const response = await fetch(`/api/v1/admin/payment-methods?${params}`);
             if (response.ok) {
@@ -87,34 +98,26 @@ const AdminPaymentMethods = () => {
     };
 
     const handleDelete = async (id: number) => {
-        toast("Delete Payment Method", {
-            description: "Are you sure you want to delete this payment method?",
-            action: {
-                label: 'Delete',
-                onClick: async () => {
-                    try {
-                        const response = await fetch(`/api/v1/admin/payment-methods/${id}`, {
-                            method: "DELETE",
-                            credentials: "include",
-                        });
+        const confirmDelete = window.confirm("Are you sure you want to delete this payment method?");
+        if (!confirmDelete) return;
 
-                        if (response.ok) {
-                            toast.success("Payment method deleted");
-                            await fetchPaymentMethods(pagination.page);
-                        } else {
-                            toast.error("Failed to delete payment method");
-                        }
-                    } catch (error) {
-                        console.error("Failed to delete payment method:", error);
-                        toast.error("Failed to delete payment method");
-                    }
-                }
-            },
-            cancel: {
-                label: 'Cancel',
-                onClick: () => { }
+        try {
+            const response = await fetch(`/api/v1/admin/payment-methods/${id}`, {
+                method: "DELETE",
+                credentials: "include",
+            });
+
+            if (response.ok) {
+                toast.success("Payment method deleted");
+                await fetchPaymentMethods(pagination.page);
+            } else {
+                const errorData = await response.json();
+                toast.error(errorData.error || "Failed to delete payment method");
             }
-        });
+        } catch (error) {
+            console.error("Failed to delete payment method:", error);
+            toast.error("Failed to delete payment method");
+        }
     };
 
     const filteredMethods = paymentMethods.filter(method => {
@@ -200,7 +203,7 @@ const AdminPaymentMethods = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredMethods.map((method) => (
+                                {paymentMethods.map((method) => (
                                     <tr key={method.id} className="border-t border-white/5 hover:bg-white/2 transition-all">
                                         <td className="px-6 py-4">
                                             <code className="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded">
@@ -249,7 +252,7 @@ const AdminPaymentMethods = () => {
                     </div>
                 </div>
 
-                {filteredMethods.length === 0 && (
+                {paymentMethods.length === 0 && (
                     <div className="text-center py-12 text-text-dim">
                         No payment methods found matching your criteria.
                     </div>

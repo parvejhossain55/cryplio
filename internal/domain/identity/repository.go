@@ -19,7 +19,7 @@ type UserCoreRepository interface {
 	Create(ctx context.Context, user *User) error
 	Update(ctx context.Context, user *User) error
 	Delete(ctx context.Context, id uuid.UUID) error
-	GetAll(ctx context.Context, limit, offset int) ([]User, error)
+	GetAll(ctx context.Context, limit, offset int, searchQuery string, status string) ([]User, int, error)
 	CountUsers(ctx context.Context) (int, error)
 	IncrementLogin(ctx context.Context, userID uuid.UUID) error
 	UpdateLastSeen(ctx context.Context, userID uuid.UUID) error

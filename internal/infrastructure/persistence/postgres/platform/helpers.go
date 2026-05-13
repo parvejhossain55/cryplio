@@ -4,17 +4,38 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 )
 
 // buildFilterQuery returns a FROM clause and args for an optional activeOnly filter.
 // Example: buildFilterQuery("crypto_assets", "is_active", true)
 //
 //	-> ("crypto_assets WHERE is_active = $1", []interface{}{true})
-func buildFilterQuery(table, activeCol string, activeOnly bool) (string, []interface{}) {
+func buildFilterQuery(table, activeCol string, activeOnly bool, searchQuery string, searchCols []string) (string, []interface{}) {
+	where := []string{}
+	args := []interface{}{}
+
 	if activeOnly {
-		return table + " WHERE " + activeCol + " = $1", []interface{}{true}
+		args = append(args, true)
+		where = append(where, fmt.Sprintf("%s = $%d", activeCol, len(args)))
 	}
-	return table, nil
+
+	if searchQuery != "" {
+		orParts := []string{}
+		args = append(args, "%"+searchQuery+"%")
+		searchArgIdx := len(args)
+		for _, col := range searchCols {
+			orParts = append(orParts, fmt.Sprintf("%s ILIKE $%d", col, searchArgIdx))
+		}
+		where = append(where, "("+strings.Join(orParts, " OR ")+")")
+	}
+
+	query := table
+	if len(where) > 0 {
+		query += " WHERE " + strings.Join(where, " AND ")
+	}
+
+	return query, args
 }
 
 // buildPagedQuery appends LIMIT / OFFSET placeholders to a base SELECT query.

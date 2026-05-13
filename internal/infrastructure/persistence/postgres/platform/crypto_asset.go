@@ -41,8 +41,8 @@ func (r *platformRepository) GetCryptoAsset(ctx context.Context, id int) (*platf
 	return asset, nil
 }
 
-func (r *platformRepository) GetCryptoAssets(ctx context.Context, activeOnly bool, limit, offset int) ([]*platform.CryptoAsset, int, error) {
-	base, args := buildFilterQuery("crypto_assets", "is_active", activeOnly)
+func (r *platformRepository) GetCryptoAssets(ctx context.Context, activeOnly bool, searchQuery string, limit, offset int) ([]*platform.CryptoAsset, int, error) {
+	base, args := buildFilterQuery("crypto_assets", "is_active", activeOnly, searchQuery, []string{"symbol", "name", "blockchain"})
 
 	var total int
 	if err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM "+base, args...).Scan(&total); err != nil {

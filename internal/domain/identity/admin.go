@@ -17,14 +17,14 @@ func (s *authService) CountUsers(ctx context.Context) (int, error) {
 }
 
 // ListUsers returns a paginated slice of users. Limit is clamped to [1, 100].
-func (s *authService) ListUsers(ctx context.Context, limit, offset int) ([]User, error) {
+func (s *authService) ListUsers(ctx context.Context, limit, offset int, searchQuery string, status string) ([]User, int, error) {
 	if limit <= 0 {
 		limit = 50
 	}
 	if limit > 100 {
 		limit = 100
 	}
-	return s.userRepo.GetAll(ctx, limit, offset)
+	return s.userRepo.GetAll(ctx, limit, offset, searchQuery, status)
 }
 
 // SuspendUser suspends a non-admin user account for an optional duration.

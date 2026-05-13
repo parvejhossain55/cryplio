@@ -40,8 +40,8 @@ func (r *platformRepository) GetPaymentMethod(ctx context.Context, id int) (*pla
 	return m, nil
 }
 
-func (r *platformRepository) GetPaymentMethods(ctx context.Context, activeOnly bool, limit, offset int) ([]*platform.PaymentMethod, int, error) {
-	base, args := buildFilterQuery("payment_methods", "is_active", activeOnly)
+func (r *platformRepository) GetPaymentMethods(ctx context.Context, activeOnly bool, searchQuery string, limit, offset int) ([]*platform.PaymentMethod, int, error) {
+	base, args := buildFilterQuery("payment_methods", "is_active", activeOnly, searchQuery, []string{"code", "name", "category", "description"})
 
 	var total int
 	if err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM "+base, args...).Scan(&total); err != nil {

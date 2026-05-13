@@ -35,8 +35,8 @@ func (r *platformRepository) GetFiatCurrency(ctx context.Context, id int) (*plat
 	return c, nil
 }
 
-func (r *platformRepository) GetFiatCurrencies(ctx context.Context, activeOnly bool, limit, offset int) ([]*platform.FiatCurrency, int, error) {
-	base, args := buildFilterQuery("fiat_currencies", "is_active", activeOnly)
+func (r *platformRepository) GetFiatCurrencies(ctx context.Context, activeOnly bool, searchQuery string, limit, offset int) ([]*platform.FiatCurrency, int, error) {
+	base, args := buildFilterQuery("fiat_currencies", "is_active", activeOnly, searchQuery, []string{"code", "name", "symbol"})
 
 	var total int
 	if err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM "+base, args...).Scan(&total); err != nil {

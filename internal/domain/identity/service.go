@@ -119,7 +119,7 @@ type PaymentManager interface {
 
 // UserAdminManager handles admin-level user management.
 type UserAdminManager interface {
-	ListUsers(ctx context.Context, limit, offset int) ([]User, error)
+	ListUsers(ctx context.Context, limit, offset int, searchQuery string, status string) ([]User, int, error)
 	CountUsers(ctx context.Context) (int, error)
 	SuspendUser(ctx context.Context, adminID, userID uuid.UUID, reason string, duration *time.Duration) error
 	UnsuspendUser(ctx context.Context, adminID, userID uuid.UUID) error

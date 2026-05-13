@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -11,11 +12,35 @@ import (
 // ─── Core User CRUD ───────────────────────────────────────────────────────────
 
 // GetAll returns all non-deleted users ordered by creation date (admin use).
-func (r *userRepository) GetAll(ctx context.Context, limit, offset int) ([]User, error) {
-	query := `SELECT ` + userColumns + ` FROM users WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT $1 OFFSET $2`
-	rows, err := r.db.QueryContext(ctx, query, limit, offset)
+func (r *userRepository) GetAll(ctx context.Context, limit, offset int, searchQuery string, status string) ([]User, int, error) {
+	where := []string{"deleted_at IS NULL"}
+	args := []any{}
+
+	if searchQuery != "" {
+		args = append(args, "%"+searchQuery+"%")
+		where = append(where, fmt.Sprintf("(username ILIKE $%d OR email ILIKE $%d)", len(args), len(args)))
+	}
+
+	if status != "" {
+		args = append(args, status)
+		where = append(where, fmt.Sprintf("status = $%d", len(args)))
+	}
+
+	whereClause := strings.Join(where, " AND ")
+
+	var total int
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM users WHERE %s", whereClause)
+	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count users: %w", err)
+	}
+
+	query := fmt.Sprintf("SELECT %s FROM users WHERE %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d",
+		userColumns, whereClause, len(args)+1, len(args)+2)
+
+	args = append(args, limit, offset)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("query users: %w", err)
+		return nil, 0, fmt.Errorf("query users: %w", err)
 	}
 	defer rows.Close()
 
@@ -23,11 +48,11 @@ func (r *userRepository) GetAll(ctx context.Context, limit, offset int) ([]User,
 	for rows.Next() {
 		var u User
 		if err := scanUser(rows, &u); err != nil {
-			return nil, fmt.Errorf("scan user: %w", err)
+			return nil, 0, fmt.Errorf("scan user: %w", err)
 		}
 		users = append(users, u)
 	}
-	return users, nil
+	return users, total, nil
 }
 
 // GetByID returns a single non-deleted user by primary key.

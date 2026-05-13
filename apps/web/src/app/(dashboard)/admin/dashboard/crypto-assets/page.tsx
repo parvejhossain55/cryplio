@@ -26,14 +26,21 @@ const AdminCryptoAssets = () => {
     const [editingAsset, setEditingAsset] = useState<CryptoAsset | null>(null);
     const [pagination, setPagination] = useState({
         page: 1,
-        limit: 50,
+        limit: 10,
         total: 0,
         pages: 0,
     });
 
     useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchCryptoAssets(1);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery, showInactive]);
+
+    useEffect(() => {
         fetchCryptoAssets(pagination.page);
-    }, [pagination.page, showInactive]);
+    }, [pagination.page]);
 
     const fetchCryptoAssets = async (page = 1) => {
         setLoading(true);
@@ -43,6 +50,10 @@ const AdminCryptoAssets = () => {
                 page: page.toString(),
                 limit: pagination.limit.toString(),
             });
+
+            if (searchQuery) {
+                params.append('search', searchQuery);
+            }
 
             const response = await fetch(`/api/v1/admin/crypto-assets?${params}`);
             if (response.ok) {
@@ -87,34 +98,26 @@ const AdminCryptoAssets = () => {
     };
 
     const handleDelete = async (id: number) => {
-        toast("Delete Crypto Asset", {
-            description: "Are you sure you want to delete this crypto asset? This may affect existing trades.",
-            action: {
-                label: 'Delete',
-                onClick: async () => {
-                    try {
-                        const response = await fetch(`/api/v1/admin/crypto-assets/${id}`, {
-                            method: "DELETE",
-                            credentials: "include",
-                        });
+        const confirmDelete = window.confirm("Are you sure you want to delete this crypto asset? This may affect existing trades.");
+        if (!confirmDelete) return;
 
-                        if (response.ok) {
-                            toast.success("Crypto asset deleted");
-                            await fetchCryptoAssets(pagination.page);
-                        } else {
-                            toast.error("Failed to delete crypto asset");
-                        }
-                    } catch (error) {
-                        console.error("Failed to delete crypto asset:", error);
-                        toast.error("Failed to delete crypto asset");
-                    }
-                }
-            },
-            cancel: {
-                label: 'Cancel',
-                onClick: () => { }
+        try {
+            const response = await fetch(`/api/v1/admin/crypto-assets/${id}`, {
+                method: "DELETE",
+                credentials: "include",
+            });
+
+            if (response.ok) {
+                toast.success("Crypto asset deleted");
+                await fetchCryptoAssets(pagination.page);
+            } else {
+                const errorData = await response.json();
+                toast.error(errorData.error || "Failed to delete crypto asset");
             }
-        });
+        } catch (error) {
+            console.error("Failed to delete crypto asset:", error);
+            toast.error("Failed to delete crypto asset");
+        }
     };
 
 
@@ -192,7 +195,7 @@ const AdminCryptoAssets = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredAssets.map((asset) => (
+                                {cryptoAssets.map((asset) => (
                                     <tr key={asset.id} className="border-t border-white/5 hover:bg-white/2 transition-all">
                                         <td className="px-6 py-4">
                                             <code className="text-sm font-bold text-primary bg-primary/10 px-2 py-1 rounded">
@@ -243,7 +246,7 @@ const AdminCryptoAssets = () => {
                     </div>
                 </div>
 
-                {filteredAssets.length === 0 && (
+                {cryptoAssets.length === 0 && (
                     <div className="text-center py-12 text-text-dim">
                         No crypto assets found matching your criteria.
                     </div>

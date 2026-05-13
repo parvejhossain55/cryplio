@@ -23,14 +23,21 @@ const AdminFiatCurrencies = () => {
     const [editingCurrency, setEditingCurrency] = useState<FiatCurrency | null>(null);
     const [pagination, setPagination] = useState({
         page: 1,
-        limit: 50,
+        limit: 10,
         total: 0,
         pages: 0,
     });
 
     useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchFiatCurrencies(1);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery, showInactive]);
+
+    useEffect(() => {
         fetchFiatCurrencies(pagination.page);
-    }, [pagination.page, showInactive]);
+    }, [pagination.page]);
 
     const fetchFiatCurrencies = async (page = 1) => {
         setLoading(true);
@@ -40,6 +47,10 @@ const AdminFiatCurrencies = () => {
                 page: page.toString(),
                 limit: pagination.limit.toString(),
             });
+
+            if (searchQuery) {
+                params.append('search', searchQuery);
+            }
 
             const response = await fetch(`/api/v1/admin/fiat-currencies?${params}`);
             if (response.ok) {
@@ -84,34 +95,26 @@ const AdminFiatCurrencies = () => {
     };
 
     const handleDelete = async (id: number) => {
-        toast("Delete Fiat Currency", {
-            description: "Are you sure you want to delete this fiat currency? This may affect existing trades.",
-            action: {
-                label: 'Delete',
-                onClick: async () => {
-                    try {
-                        const response = await fetch(`/api/v1/admin/fiat-currencies/${id}`, {
-                            method: "DELETE",
-                            credentials: "include",
-                        });
+        const confirmDelete = window.confirm("Are you sure you want to delete this fiat currency? This may affect existing trades.");
+        if (!confirmDelete) return;
 
-                        if (response.ok) {
-                            toast.success("Fiat currency deleted");
-                            await fetchFiatCurrencies(pagination.page);
-                        } else {
-                            toast.error("Failed to delete fiat currency");
-                        }
-                    } catch (error) {
-                        console.error("Failed to delete fiat currency:", error);
-                        toast.error("Failed to delete fiat currency");
-                    }
-                }
-            },
-            cancel: {
-                label: 'Cancel',
-                onClick: () => { }
+        try {
+            const response = await fetch(`/api/v1/admin/fiat-currencies/${id}`, {
+                method: "DELETE",
+                credentials: "include",
+            });
+
+            if (response.ok) {
+                toast.success("Fiat currency deleted");
+                await fetchFiatCurrencies(pagination.page);
+            } else {
+                const errorData = await response.json();
+                toast.error(errorData.error || "Failed to delete fiat currency");
             }
-        });
+        } catch (error) {
+            console.error("Failed to delete fiat currency:", error);
+            toast.error("Failed to delete fiat currency");
+        }
     };
 
     const filteredCurrencies = fiatCurrencies.filter(currency => {
@@ -186,7 +189,7 @@ const AdminFiatCurrencies = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredCurrencies.map((currency) => (
+                                {fiatCurrencies.map((currency) => (
                                     <tr key={currency.id} className="border-t border-white/5 hover:bg-white/2 transition-all">
                                         <td className="px-6 py-4">
                                             <code className="text-sm font-bold text-primary bg-primary/10 px-2 py-1 rounded">
@@ -229,7 +232,7 @@ const AdminFiatCurrencies = () => {
                     </div>
                 </div>
 
-                {filteredCurrencies.length === 0 && (
+                {fiatCurrencies.length === 0 && (
                     <div className="text-center py-12 text-text-dim">
                         No fiat currencies found matching your criteria.
                     </div>

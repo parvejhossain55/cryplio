@@ -53,9 +53,10 @@ func (h *PlatformHandler) CreateCryptoAssetHandler(c *gin.Context) {
 // GetCryptoAssetsHandler handles GET /admin/crypto-assets.
 func (h *PlatformHandler) GetCryptoAssetsHandler(c *gin.Context) {
 	activeOnly := c.Query("active_only") == "true"
+	searchQuery := c.Query("search")
 	page, limit := parsePlatformPage(c)
 
-	assets, total, err := h.platformService.GetCryptoAssets(c.Request.Context(), activeOnly, page, limit)
+	assets, total, err := h.platformService.GetCryptoAssets(c.Request.Context(), activeOnly, searchQuery, page, limit)
 	if err != nil {
 		basehandler.HandleError(c, err)
 		return

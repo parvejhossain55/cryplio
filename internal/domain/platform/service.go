@@ -65,21 +65,21 @@ type PlatformService interface {
 	// Crypto Assets
 	CreateCryptoAsset(ctx context.Context, input CreateCryptoAssetInput) (*CryptoAsset, error)
 	GetCryptoAsset(ctx context.Context, id int) (*CryptoAsset, error)
-	GetCryptoAssets(ctx context.Context, activeOnly bool, page, limit int) ([]*CryptoAsset, int, error)
+	GetCryptoAssets(ctx context.Context, activeOnly bool, searchQuery string, page, limit int) ([]*CryptoAsset, int, error)
 	UpdateCryptoAsset(ctx context.Context, id int, input UpdateCryptoAssetInput) (*CryptoAsset, error)
 	DeleteCryptoAsset(ctx context.Context, id int) error
 
 	// Fiat Currencies
 	CreateFiatCurrency(ctx context.Context, input CreateFiatCurrencyInput) (*FiatCurrency, error)
 	GetFiatCurrency(ctx context.Context, id int) (*FiatCurrency, error)
-	GetFiatCurrencies(ctx context.Context, activeOnly bool, page, limit int) ([]*FiatCurrency, int, error)
+	GetFiatCurrencies(ctx context.Context, activeOnly bool, searchQuery string, page, limit int) ([]*FiatCurrency, int, error)
 	UpdateFiatCurrency(ctx context.Context, id int, input UpdateFiatCurrencyInput) (*FiatCurrency, error)
 	DeleteFiatCurrency(ctx context.Context, id int) error
 
 	// Payment Methods
 	CreatePaymentMethod(ctx context.Context, input CreatePaymentMethodInput) (*PaymentMethod, error)
 	GetPaymentMethod(ctx context.Context, id int) (*PaymentMethod, error)
-	GetPaymentMethods(ctx context.Context, activeOnly bool, page, limit int) ([]*PaymentMethod, int, error)
+	GetPaymentMethods(ctx context.Context, activeOnly bool, searchQuery string, page, limit int) ([]*PaymentMethod, int, error)
 	UpdatePaymentMethod(ctx context.Context, id int, input UpdatePaymentMethodInput) (*PaymentMethod, error)
 	DeletePaymentMethod(ctx context.Context, id int) error
 }
@@ -123,9 +123,9 @@ func (s *platformService) GetCryptoAsset(ctx context.Context, id int) (*CryptoAs
 	return s.repo.GetCryptoAsset(ctx, id)
 }
 
-func (s *platformService) GetCryptoAssets(ctx context.Context, activeOnly bool, page, limit int) ([]*CryptoAsset, int, error) {
+func (s *platformService) GetCryptoAssets(ctx context.Context, activeOnly bool, searchQuery string, page, limit int) ([]*CryptoAsset, int, error) {
 	offset := (page - 1) * limit
-	return s.repo.GetCryptoAssets(ctx, activeOnly, limit, offset)
+	return s.repo.GetCryptoAssets(ctx, activeOnly, searchQuery, limit, offset)
 }
 
 func (s *platformService) UpdateCryptoAsset(ctx context.Context, id int, input UpdateCryptoAssetInput) (*CryptoAsset, error) {
@@ -180,9 +180,9 @@ func (s *platformService) GetFiatCurrency(ctx context.Context, id int) (*FiatCur
 	return s.repo.GetFiatCurrency(ctx, id)
 }
 
-func (s *platformService) GetFiatCurrencies(ctx context.Context, activeOnly bool, page, limit int) ([]*FiatCurrency, int, error) {
+func (s *platformService) GetFiatCurrencies(ctx context.Context, activeOnly bool, searchQuery string, page, limit int) ([]*FiatCurrency, int, error) {
 	offset := (page - 1) * limit
-	return s.repo.GetFiatCurrencies(ctx, activeOnly, limit, offset)
+	return s.repo.GetFiatCurrencies(ctx, activeOnly, searchQuery, limit, offset)
 }
 
 func (s *platformService) UpdateFiatCurrency(ctx context.Context, id int, input UpdateFiatCurrencyInput) (*FiatCurrency, error) {
@@ -235,9 +235,9 @@ func (s *platformService) GetPaymentMethod(ctx context.Context, id int) (*Paymen
 	return s.repo.GetPaymentMethod(ctx, id)
 }
 
-func (s *platformService) GetPaymentMethods(ctx context.Context, activeOnly bool, page, limit int) ([]*PaymentMethod, int, error) {
+func (s *platformService) GetPaymentMethods(ctx context.Context, activeOnly bool, searchQuery string, page, limit int) ([]*PaymentMethod, int, error) {
 	offset := (page - 1) * limit
-	return s.repo.GetPaymentMethods(ctx, activeOnly, limit, offset)
+	return s.repo.GetPaymentMethods(ctx, activeOnly, searchQuery, limit, offset)
 }
 
 func (s *platformService) UpdatePaymentMethod(ctx context.Context, id int, input UpdatePaymentMethodInput) (*PaymentMethod, error) {

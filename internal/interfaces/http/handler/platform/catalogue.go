@@ -58,9 +58,10 @@ func (h *PlatformHandler) CreatePaymentMethodHandler(c *gin.Context) {
 // GetPaymentMethodsHandler handles GET /admin/payment-methods.
 func (h *PlatformHandler) GetPaymentMethodsHandler(c *gin.Context) {
 	activeOnly := c.Query("active_only") == "true"
+	searchQuery := c.Query("search")
 	page, limit := parsePlatformPage(c)
 
-	methods, total, err := h.platformService.GetPaymentMethods(c.Request.Context(), activeOnly, page, limit)
+	methods, total, err := h.platformService.GetPaymentMethods(c.Request.Context(), activeOnly, searchQuery, page, limit)
 	if err != nil {
 		basehandler.HandleError(c, err)
 		return
