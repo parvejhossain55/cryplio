@@ -4,11 +4,12 @@ const API_BASE_URL = process.env.API_GATEWAY_URL || "http://localhost:8080";
 
 export async function POST(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
+        const params = await context.params;
         const body = await request.json();
-        
+
         const response = await fetch(`${API_BASE_URL}/trades/${params.id}/messages`, {
             method: "POST",
             headers: {
@@ -36,9 +37,10 @@ export async function POST(
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
+        const params = await context.params;
         const response = await fetch(`${API_BASE_URL}/trades/${params.id}/messages`, {
             method: "GET",
             headers: {

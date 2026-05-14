@@ -1,5 +1,5 @@
 -- ============================================
--- Migration 004: Wallets & Trading
+-- Migration 004: Wallets & Trading (Aligned with live DB)
 -- ============================================
 
 BEGIN;
@@ -25,17 +25,31 @@ CREATE TABLE trade_ads (
     type ad_type NOT NULL,
     crypto_id INT NOT NULL REFERENCES crypto_assets(id),
     fiat_id INT NOT NULL REFERENCES fiat_currencies(id),
-    price_type price_type NOT NULL,
+    price_type price_type NOT NULL DEFAULT 'fixed',
     price DECIMAL(20,8) NOT NULL,
-    min_amount DECIMAL(20,8) NOT NULL,
-    max_amount DECIMAL(20,8) NOT NULL,
-    payment_method_code VARCHAR(30) NOT NULL REFERENCES payment_methods(code),
-    payment_window_minutes INT NOT NULL DEFAULT 15,
-    terms TEXT,
-    instructions TEXT,
+    floating_markup DECIMAL(5,2),
+    min_amount DECIMAL(20,2) NOT NULL,
+    max_amount DECIMAL(20,2) NOT NULL,
+    payment_methods INTEGER[] NOT NULL DEFAULT '{}',
+    trade_terms TEXT,
+    payment_window_minutes INT NOT NULL DEFAULT 30,
+    is_public BOOLEAN NOT NULL DEFAULT true,
+    is_paused BOOLEAN NOT NULL DEFAULT false,
+    visibility_start_at TIMESTAMP,
+    visibility_end_at TIMESTAMP,
+    timezone VARCHAR(50) DEFAULT 'UTC',
+    auto_repost BOOLEAN NOT NULL DEFAULT false,
+    repost_count INT NOT NULL DEFAULT 0,
+    views_count INT NOT NULL DEFAULT 0,
+    response_count INT NOT NULL DEFAULT 0,
+    locked_balance DECIMAL(20,8) NOT NULL DEFAULT 0,
     status VARCHAR(20) NOT NULL DEFAULT 'active',
+    first_published_at TIMESTAMP,
+    published_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMP,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMP
 );
 
 CREATE TABLE trades (
@@ -46,21 +60,29 @@ CREATE TABLE trades (
     crypto_id INT NOT NULL REFERENCES crypto_assets(id),
     fiat_id INT NOT NULL REFERENCES fiat_currencies(id),
     crypto_amount DECIMAL(20,8) NOT NULL,
-    fiat_amount DECIMAL(20,8) NOT NULL,
-    rate DECIMAL(20,8) NOT NULL,
+    fiat_amount DECIMAL(20,2) NOT NULL,
+    exchange_rate DECIMAL(20,8) NOT NULL,
+    agreed_price DECIMAL(20,8) NOT NULL,
+    payment_method INT NOT NULL REFERENCES payment_methods(id),
+    price_type price_type NOT NULL DEFAULT 'fixed',
     status trade_status NOT NULL DEFAULT 'pending',
-    payment_method_code VARCHAR(30) NOT NULL REFERENCES payment_methods(code),
-    escrow_wallet_id UUID REFERENCES wallets(wallet_id),
-    tx_hash VARCHAR(66),
-    payment_window_minutes INT NOT NULL DEFAULT 15,
-    expires_at TIMESTAMP NOT NULL,
-    paid_at TIMESTAMP,
+    dispute_id INT,
+    chat_room_id VARCHAR(255) UNIQUE,
+    started_at TIMESTAMP,
+    payment_marked_at TIMESTAMP,
     released_at TIMESTAMP,
-    completed_at TIMESTAMP,
     cancelled_at TIMESTAMP,
-    disputed_at TIMESTAMP,
+    completed_at TIMESTAMP,
+    expired_at TIMESTAMP,
+    payment_window_minutes INT NOT NULL DEFAULT 30,
+    time_remaining_seconds INT,
+    is_auto_dispute_triggered BOOLEAN NOT NULL DEFAULT false,
+    cancel_reason TEXT,
+    escrow_txn_hash VARCHAR(66),
+    escrow_contract_address VARCHAR(42),
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMP
 );
 
 CREATE TABLE wallet_transactions (
@@ -77,46 +99,6 @@ CREATE TABLE wallet_transactions (
     to_address VARCHAR(255),
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE disputes (
-    dispute_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    trade_id UUID NOT NULL REFERENCES trades(trade_id) ON DELETE CASCADE,
-    raised_by UUID NOT NULL REFERENCES users(user_id),
-    reason_code VARCHAR(30) NOT NULL REFERENCES dispute_reasons(code),
-    reason_text TEXT,
-    evidence_links TEXT[],
-    status dispute_status NOT NULL DEFAULT 'pending',
-    assigned_admin UUID REFERENCES users(user_id),
-    assigned_at TIMESTAMP,
-    resolution_type dispute_resolution,
-    resolution_note TEXT,
-    resolved_by UUID REFERENCES users(user_id),
-    resolved_at TIMESTAMP,
-    closed_at TIMESTAMP,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE trade_messages (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    trade_id UUID NOT NULL REFERENCES trades(trade_id) ON DELETE CASCADE,
-    sender_id UUID NOT NULL REFERENCES users(user_id),
-    message TEXT,
-    is_system BOOLEAN NOT NULL DEFAULT false,
-    attachment_url VARCHAR(500),
-    created_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE trade_feedback (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    trade_id UUID NOT NULL REFERENCES trades(trade_id) ON DELETE CASCADE,
-    reviewer_id UUID NOT NULL REFERENCES users(user_id),
-    reviewee_id UUID NOT NULL REFERENCES users(user_id),
-    rating feedback_rating NOT NULL,
-    comment TEXT,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    UNIQUE(trade_id, reviewer_id)
 );
 
 COMMIT;

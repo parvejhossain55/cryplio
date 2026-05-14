@@ -71,14 +71,11 @@ func (s *tradeService) UpdateAd(ctx context.Context, adID, userID uuid.UUID, upd
 	if updates.MaxAmount > 0 {
 		ad.MaxAmount = updates.MaxAmount
 	}
-	if updates.PaymentMethodCode != "" {
-		ad.PaymentMethodCode = updates.PaymentMethodCode
+	if len(updates.PaymentMethods) > 0 {
+		ad.PaymentMethods = updates.PaymentMethods
 	}
-	if updates.Terms != nil {
-		ad.Terms = updates.Terms
-	}
-	if updates.Instructions != nil {
-		ad.Instructions = updates.Instructions
+	if updates.TradeTerms != nil {
+		ad.TradeTerms = updates.TradeTerms
 	}
 	if updates.PaymentWindowMinutes > 0 {
 		// Validate payment window against configured limits
@@ -133,10 +130,10 @@ func (s *tradeService) ToggleAdStatus(ctx context.Context, adID, userID uuid.UUI
 		return errors.New("unauthorized")
 	}
 
-	if ad.Status == TradeAdStatusActive {
-		ad.Pause()
-	} else {
+	if ad.IsPaused {
 		ad.Resume()
+	} else {
+		ad.Pause()
 	}
 	return s.tradeRepo.UpdateAd(ctx, ad)
 }

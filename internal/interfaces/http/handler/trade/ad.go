@@ -13,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 // ListAdsHandler returns a paginated, filtered list of active trade ads.
@@ -44,10 +45,10 @@ func (h *TradeHandler) ListAdsHandler(c *gin.Context) {
 	if fiatCurrency != "" && fiatCurrency != "all" {
 		filter.FiatCode = &fiatCurrency
 	}
+	// payment_method filter: expects an integer ID (matching payment_methods.id)
 	if paymentMethodStr != "" && paymentMethodStr != "all" {
-		// Try to parse as int first, otherwise will need payment method lookup
-		if pmID, err := strconv.Atoi(paymentMethodStr); err == nil && pmID > 0 {
-			filter.PaymentMethods = []int{pmID}
+		if pmID, err := strconv.ParseInt(paymentMethodStr, 10, 64); err == nil && pmID > 0 {
+			filter.PaymentMethods = []int64{pmID}
 		}
 	}
 
@@ -64,6 +65,23 @@ func (h *TradeHandler) ListAdsHandler(c *gin.Context) {
 
 	for i, ad := range ads {
 		isOnline := ad.UserLastSeen != nil && ad.UserLastSeen.After(time.Now().Add(-5*time.Minute))
+		// Map payment method names if available, otherwise fallback to IDs
+		pmNames := make([]string, len(ad.PaymentMethods))
+		if len(ad.PaymentMethodNames) == len(ad.PaymentMethods) {
+			pmNames = ad.PaymentMethodNames
+		} else {
+			for j, pmID := range ad.PaymentMethods {
+				pmNames[j] = strconv.FormatInt(pmID, 10)
+			}
+		}
+		pmIDs := make([]int, len(ad.PaymentMethods))
+		for j, pmID := range ad.PaymentMethods {
+			pmIDs[j] = int(pmID)
+		}
+		tradeTerms := ""
+		if ad.TradeTerms != nil {
+			tradeTerms = *ad.TradeTerms
+		}
 		response.Ads[i] = dto.AdResponse{
 			AdID:                 ad.AdID.String(),
 			UserID:               ad.UserID.String(),
@@ -78,15 +96,13 @@ func (h *TradeHandler) ListAdsHandler(c *gin.Context) {
 			Price:                ad.Price,
 			MinAmount:            ad.MinAmount,
 			MaxAmount:            ad.MaxAmount,
-			PaymentMethods:       []string{}, // TODO: map IDs to names
+			PaymentMethods:       pmNames,
+			PaymentMethodIDs:     pmIDs,
 			PaymentWindowMinutes: ad.PaymentWindowMinutes,
 			IsOnline:             isOnline,
-			TradeTerms: func() string {
-				if ad.Terms != nil {
-					return *ad.Terms
-				}
-				return ""
-			}(),
+			TradeTerms:           tradeTerms,
+			Status:               string(ad.Status),
+			CreatedAt:            ad.CreatedAt.Format(time.RFC3339),
 		}
 	}
 
@@ -106,6 +122,21 @@ func (h *TradeHandler) CreateAdHandler(c *gin.Context) {
 		return
 	}
 
+	// Convert payment method IDs to pq.Int64Array
+	var paymentMethods pq.Int64Array
+	for _, pmID := range req.PaymentMethodIDs {
+		paymentMethods = append(paymentMethods, int64(pmID))
+	}
+	if len(paymentMethods) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "at least one payment method is required"})
+		return
+	}
+
+	var tradeTerms *string
+	if req.TradeTerms != "" {
+		tradeTerms = &req.TradeTerms
+	}
+
 	ad := &trading.TradeAd{
 		AdID:                 uuid.New(),
 		UserID:               userID,
@@ -116,10 +147,11 @@ func (h *TradeHandler) CreateAdHandler(c *gin.Context) {
 		Price:                req.Price,
 		MinAmount:            req.MinAmount,
 		MaxAmount:            req.MaxAmount,
-		PaymentMethodCode:    req.PaymentMethodCode,
-		Terms:                &req.Terms,
-		Instructions:         &req.Instructions,
+		PaymentMethods:       paymentMethods,
+		TradeTerms:           tradeTerms,
 		PaymentWindowMinutes: req.PaymentWindowMinutes,
+		IsPublic:             true,
+		IsPaused:             false,
 		Status:               trading.TradeAdStatusActive,
 	}
 
@@ -150,6 +182,16 @@ func (h *TradeHandler) UpdateAdHandler(c *gin.Context) {
 		return
 	}
 
+	var paymentMethods pq.Int64Array
+	for _, pmID := range req.PaymentMethodIDs {
+		paymentMethods = append(paymentMethods, int64(pmID))
+	}
+
+	var tradeTerms *string
+	if req.TradeTerms != "" {
+		tradeTerms = &req.TradeTerms
+	}
+
 	updates := &trading.TradeAd{
 		Type:                 trading.AdType(req.Type),
 		CryptoID:             req.CryptoID,
@@ -158,9 +200,8 @@ func (h *TradeHandler) UpdateAdHandler(c *gin.Context) {
 		Price:                req.Price,
 		MinAmount:            req.MinAmount,
 		MaxAmount:            req.MaxAmount,
-		PaymentMethodCode:    req.PaymentMethodCode,
-		Terms:                &req.Terms,
-		Instructions:         &req.Instructions,
+		PaymentMethods:       paymentMethods,
+		TradeTerms:           tradeTerms,
 		PaymentWindowMinutes: req.PaymentWindowMinutes,
 	}
 
@@ -206,23 +247,44 @@ func (h *TradeHandler) ListMyAdsHandler(c *gin.Context) {
 		return
 	}
 
-	// Map to DTOs
 	response := dto.ListAdsResponse{
 		Total: total,
 		Ads:   make([]dto.AdResponse, len(ads)),
 	}
 
 	for i, ad := range ads {
+		pmNames := make([]string, len(ad.PaymentMethods))
+		if len(ad.PaymentMethodNames) == len(ad.PaymentMethods) {
+			pmNames = ad.PaymentMethodNames
+		} else {
+			for j, pmID := range ad.PaymentMethods {
+				pmNames[j] = strconv.FormatInt(pmID, 10)
+			}
+		}
+		pmIDs := make([]int, len(ad.PaymentMethods))
+		for j, pmID := range ad.PaymentMethods {
+			pmIDs[j] = int(pmID)
+		}
+		tradeTerms := ""
+		if ad.TradeTerms != nil {
+			tradeTerms = *ad.TradeTerms
+		}
 		response.Ads[i] = dto.AdResponse{
 			AdID:                 ad.AdID.String(),
 			UserID:               ad.UserID.String(),
 			Type:                 string(ad.Type),
+			CryptoSymbol:         ad.CryptoSymbol,
+			FiatSymbol:           ad.FiatSymbol,
 			PriceType:            string(ad.PriceType),
 			Price:                ad.Price,
 			MinAmount:            ad.MinAmount,
 			MaxAmount:            ad.MaxAmount,
-			PaymentMethods:       []string{}, // TODO: map IDs to names
+			PaymentMethods:       pmNames,
+			PaymentMethodIDs:     pmIDs,
 			PaymentWindowMinutes: ad.PaymentWindowMinutes,
+			TradeTerms:           tradeTerms,
+			Status:               string(ad.Status),
+			CreatedAt:            ad.CreatedAt.Format(time.RFC3339),
 		}
 	}
 

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Bell, BellOff, Mail, Smartphone, Globe, Volume2, VolumeX, Loader2, CheckCircle, AlertCircle, Save } from "lucide-react";
 import { motion } from "framer-motion";
-import { authService } from "@/services/authService";
+import { NotificationService } from "@/services/notificationService";
 import { toast } from "sonner";
 
 interface NotificationChannel {
@@ -25,7 +25,7 @@ interface NotificationCategory {
 // Helper function to get preference value from backend response
 function getPrefValue(prefs: any, channelId: string, defaultValue: boolean): boolean {
     if (!prefs) return defaultValue;
-    
+
     // Map channel IDs to preference keys
     const keyMap: Record<string, { type: string; key: string }> = {
         email_security: { type: "email", key: "email_security" },
@@ -35,13 +35,13 @@ function getPrefValue(prefs: any, channelId: string, defaultValue: boolean): boo
         push_trades: { type: "push", key: "push_trades" },
         sms_critical: { type: "sms", key: "sms_critical" },
     };
-    
+
     const mapping = keyMap[channelId];
     if (!mapping) return defaultValue;
-    
+
     const typePrefs = prefs[mapping.type];
     if (!typePrefs) return defaultValue;
-    
+
     return typePrefs[mapping.key] ?? defaultValue;
 }
 
@@ -64,7 +64,7 @@ const AlertsSettings = () => {
     useEffect(() => {
         const loadPreferences = async () => {
             try {
-                const prefs = await authService.getNotificationPreferences();
+                const prefs = await NotificationService.getPreferences();
                 if (prefs) {
                     // Map backend preferences to channels
                     setChannels(prev => prev.map(ch => ({
@@ -113,14 +113,14 @@ const AlertsSettings = () => {
                     sms_critical: channels.find(c => c.id === "sms_critical")?.enabled ?? false,
                 }
             };
-            
+
             // Save to backend
-            await authService.saveNotificationPreferences(prefs);
-            
+            await NotificationService.savePreferences(prefs);
+
             // Also save to localStorage as backup
             const localPrefs = channels.reduce((acc, ch) => ({ ...acc, [ch.id]: ch.enabled }), {});
             localStorage.setItem("cryplio_notification_preferences", JSON.stringify(localPrefs));
-            
+
             toast.success("Notification preferences saved successfully");
         } catch (error: any) {
             toast.error(error.message || "Failed to save preferences");

@@ -15,9 +15,12 @@ type AdResponse struct {
 	MinAmount            float64  `json:"min_amount"`
 	MaxAmount            float64  `json:"max_amount"`
 	PaymentMethods       []string `json:"payment_methods"`
+	PaymentMethodIDs     []int    `json:"payment_method_ids"`
 	PaymentWindowMinutes int      `json:"payment_window_minutes"`
 	IsOnline             bool     `json:"is_online"`
 	TradeTerms           string   `json:"trade_terms,omitempty"`
+	Status               string   `json:"status"`
+	CreatedAt            string   `json:"created_at"`
 }
 
 type ListAdsResponse struct {
@@ -33,9 +36,8 @@ type CreateAdRequest struct {
 	Price                float64 `json:"price" binding:"required,gt=0"`
 	MinAmount            float64 `json:"min_amount" binding:"required,gt=0"`
 	MaxAmount            float64 `json:"max_amount" binding:"required,gt=0"`
-	PaymentMethodCode    string  `json:"payment_method_code" binding:"required"`
-	Terms                string  `json:"terms"`
-	Instructions         string  `json:"instructions"`
+	PaymentMethodIDs     []int   `json:"payment_method_ids" binding:"required,min=1"`
+	TradeTerms           string  `json:"trade_terms"`
 	PaymentWindowMinutes int     `json:"payment_window_minutes" binding:"required"`
 }
 
@@ -47,14 +49,14 @@ type UpdateAdRequest struct {
 	Price                float64 `json:"price" binding:"omitempty,gt=0"`
 	MinAmount            float64 `json:"min_amount" binding:"omitempty,gt=0"`
 	MaxAmount            float64 `json:"max_amount" binding:"omitempty,gt=0"`
-	PaymentMethodCode    string  `json:"payment_method_code"`
-	Terms                string  `json:"terms"`
-	Instructions         string  `json:"instructions"`
+	PaymentMethodIDs     []int   `json:"payment_method_ids"`
+	TradeTerms           string  `json:"trade_terms"`
 	PaymentWindowMinutes int     `json:"payment_window_minutes"`
 }
 
 type InitiateTradeRequest struct {
-	Amount float64 `json:"amount" binding:"required,gt=0"`
+	Amount          float64 `json:"amount" binding:"required,gt=0"`
+	PaymentMethodID int     `json:"payment_method_id" binding:"required"`
 }
 
 type LeaveFeedbackRequest struct {

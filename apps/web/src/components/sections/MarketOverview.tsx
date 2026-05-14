@@ -6,7 +6,9 @@ import { Search, Filter, ArrowUpRight, ChevronDown, Clock, Star, TrendingUp } fr
 import { toast } from "sonner";
 import Link from "next/link";
 import Pagination from "@/components/ui/Pagination";
-import { authService, AdResponse } from "@/services/authService";
+import { MarketplaceService, AdResponse } from "@/services/marketplaceService";
+import { TradeService } from "@/services/tradeService";
+import { useAuth } from "@/context/AuthContext";
 
 const p2pAds = [
     // USD - BUY
@@ -83,11 +85,11 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
         const fetchAds = async () => {
             setIsLoading(true);
             try {
-                const data = await authService.getAds({
+                const data = await MarketplaceService.getAds({
                     type: activeTab,
-                });
+                } as any);
 
-                if (!data || data.length === 0) {
+                if (!data || !data.ads || data.ads.length === 0) {
                     const mockMapped: AdResponse[] = p2pAds
                         .filter(ad => ad.type === activeTab && ad.currency === selectedFiat && ad.coin === selectedCoin)
                         .map((ad, idx) => ({
@@ -103,13 +105,16 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
                             min_amount: parseFloat(ad.limits.split("-")[0].replace(/,/g, "")),
                             max_amount: parseFloat(ad.limits.split("-")[1].replace(/,/g, "")),
                             payment_methods: ad.methods,
+                            payment_method_ids: ad.methods.map((_, i) => i + 1), // Dummy IDs for mock
                             payment_window_minutes: parseInt(ad.time.split(" ")[0]),
                             is_online: true,
-                            price_type: "fixed"
+                            price_type: "fixed",
+                            status: "active",
+                            created_at: new Date().toISOString()
                         }));
                     setAds(mockMapped);
                 } else {
-                    setAds(data);
+                    setAds(data.ads);
                 }
             } catch (error) {
                 // Fallen back to mock data if API is temporarily unavailable
@@ -128,9 +133,12 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
                         min_amount: parseFloat(ad.limits.split("-")[0].replace(/,/g, "")),
                         max_amount: parseFloat(ad.limits.split("-")[1].replace(/,/g, "")),
                         payment_methods: ad.methods,
+                        payment_method_ids: ad.methods.map((_, i) => i + 1), // Dummy IDs for mock
                         payment_window_minutes: parseInt(ad.time.split(" ")[0]),
                         is_online: true,
-                        price_type: "fixed"
+                        price_type: "fixed",
+                        status: "active",
+                        created_at: new Date().toISOString()
                     }));
                 setAds(mockMapped);
             } finally {
@@ -173,6 +181,8 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
             element.scrollIntoView({ behavior: "smooth", block: "start" });
         }
     };
+
+    const { user: authUser, isLoading: authLoading } = useAuth();
 
     return (
         <section className="py-24 bg-background relative overflow-hidden" id="marketplace">
@@ -331,8 +341,8 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
                                                                 {ad.username}
                                                             </Link>
                                                             <div className="flex items-center space-x-3 text-xs font-bold text-text-dim">
-                                                                <span className="flex items-center gap-1"><Star className="w-3 h-3 text-amber-500 fill-amber-500" /> {ad.user_rating}{ad.user_rating > 10 ? "%" : ""}</span>
-                                                                <span>{ad.user_trades} trades</span>
+                                                                <span className="flex items-center gap-1"><Star className="w-3 h-3 text-amber-500 fill-amber-500" /> {ad.user_rating ?? 0}{ad.user_rating && ad.user_rating > 10 ? "%" : ""}</span>
+                                                                <span>{ad.user_trades ?? 0} trades</span>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -402,7 +412,7 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
                                                 <Link href={`/u/${ad.username}`} className="font-black text-white flex items-center gap-1 hover:text-primary transition-colors">
                                                     {ad.username}
                                                 </Link>
-                                                <p className="text-[10px] font-bold text-text-dim uppercase tracking-wider">{ad.user_trades} TRADES | {ad.user_rating}{ad.user_rating > 10 ? "%" : ""} RATING</p>
+                                                <p className="text-[10px] font-bold text-text-dim uppercase tracking-wider">{ad.user_trades ?? 0} TRADES | {ad.user_rating ?? 0}{ad.user_rating && ad.user_rating > 10 ? "%" : ""} RATING</p>
                                             </div>
                                         </div>
                                         <div className="bg-accent/5 px-3 py-1 rounded-lg border border-accent/10">
@@ -505,12 +515,19 @@ const MarketOverview = ({ hideViewAll = false }: MarketOverviewProps) => {
                                     <button
                                         disabled={isInitiating}
                                         onClick={async () => {
+                                            if (authLoading) return;
+                                            if (!authUser) {
+                                                toast.error("Please login to trade");
+                                                window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+                                                return;
+                                            }
                                             setIsInitiating(true);
                                             setInitiationError(null);
                                             try {
                                                 const amount = parseFloat(tradeAmount);
-                                                const result = await authService.initiateTrade(selectedAd.ad_id, amount);
-                                                window.location.href = `/marketplace/trade/${result.trade_id}`;
+                                                const pmId = selectedAd.payment_method_ids ? selectedAd.payment_method_ids[0] : 0;
+                                                const result = await TradeService.initiateTrade(selectedAd.ad_id, amount, pmId);
+                                                window.location.href = `/user/dashboard/trades/${result.trade_id}`;
                                             } catch (err: any) {
                                                 setInitiationError(err.message);
                                             } finally {

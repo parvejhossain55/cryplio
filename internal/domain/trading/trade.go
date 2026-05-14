@@ -2,6 +2,7 @@ package trading
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -13,7 +14,7 @@ import (
 )
 
 // InitiateTrade validates preconditions, locks escrow on-chain, and persists a new Trade.
-func (s *tradeService) InitiateTrade(ctx context.Context, adID, buyerID uuid.UUID, amount float64) (*Trade, error) {
+func (s *tradeService) InitiateTrade(ctx context.Context, adID, buyerID uuid.UUID, amount float64, paymentMethodID int) (*Trade, error) {
 	buyer, err := s.identityRepo.GetByID(ctx, buyerID)
 	if err != nil {
 		return nil, fmt.Errorf("get buyer: %w", err)
@@ -49,7 +50,7 @@ func (s *tradeService) InitiateTrade(ctx context.Context, adID, buyerID uuid.UUI
 		return nil, fmt.Errorf("amount must be between %.2f and %.2f", ad.MinAmount, ad.MaxAmount)
 	}
 
-	// 5. Build Trade record.
+	now := time.Now()
 	trade := &Trade{
 		TradeID:              uuid.New(),
 		AdID:                 ad.AdID,
@@ -59,11 +60,37 @@ func (s *tradeService) InitiateTrade(ctx context.Context, adID, buyerID uuid.UUI
 		FiatID:               ad.FiatID,
 		CryptoAmount:         amount / ad.Price, // Simple calculation for now.
 		FiatAmount:           amount,
-		Rate:                 ad.Price,
+		ExchangeRate:         ad.Price,
+		AgreedPrice:          ad.Price,
 		Status:               TradeStatusPending,
-		PaymentMethodCode:    ad.PaymentMethodCode,
+		PaymentMethod:        paymentMethodID,
+		PriceType:            ad.PriceType,
 		PaymentWindowMinutes: ad.PaymentWindowMinutes,
-		ExpiresAt:            time.Now().Add(time.Duration(ad.PaymentWindowMinutes) * time.Minute),
+		StartedAt:            &now,
+	}
+
+	// 5. Fetch and snapshot payment details
+	pm, _ := s.platformRepo.GetPaymentMethod(ctx, paymentMethodID)
+	if pm != nil {
+		trade.PaymentMethodName = pm.Name
+		// Fetch seller's specific payment method details
+		sellerMethods, _ := s.identityRepo.GetUserPaymentMethods(ctx, ad.UserID)
+		for _, sm := range sellerMethods {
+			// Find match by global method code
+			if sm.PaymentMethodCode == pm.Code {
+				bytes, _ := json.Marshal(sm)
+				trade.PaymentDetails = bytes
+				break
+			}
+		}
+	}
+
+	// If no specific details found, use a generic description
+	if trade.PaymentDetails == nil && pm != nil {
+		bytes, _ := json.Marshal(map[string]string{
+			"message": fmt.Sprintf("Please ask the seller for their %s details via chat.", pm.Name),
+		})
+		trade.PaymentDetails = bytes
 	}
 
 	// 6. Lock Escrow on Blockchain (Mock or real client)
@@ -71,7 +98,8 @@ func (s *tradeService) InitiateTrade(ctx context.Context, adID, buyerID uuid.UUI
 	if err != nil {
 		return nil, fmt.Errorf("blockchain escrow lock failed: %w", err)
 	}
-	trade.TxHash = &txHash
+	// TxHash not stored in current schema; escrow tracked externally
+	_ = txHash
 	trade.Status = TradeStatusActive // Active once locked.
 
 	if err = s.tradeRepo.CreateTrade(ctx, trade); err != nil {
@@ -109,9 +137,50 @@ func (s *tradeService) CountTrades(ctx context.Context, status string) (int, err
 	return s.tradeRepo.CountTrades(ctx, status)
 }
 
-// GetTrade returns a single trade by its ID.
+// GetTrade returns a single trade by its ID, enriched with usernames and symbols.
 func (s *tradeService) GetTrade(ctx context.Context, id uuid.UUID) (*Trade, error) {
-	return s.tradeRepo.GetTradeByID(ctx, id)
+	trade, err := s.tradeRepo.GetTradeByID(ctx, id)
+	if err != nil || trade == nil {
+		return trade, err
+	}
+
+	// Fetch Seller username
+	seller, _ := s.identityRepo.GetByID(ctx, trade.SellerID)
+	if seller != nil {
+		trade.SellerUsername = seller.Username
+	}
+
+	// Fetch Crypto and Fiat symbols directly
+	cryptoAsync, _ := s.platformRepo.GetCryptoAsset(ctx, trade.CryptoID)
+	if cryptoAsync != nil {
+		trade.CryptoSymbol = cryptoAsync.Symbol
+	}
+	fiatAsync, _ := s.platformRepo.GetFiatCurrency(ctx, trade.FiatID)
+	if fiatAsync != nil {
+		trade.FiatSymbol = fiatAsync.Code
+	}
+
+	// 2. Fetch Buyer username
+	buyer, _ := s.identityRepo.GetByID(ctx, trade.BuyerID)
+	if buyer != nil {
+		trade.BuyerUsername = buyer.Username
+	}
+
+	// 3. Calculate timer if active
+	if trade.Status == TradeStatusActive && trade.StartedAt != nil {
+		expiry := trade.StartedAt.Add(time.Minute * time.Duration(trade.PaymentWindowMinutes))
+		trade.TimerExpiresAt = &expiry
+	}
+
+	// 4. Enrich Payment Method
+	if trade.PaymentMethod > 0 {
+		pm, _ := s.platformRepo.GetPaymentMethod(ctx, trade.PaymentMethod)
+		if pm != nil {
+			trade.PaymentMethodName = pm.Name
+		}
+	}
+
+	return trade, nil
 }
 
 // MarkAsPaid records that the buyer has sent payment and notifies the seller.
@@ -166,7 +235,8 @@ func (s *tradeService) ReleaseEscrow(ctx context.Context, tradeID, userID uuid.U
 	if err != nil {
 		return fmt.Errorf("blockchain escrow release failed: %w", err)
 	}
-	trade.TxHash = &txHash
+	// TxHash not stored in current schema; escrow tracked externally
+	_ = txHash
 
 	// Auto-complete trade after escrow release.
 	trade.Complete()
@@ -251,9 +321,7 @@ func (s *tradeService) DisputeTrade(ctx context.Context, tradeID, userID uuid.UU
 	}
 
 	// Update Trade status.
-	now := time.Now()
 	trade.Status = TradeStatusDisputed
-	trade.DisputedAt = &now
 	if err := s.tradeRepo.UpdateTrade(ctx, trade); err != nil {
 		return nil, fmt.Errorf("update trade status: %w", err)
 	}

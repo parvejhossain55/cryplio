@@ -32,7 +32,7 @@ func (h *TradeHandler) InitiateTradeHandler(c *gin.Context) {
 		return
 	}
 
-	trade, err := h.tradeService.InitiateTrade(c.Request.Context(), adID, buyerID, req.Amount)
+	trade, err := h.tradeService.InitiateTrade(c.Request.Context(), adID, buyerID, req.Amount, req.PaymentMethodID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -61,7 +61,7 @@ func (h *TradeHandler) ListTradesHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, trades)
+	c.JSON(http.StatusOK, gin.H{"trades": trades})
 }
 
 // GetTradeHandler retrieves a single trade by ID.
@@ -82,7 +82,7 @@ func (h *TradeHandler) GetTradeHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, trade)
+	c.JSON(http.StatusOK, gin.H{"trade": trade})
 }
 
 // UpdateTradeStatusHandler advances a trade through its lifecycle (pay / release / cancel).

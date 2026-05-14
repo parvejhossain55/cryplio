@@ -56,35 +56,9 @@ export interface CreatePaymentMethodRequest {
     bank_name?: string;
 }
 
-export interface AdResponse {
-    ad_id: string;
-    user_id: string;
-    username: string;
-    user_avatar?: string;
-    user_rating: number;
-    user_trades: number;
-    type: "buy" | "sell";
-    crypto_symbol: string;
-    fiat_symbol: string;
-    price_type: string;
-    price: number;
-    min_amount: number;
-    max_amount: number;
-    payment_methods: string[];
-    payment_window_minutes: number;
-    is_online: boolean;
-}
+// Auth response types remain here for now as they are core to identity
 
-export interface WalletBalance {
-    wallet_id: string;
-    user_id: string;
-    crypto_id: number | null;
-    crypto_symbol: string | null;
-    address: string;
-    balance: number;
-    locked_balance: number;
-    is_active: boolean;
-}
+// Wallet related interfaces moved to walletService.ts
 
 export interface AuthResponse {
     user?: BackendUser;
@@ -198,9 +172,9 @@ export const authService = {
     },
 
     complete2FALogin: async (tempToken: string, code: string): Promise<BackendUser> => {
-        const res = await ApiClient.post<AuthResponse>("/api/v1/auth/2fa/complete-login", { 
-            temp_token: tempToken, 
-            code 
+        const res = await ApiClient.post<AuthResponse>("/api/v1/auth/2fa/complete-login", {
+            temp_token: tempToken,
+            code
         });
         rememberAuthSession();
         return res.user!;
@@ -271,7 +245,12 @@ export const authService = {
         return res.payment_methods || [];
     },
 
-    addPaymentMethod: async (data: CreatePaymentMethodRequest): Promise<UserPaymentMethod> => {
+    getMyPaymentMethods: async (): Promise<UserPaymentMethod[]> => {
+        const res = await ApiClient.get<{ payment_methods: UserPaymentMethod[] }>("/api/v1/users/me/payment-methods");
+        return res.payment_methods || [];
+    },
+
+    createPaymentMethod: async (data: CreatePaymentMethodRequest): Promise<UserPaymentMethod> => {
         return ApiClient.post("/api/v1/users/me/payment-methods", data);
     },
 
@@ -287,14 +266,7 @@ export const authService = {
         await ApiClient.patch(`/api/v1/users/me/payment-methods/${id}/default`);
     },
 
-    // Block/Report
-    blockUser: async (userId: string, reason?: string): Promise<void> => {
-        await ApiClient.post(`/api/v1/users/block/${userId}`, { reason });
-    },
-
-    unblockUser: async (userId: string): Promise<void> => {
-        await ApiClient.delete(`/api/v1/users/block/${userId}`);
-    },
+    // Block/Report features removed per previous architectural decisions
 
     // Admin Methods
     getAdminDisputes: async (): Promise<any[]> => {

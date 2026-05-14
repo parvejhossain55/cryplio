@@ -18,7 +18,7 @@ import {
     CheckCircle2,
     QrCode
 } from "lucide-react";
-import { authService, WalletBalance, WalletTransaction } from "@/services/authService";
+import { WalletService, WalletBalance, WalletTransaction } from "@/services/walletService";
 import { toast } from "sonner";
 
 const UserWallet = () => {
@@ -26,7 +26,7 @@ const UserWallet = () => {
     const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    
+
     // Modal states
     const [showDepositModal, setShowDepositModal] = useState(false);
     const [showWithdrawModal, setShowWithdrawModal] = useState(false);
@@ -44,11 +44,11 @@ const UserWallet = () => {
         setError(null);
         try {
             const [walletData, txData] = await Promise.all([
-                authService.getWalletBalances(),
-                authService.getWalletTransactions({ limit: 10, offset: 0 }),
+                WalletService.getBalances(),
+                WalletService.getTransactions({ limit: 10, offset: 0 }),
             ]);
             setWallets(walletData);
-            setTransactions(txData.transactions);
+            setTransactions(txData.transactions || txData || []);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load wallet data");
         } finally {
@@ -71,7 +71,7 @@ const UserWallet = () => {
 
         try {
             const cryptoSymbol = wallet.crypto_symbol || "USDT";
-            const addressData = await authService.getDepositAddress(cryptoSymbol);
+            const addressData = await WalletService.getDepositAddress(cryptoSymbol);
             setDepositAddress(addressData.address);
         } catch (error: any) {
             toast.error("Failed to get deposit address");
@@ -84,7 +84,7 @@ const UserWallet = () => {
             toast.error("Insufficient balance");
             return;
         }
-        
+
         setSelectedWallet(wallet);
         setShowWithdrawModal(true);
     };
@@ -102,11 +102,10 @@ const UserWallet = () => {
 
         setIsSubmitting(true);
         try {
-            await authService.withdrawFunds({
-                crypto_symbol: selectedWallet?.crypto_symbol || "USDT",
+            await WalletService.withdraw({
+                crypto: selectedWallet?.crypto_symbol || "USDT",
                 amount: Number(withdrawForm.amount),
-                address: withdrawForm.address,
-                two_fa_code: withdrawForm.twoFACode
+                address: withdrawForm.address
             });
 
             toast.success("Withdrawal request submitted successfully");
@@ -171,9 +170,8 @@ const UserWallet = () => {
                                     <div className="flex items-center justify-between mb-3">
                                         <div>
                                             <span className="text-sm font-bold text-white">Universal Wallet</span>
-                                            <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${
-                                                wallet.is_active ? "bg-green-500/20 text-green-500" : "bg-red-500/20 text-red-500"
-                                            }`}>
+                                            <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${wallet.is_active ? "bg-green-500/20 text-green-500" : "bg-red-500/20 text-red-500"
+                                                }`}>
                                                 {wallet.is_active ? "Active" : "Inactive"}
                                             </span>
                                         </div>
@@ -218,22 +216,38 @@ const UserWallet = () => {
                             <History className="w-4 h-4 text-text-dim" />
                         </div>
                         <div className="space-y-3">
-                            {loading && <p className="text-text-dim text-sm">Loading transactions...</p>}
-                            {!loading && transactions.length === 0 && <p className="text-text-dim text-sm">No transactions yet.</p>}
+                            {loading && <p className="text-text-dim text-sm italic">Loading transactions...</p>}
+                            {!loading && transactions.length === 0 && (
+                                <div className="py-8 text-center border border-dashed border-white/5 rounded-2xl">
+                                    <History className="w-8 h-8 text-white/5 mx-auto mb-2" />
+                                    <p className="text-text-dim text-xs uppercase tracking-widest">No transactions yet.</p>
+                                </div>
+                            )}
                             {transactions.map((tx) => (
-                                <div key={tx.tx_id} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5">
-                                    <div className="flex items-center gap-3">
-                                        {tx.type === "withdrawal" ? (
-                                            <ArrowUpRight className="w-4 h-4 text-primary" />
-                                        ) : (
-                                            <ArrowDownLeft className="w-4 h-4 text-accent" />
-                                        )}
+                                <div key={tx.tx_id || (tx as any).id} className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-white/10 transition-all group">
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${tx.type === "withdrawal" ? "bg-primary/10 text-primary" : "bg-accent/10 text-accent"
+                                            }`}>
+                                            {tx.type === "withdrawal" ? (
+                                                <ArrowUpRight className="w-4 h-4" />
+                                            ) : (
+                                                <ArrowDownLeft className="w-4 h-4" />
+                                            )}
+                                        </div>
                                         <div>
-                                            <p className="text-xs font-bold text-white uppercase">{tx.type}</p>
-                                            <p className="text-[10px] text-text-dim">{new Date(tx.created_at).toLocaleString()}</p>
+                                            <p className="text-xs font-black text-white uppercase tracking-wider">{tx.type}</p>
+                                            <p className="text-[10px] font-bold text-text-dim uppercase opacity-60 mt-0.5">
+                                                {new Date(tx.created_at).toLocaleString()}
+                                            </p>
                                         </div>
                                     </div>
-                                    <p className="text-xs font-black text-white">{Number(tx.amount).toFixed(8)}</p>
+                                    <div className="text-right">
+                                        <p className="text-sm font-black text-white">{tx.amount.toString()} USDT</p>
+                                        <span className={`text-[8px] px-1.5 py-0.5 rounded font-black uppercase tracking-tighter ${tx.status === 'completed' ? 'bg-accent/10 text-accent' : 'bg-primary/10 text-primary'
+                                            }`}>
+                                            {tx.status}
+                                        </span>
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -334,7 +348,7 @@ const UserWallet = () => {
                                     <input
                                         type="number"
                                         value={withdrawForm.amount}
-                                        onChange={(e) => setWithdrawForm({...withdrawForm, amount: e.target.value})}
+                                        onChange={(e) => setWithdrawForm({ ...withdrawForm, amount: e.target.value })}
                                         placeholder="0.0000"
                                         step="0.0001"
                                         min="0.0001"
@@ -352,7 +366,7 @@ const UserWallet = () => {
                                 <input
                                     type="text"
                                     value={withdrawForm.address}
-                                    onChange={(e) => setWithdrawForm({...withdrawForm, address: e.target.value})}
+                                    onChange={(e) => setWithdrawForm({ ...withdrawForm, address: e.target.value })}
                                     placeholder="0x..."
                                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-text-dim focus:outline-none focus:border-primary/50 font-mono text-sm"
                                 />
@@ -363,7 +377,7 @@ const UserWallet = () => {
                                 <input
                                     type="text"
                                     value={withdrawForm.twoFACode}
-                                    onChange={(e) => setWithdrawForm({...withdrawForm, twoFACode: e.target.value})}
+                                    onChange={(e) => setWithdrawForm({ ...withdrawForm, twoFACode: e.target.value })}
                                     placeholder="000000"
                                     maxLength={6}
                                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-text-dim focus:outline-none focus:border-primary/50 font-mono text-center text-lg"

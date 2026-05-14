@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell, CheckCircle2, AlertTriangle, Info, Clock, Check } from "lucide-react";
-import { authService } from "@/services/authService";
+import { NotificationService } from "@/services/notificationService";
 import { useAuth } from "@/context/AuthContext";
 import { wsService } from "@/services/websocketService";
 import Link from "next/link";
@@ -19,10 +19,10 @@ const NotificationBell = () => {
         if (user) {
             // Initial fetch
             fetchNotifications();
-            
+
             // Connect WebSocket
             wsService.connect();
-            
+
             // Listen for notification events
             const handleNotification = (data: any) => {
                 if (data.type === 'notification') {
@@ -30,9 +30,9 @@ const NotificationBell = () => {
                     setUnreadCount(prev => prev + 1);
                 }
             };
-            
+
             wsService.on('notification', handleNotification);
-            
+
             return () => {
                 wsService.off('notification', handleNotification);
             };
@@ -42,7 +42,7 @@ const NotificationBell = () => {
     const fetchNotifications = async () => {
         if (!user) return;
         try {
-            const data = await authService.getNotifications();
+            const data = await NotificationService.getNotifications();
             setNotifications(data);
             setUnreadCount(data.filter((n: any) => !n.is_read).length);
         } catch (err) {
@@ -52,7 +52,7 @@ const NotificationBell = () => {
 
     const handleMarkRead = async (id: string) => {
         try {
-            await authService.markNotificationRead(id);
+            await NotificationService.markAsRead(id);
             setNotifications(notifications.map(n => n.id === id ? { ...n, is_read: true } : n));
             setUnreadCount(prev => Math.max(0, prev - 1));
         } catch (err) {

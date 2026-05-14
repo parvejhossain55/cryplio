@@ -9,6 +9,7 @@ import (
 	domaintrading "cryplio/internal/domain/trading"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 func (s *Seeder) SeedTradeAds(ctx context.Context, users []*domainidentity.User, cryptoMap, fiatMap, pmMap map[string]int) ([]*domaintrading.TradeAd, error) {
@@ -57,13 +58,20 @@ func (s *Seeder) SeedTradeAds(ctx context.Context, users []*domainidentity.User,
 				pmCode = "wise"
 			}
 
+			pmID := int64(pmMap[pmCode])
+			if pmID == 0 {
+				pmID = 1 // fallback to first payment method
+			}
+
 			ad := &domaintrading.TradeAd{
 				AdID: uuid.New(), UserID: user.UserID, Type: adType,
 				CryptoID: cryptoMap[cryptoSym], FiatID: fiatMap[fiatCode],
 				PriceType: domaintrading.PriceTypeFixed, Price: price,
 				MinAmount: 10.0, MaxAmount: 2000.0,
-				PaymentMethodCode:    pmCode,
-				PaymentWindowMinutes: 15,
+				PaymentMethods:       pq.Int64Array{pmID},
+				PaymentWindowMinutes: 30,
+				IsPublic:             true,
+				IsPaused:             false,
 				Status:               domaintrading.TradeAdStatusActive,
 			}
 
@@ -98,12 +106,18 @@ func (s *Seeder) SeedTrades(ctx context.Context, users []*domainidentity.User, a
 			status = domaintrading.TradeStatusDisputed
 		}
 
+		pmID := 1 // default payment method ID
+		if len(ad.PaymentMethods) > 0 {
+			pmID = int(ad.PaymentMethods[0])
+		}
+
 		trade := &domaintrading.Trade{
 			TradeID: uuid.New(), AdID: ad.AdID, BuyerID: buyerID, SellerID: sellerID,
 			CryptoID: ad.CryptoID, FiatID: ad.FiatID,
 			CryptoAmount: 150.0 / ad.Price, FiatAmount: 150.0,
-			Rate: ad.Price, Status: status,
-			PaymentMethodCode:    ad.PaymentMethodCode,
+			ExchangeRate: ad.Price, AgreedPrice: ad.Price, Status: status,
+			PriceType:            ad.PriceType,
+			PaymentMethod:        pmID,
 			PaymentWindowMinutes: ad.PaymentWindowMinutes, CreatedAt: time.Now().Add(-time.Duration(i*2) * time.Hour),
 		}
 		if status == domaintrading.TradeStatusCompleted {

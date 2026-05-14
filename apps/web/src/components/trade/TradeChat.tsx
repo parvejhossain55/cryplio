@@ -14,6 +14,7 @@ import {
     Loader2
 } from "lucide-react";
 import { wsService } from "@/services/websocketService";
+import { TradeService } from "@/services/tradeService";
 import { toast } from "sonner";
 
 interface ChatMessage {
@@ -50,7 +51,7 @@ const TradeChat: React.FC<TradeChatProps> = ({
     useEffect(() => {
         fetchChatHistory();
         subscribeToTradeChat();
-        
+
         return () => {
             unsubscribeFromTradeChat();
         };
@@ -62,14 +63,8 @@ const TradeChat: React.FC<TradeChatProps> = ({
 
     const fetchChatHistory = async () => {
         try {
-            const response = await fetch(`/api/trades/${tradeId}/messages`);
-            const data = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(data.error || "Failed to fetch chat history");
-            }
-            
-            setMessages(data.messages || []);
+            const data = await TradeService.getTradeMessages(tradeId);
+            setMessages(data || []);
         } catch (error) {
             console.error("Error fetching chat history:", error);
             toast.error("Failed to load chat history");
@@ -109,18 +104,10 @@ const TradeChat: React.FC<TradeChatProps> = ({
 
         setIsSending(true);
         try {
-            const response = await fetch(`/api/trades/${tradeId}/messages`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ content: newMessage.trim() }),
-            });
-
-            const data = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(data.error || "Failed to send message");
-            }
-
+            const data = await TradeService.sendTradeMessage(tradeId, newMessage.trim());
+            // Message will come through WebSocket as well, but we can optimistically update
+            // or just rely on the API response to show the message immediately.
+            // setMessages(prev => [...prev, data.message]);
             setNewMessage("");
         } catch (error) {
             console.error("Error sending message:", error);
@@ -133,24 +120,11 @@ const TradeChat: React.FC<TradeChatProps> = ({
     const sendFileMessage = async (file: File) => {
         setIsUploading(true);
         try {
-            const formData = new FormData();
-            formData.append("file", file);
-
-            const response = await fetch(`/api/trades/${tradeId}/messages/file`, {
-                method: "POST",
-                body: formData,
-            });
-
-            const data = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(data.error || "Failed to send file");
-            }
-
+            await TradeService.sendFileMessage(tradeId, file);
             toast.success("File sent successfully");
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error sending file:", error);
-            toast.error("Failed to send file");
+            toast.error(error.message || "Failed to send file");
         } finally {
             setIsUploading(false);
         }
@@ -164,7 +138,7 @@ const TradeChat: React.FC<TradeChatProps> = ({
                 toast.error("File size must be less than 10MB");
                 return;
             }
-            
+
             sendFileMessage(file);
         }
     };
@@ -182,17 +156,17 @@ const TradeChat: React.FC<TradeChatProps> = ({
 
     const getFileIcon = (mimeType?: string) => {
         if (!mimeType) return FileText;
-        
+
         if (mimeType.startsWith("image/")) {
             return Image;
         }
-        
+
         return FileText;
     };
 
     const formatFileSize = (bytes?: number) => {
         if (!bytes) return "";
-        
+
         const sizes = ["B", "KB", "MB", "GB"];
         const i = Math.floor(Math.log(bytes) / Math.log(1024));
         return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + " " + sizes[i];
@@ -228,7 +202,7 @@ const TradeChat: React.FC<TradeChatProps> = ({
                     {messages.map((message) => {
                         const FileIcon = getFileIcon(message.mime_type);
                         const isOwn = isOwnMessage(message);
-                        
+
                         return (
                             <motion.div
                                 key={message.id}
@@ -236,20 +210,18 @@ const TradeChat: React.FC<TradeChatProps> = ({
                                 animate={{ opacity: 1, y: 0 }}
                                 className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
                             >
-                                <div className={`max-w-xs lg:max-w-md ${
-                                    isOwn ? "order-2" : "order-1"
-                                }`}>
-                                    <div className={`px-4 py-2 rounded-2xl ${
-                                        isOwn 
-                                            ? "bg-primary text-white" 
-                                            : "bg-white/10 text-white"
+                                <div className={`max-w-xs lg:max-w-md ${isOwn ? "order-2" : "order-1"
                                     }`}>
+                                    <div className={`px-4 py-2 rounded-2xl ${isOwn
+                                            ? "bg-primary text-white"
+                                            : "bg-white/10 text-white"
+                                        }`}>
                                         {message.content && (
                                             <p className="text-sm whitespace-pre-wrap break-words">
                                                 {message.content}
                                             </p>
                                         )}
-                                        
+
                                         {message.file_url && (
                                             <div className="flex items-center space-x-2 mt-2">
                                                 <FileIcon className="w-4 h-4" />
@@ -273,10 +245,9 @@ const TradeChat: React.FC<TradeChatProps> = ({
                                                 </a>
                                             </div>
                                         )}
-                                        
-                                        <div className={`flex items-center justify-end space-x-1 mt-1 ${
-                                            isOwn ? "text-primary-100" : "text-text-dim"
-                                        }`}>
+
+                                        <div className={`flex items-center justify-end space-x-1 mt-1 ${isOwn ? "text-primary-100" : "text-text-dim"
+                                            }`}>
                                             <span className="text-xs">
                                                 {formatTime(message.created_at)}
                                             </span>
@@ -303,7 +274,7 @@ const TradeChat: React.FC<TradeChatProps> = ({
                         className="hidden"
                         accept="image/*,.pdf,.doc,.docx,.txt"
                     />
-                    
+
                     <button
                         onClick={() => fileInputRef.current?.click()}
                         disabled={isUploading}
@@ -316,7 +287,7 @@ const TradeChat: React.FC<TradeChatProps> = ({
                             <Paperclip className="w-5 h-5" />
                         )}
                     </button>
-                    
+
                     <input
                         type="text"
                         value={newMessage}
@@ -326,7 +297,7 @@ const TradeChat: React.FC<TradeChatProps> = ({
                         className="flex-1 px-4 py-2 bg-white/10 border border-white/10 rounded-xl text-white placeholder-text-dim focus:outline-none focus:border-primary/50"
                         disabled={isSending}
                     />
-                    
+
                     <button
                         onClick={sendMessage}
                         disabled={!newMessage.trim() || isSending}
@@ -339,7 +310,7 @@ const TradeChat: React.FC<TradeChatProps> = ({
                         )}
                     </button>
                 </div>
-                
+
                 <div className="mt-2 text-xs text-text-dim">
                     Files: Images, PDF, DOC, TXT (Max 10MB)
                 </div>

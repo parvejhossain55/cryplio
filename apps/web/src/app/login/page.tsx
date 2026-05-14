@@ -4,15 +4,26 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { Mail, Lock, Eye, EyeOff, Loader2, ArrowRight } from "lucide-react";
 import AuthLayout from "@/components/auth/AuthLayout";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
 const LoginPage = () => {
-    const { login, loginWithGoogle } = useAuth();
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const redirect = searchParams.get("redirect") || "/user/dashboard";
+
+    const { user, isLoading: authLoading, login, loginWithGoogle } = useAuth();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    React.useEffect(() => {
+        if (!authLoading && user) {
+            router.push(redirect);
+        }
+    }, [user, authLoading, router, redirect]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

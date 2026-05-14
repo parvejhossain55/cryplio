@@ -129,7 +129,7 @@ func (h *TradeHandler) SendMessageHandler(c *gin.Context) {
 		h.wsService.BroadcastMessage("chat_message", chatMessage, tradeID.String())
 	}
 
-	c.JSON(http.StatusCreated, msg)
+	c.JSON(http.StatusCreated, gin.H{"message": msg})
 }
 
 // GetChatHistoryHandler returns all chat messages for a given trade.
@@ -151,7 +151,7 @@ func (h *TradeHandler) GetChatHistoryHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, messages)
+	c.JSON(http.StatusOK, gin.H{"messages": messages})
 }
 
 // LeaveFeedbackHandler submits a rating and optional comment for a completed trade.

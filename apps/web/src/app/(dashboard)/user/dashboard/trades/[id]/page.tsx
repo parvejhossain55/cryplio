@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { authService } from "@/services/authService";
+import { TradeService } from "@/services/tradeService";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import TradeChat from "@/components/trade/TradeChat";
 import { toast } from "sonner";
@@ -30,14 +31,15 @@ interface TradeDetail {
     fiat_amount: number;
     crypto_symbol: string;
     fiat_symbol: string;
-    rate: number;
+    exchange_rate: number;
     status: string;
     type: "buy" | "sell";
     created_at: string;
     updated_at: string;
     buyer_username?: string;
     seller_username?: string;
-    payment_method?: string;
+    payment_method?: number;
+    payment_method_name?: string;
     payment_details?: any;
     escrow_id?: string;
     dispute_id?: string;
@@ -95,7 +97,7 @@ const TradeDetailPage = () => {
     const fetchTradeDetail = async () => {
         setIsLoading(true);
         try {
-            const data = await authService.getTradeDetails(tradeId);
+            const data = await TradeService.getTradeDetails(tradeId);
             setTrade(data);
         } catch (error: any) {
             console.error("Error fetching trade detail:", error);
@@ -138,11 +140,11 @@ const TradeDetailPage = () => {
 
     const formatTimeRemaining = (milliseconds: number) => {
         if (milliseconds <= 0) return "Expired";
-        
+
         const hours = Math.floor(milliseconds / (1000 * 60 * 60));
         const minutes = Math.floor((milliseconds % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((milliseconds % (1000 * 60)) / 1000);
-        
+
         if (hours > 0) {
             return `${hours}h ${minutes}m ${seconds}s`;
         } else if (minutes > 0) {
@@ -155,7 +157,7 @@ const TradeDetailPage = () => {
     const handleMarkAsPaid = async () => {
         setIsActionLoading("mark_paid");
         try {
-            await authService.updateTradeStatus(tradeId, "mark_paid");
+            await TradeService.updateTradeStatus(tradeId, "pay");
             toast.success("Trade marked as paid");
             fetchTradeDetail();
         } catch (error: any) {
@@ -168,7 +170,7 @@ const TradeDetailPage = () => {
     const handleReleaseEscrow = async () => {
         setIsActionLoading("release");
         try {
-            await authService.updateTradeStatus(tradeId, "release");
+            await TradeService.updateTradeStatus(tradeId, "release");
             toast.success("Escrow released successfully");
             fetchTradeDetail();
         } catch (error: any) {
@@ -184,7 +186,7 @@ const TradeDetailPage = () => {
 
         setIsActionLoading("dispute");
         try {
-            await authService.disputeTrade(tradeId, "OTHER", reason);
+            await TradeService.disputeTrade(tradeId, "OTHER", reason);
             toast.success("Dispute created successfully");
             fetchTradeDetail();
         } catch (error: any) {
@@ -196,10 +198,10 @@ const TradeDetailPage = () => {
 
     const handleCancelTrade = async () => {
         if (!confirm("Are you sure you want to cancel this trade?")) return;
-        
+
         setIsActionLoading("cancel");
         try {
-            await authService.updateTradeStatus(tradeId, "cancel");
+            await TradeService.updateTradeStatus(tradeId, "cancel");
             toast.success("Trade cancelled successfully");
             fetchTradeDetail();
         } catch (error: any) {
@@ -211,8 +213,8 @@ const TradeDetailPage = () => {
 
     const getCounterpartUsername = () => {
         if (!trade || !currentUser) return "";
-        
-        if (trade.buyer_id === currentUser.user_id) {
+
+        if (trade.buyer_id === currentUser.id) {
             return trade.seller_username;
         } else {
             return trade.buyer_username;
@@ -220,7 +222,7 @@ const TradeDetailPage = () => {
     };
 
     const isBuyer = () => {
-        return trade && currentUser && trade.buyer_id === currentUser.user_id;
+        return trade && currentUser && trade.buyer_id === currentUser.id;
     };
 
     const canMarkAsPaid = () => {
@@ -276,13 +278,13 @@ const TradeDetailPage = () => {
                             <ArrowLeft className="w-5 h-5" />
                         </button>
                         <div>
-                            <h1 className="text-2xl font-black text-white">Trade Details</h1>
-                            <p className="text-text-dim text-sm">Trade ID: #{trade.trade_id.slice(0, 8)}</p>
+                            <h1 className="text-2xl font-black text-white italic uppercase tracking-tighter shadow-sm">Trade Details</h1>
+                            <p className="text-text-dim text-[10px] uppercase font-bold tracking-widest">Trade ID: #{trade.trade_id.slice(0, 8)}</p>
                         </div>
                     </div>
-                    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border ${getStatusColor(trade.status)}`}>
+                    <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border-2 shadow-lg ${getStatusColor(trade.status)}`}>
                         {getStatusIcon(trade.status)}
-                        <span className="text-xs font-black uppercase tracking-wider">
+                        <span className="text-xs font-black uppercase tracking-widest">
                             {trade.status}
                         </span>
                     </div>
@@ -290,114 +292,142 @@ const TradeDetailPage = () => {
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Trade Information */}
-                    <div className="lg:col-span-2 space-y-6">
+                    <div className="lg:col-span-2 space-y-6 transition-all">
                         {/* Trade Summary */}
-                        <div className="bg-surface border border-white/10 rounded-2xl p-6">
-                            <h2 className="text-lg font-black text-white mb-4">Trade Summary</h2>
-                            
-                            <div className="grid grid-cols-2 gap-6">
-                                <div>
-                                    <p className="text-text-dim text-sm mb-1">You are</p>
-                                    <p className="text-xl font-black text-white">
+                        <div className="bg-surface border border-white/10 rounded-[2rem] p-8 relative overflow-hidden group shadow-2xl">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl -z-10 group-hover:bg-primary/10 transition-colors" />
+                            <h2 className="text-lg font-black text-white mb-6 uppercase italic tracking-tight">Trade Summary</h2>
+
+                            <div className="grid grid-cols-2 gap-8">
+                                <div className="space-y-1">
+                                    <p className="text-text-dim text-[10px] uppercase font-black tracking-widest">You are</p>
+                                    <p className="text-2xl font-black text-white italic">
                                         {isBuyer() ? "Buying" : "Selling"}
                                     </p>
                                 </div>
-                                <div>
-                                    <p className="text-text-dim text-sm mb-1">Amount</p>
-                                    <p className="text-xl font-black text-white">
+                                <div className="space-y-1">
+                                    <p className="text-text-dim text-[10px] uppercase font-black tracking-widest">Amount</p>
+                                    <p className="text-2xl font-black text-white italic">
                                         {trade.crypto_amount?.toFixed(4) || '0.0000'} {trade.crypto_symbol || 'USDT'}
                                     </p>
                                 </div>
-                                <div>
-                                    <p className="text-text-dim text-sm mb-1">Rate</p>
-                                    <p className="text-xl font-black text-white">
-                                        {trade.rate?.toFixed(2) || '0.00'} {trade.fiat_symbol || 'USD'}
+                                <div className="space-y-1">
+                                    <p className="text-text-dim text-[10px] uppercase font-black tracking-widest">Rate</p>
+                                    <p className="text-2xl font-black text-white italic">
+                                        {trade.exchange_rate?.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'} {trade.fiat_symbol || 'USD'}
                                     </p>
                                 </div>
-                                <div>
-                                    <p className="text-text-dim text-sm mb-1">Total</p>
-                                    <p className="text-xl font-black text-white">
+                                <div className="space-y-1">
+                                    <p className="text-text-dim text-[10px] uppercase font-black tracking-widest">{isBuyer() ? "Total Pay" : "Total Receive"}</p>
+                                    <p className="text-3xl font-black text-primary italic">
                                         {trade.fiat_amount?.toLocaleString() || '0'} {trade.fiat_symbol || 'USD'}
                                     </p>
                                 </div>
                             </div>
 
-                            <div className="mt-6 pt-6 border-t border-white/10">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <User className="w-4 h-4 text-text-dim" />
-                                        <div>
-                                            <p className="text-text-dim text-sm">Counterpart</p>
-                                            <p className="text-white font-medium">{getCounterpartUsername()}</p>
-                                        </div>
+                            <div className="mt-8 pt-8 border-t border-white/5 grid grid-cols-2 gap-4">
+                                <div className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/5">
+                                    <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                                        <User className="w-5 h-5 text-primary" />
                                     </div>
-                                    <div className="flex items-center gap-3">
-                                        <Clock className="w-4 h-4 text-text-dim" />
-                                        <div>
-                                            <p className="text-text-dim text-sm">Created</p>
-                                            <p className="text-white font-medium">
-                                                {trade.created_at ? new Date(trade.created_at as string).toLocaleDateString() : 'Unknown'}
-                                            </p>
-                                        </div>
+                                    <div>
+                                        <p className="text-text-dim text-[10px] uppercase font-black tracking-widest">Counterpart</p>
+                                        <p className="text-white font-bold">{getCounterpartUsername()}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/5">
+                                    <div className="w-10 h-10 bg-accent/10 rounded-xl flex items-center justify-center">
+                                        <Clock className="w-5 h-5 text-accent" />
+                                    </div>
+                                    <div>
+                                        <p className="text-text-dim text-[10px] uppercase font-black tracking-widest">Started</p>
+                                        <p className="text-white font-bold">
+                                            {trade.created_at ? new Date(trade.created_at as string).toLocaleDateString() : 'Unknown'}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         {/* Payment Information */}
-                        {trade.payment_method && (
-                            <div className="bg-surface border border-white/10 rounded-2xl p-6">
-                                <h2 className="text-lg font-black text-white mb-4">Payment Information</h2>
-                                <div className="space-y-3">
-                                    <div className="flex items-center gap-3">
-                                        <DollarSign className="w-4 h-4 text-text-dim" />
-                                        <p className="text-text-dim text-sm">Payment Method</p>
-                                        <p className="text-white font-medium">{trade.payment_method}</p>
+                        {(trade.payment_method_name || trade.payment_method) && (
+                            <div className="bg-surface border border-white/10 rounded-[2rem] p-8 shadow-2xl relative overflow-hidden group">
+                                <div className="absolute -bottom-4 -left-4 w-24 h-24 bg-accent/5 blur-2xl -z-10 group-hover:bg-accent/10 transition-colors" />
+                                <h2 className="text-lg font-black text-white mb-6 uppercase italic tracking-tight">Payment Information</h2>
+
+                                <div className="space-y-6">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">
+                                            <DollarSign className="w-6 h-6 text-primary" />
+                                        </div>
+                                        <div>
+                                            <p className="text-text-dim text-[10px] uppercase font-black tracking-widest mb-1">Payment Method</p>
+                                            <p className="text-xl font-bold text-white capitalize">{trade.payment_method_name || "Bank Transfer"}</p>
+                                        </div>
                                     </div>
-                                    {trade.payment_details && (
-                                        <div className="flex items-center gap-3">
-                                            <FileText className="w-4 h-4 text-text-dim" />
-                                            <p className="text-text-dim text-sm">Payment Details</p>
-                                            <button className="text-primary hover:text-primary/80 text-sm font-medium">
-                                                View Details
-                                            </button>
+
+                                    {trade.payment_details ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                            {trade.payment_details.bank_name && (
+                                                <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
+                                                    <p className="text-text-dim text-[8px] uppercase font-black tracking-widest mb-1">Bank Name</p>
+                                                    <p className="text-white font-bold">{trade.payment_details.bank_name}</p>
+                                                </div>
+                                            )}
+                                            {trade.payment_details.account_number && (
+                                                <div className="p-4 rounded-2xl bg-white/5 border border-white/5 group/copy relative">
+                                                    <p className="text-text-dim text-[8px] uppercase font-black tracking-widest mb-1">Account Number</p>
+                                                    <p className="text-white font-bold font-mono tracking-wider">{trade.payment_details.account_number}</p>
+                                                </div>
+                                            )}
+                                            {trade.payment_details.account_name && (
+                                                <div className="p-4 rounded-2xl bg-white/5 border border-white/5 col-span-1 md:col-span-2">
+                                                    <p className="text-text-dim text-[8px] uppercase font-black tracking-widest mb-1">Account Name</p>
+                                                    <p className="text-white font-bold">{trade.payment_details.account_name}</p>
+                                                </div>
+                                            )}
+                                            {trade.payment_details.message && (
+                                                <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 col-span-1 md:col-span-2">
+                                                    <p className="text-primary text-[10px] font-bold">{trade.payment_details.message}</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="p-4 rounded-2xl bg-white/5 border border-white/5 text-center">
+                                            <p className="text-text-dim text-[10px] font-bold uppercase tracking-widest italic opacity-50">Fetching payment details...</p>
                                         </div>
                                     )}
                                 </div>
                             </div>
                         )}
-
                         {/* Payment Timer */}
                         {trade.status === "active" && (
-                            <div className={`bg-surface border rounded-2xl p-6 ${
-                                isTimerExpired() 
-                                    ? "border-red-500/20 bg-red-500/5" 
-                                    : "border-white/10"
-                            }`}>
-                                <h2 className="text-lg font-black text-white mb-4">Payment Timer</h2>
+                            <div className={`bg-surface border rounded-[2rem] p-8 shadow-2xl ${isTimerExpired()
+                                ? "border-red-500/20 bg-red-500/5 shadow-red-500/5"
+                                : "border-white/10"
+                                }`}>
+                                <h2 className="text-lg font-black text-white mb-6 uppercase italic tracking-tight">Payment Timer</h2>
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-text-dim text-sm mb-1">
+                                        <p className="text-text-dim text-[10px] uppercase font-black tracking-widest mb-1 leading-none shadow-sm">
                                             {isBuyer() ? "Time to complete payment" : "Waiting for buyer payment"}
                                         </p>
-                                        <p className={`text-2xl font-black ${
-                                            isTimerExpired() ? "text-red-500" : "text-white"
-                                        }`}>
+                                        <p className={`text-3xl font-black italic tracking-tighter ${isTimerExpired() ? "text-red-500" : "text-white text-glow-primary"
+                                            }`}>
                                             {formatTimeRemaining(timeRemaining)}
                                         </p>
                                     </div>
-                                    <div className={`p-3 rounded-full ${
-                                        isTimerExpired() 
-                                            ? "bg-red-500/20 text-red-500" 
-                                            : "bg-primary/20 text-primary"
-                                    }`}>
-                                        <Clock className="w-6 h-6" />
+                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border-2 ${isTimerExpired()
+                                        ? "bg-red-500/20 text-red-500 border-red-500/30"
+                                        : "bg-primary/20 text-primary border-primary/30"
+                                        }`}>
+                                        <Clock className="w-8 h-8" />
                                     </div>
                                 </div>
                                 {isTimerExpired() && (
-                                    <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
-                                        <p className="text-red-500 text-sm font-medium">
-                                            Payment time expired. Trade will be auto-cancelled or disputed.
+                                    <div className="mt-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl animate-pulse">
+                                        <p className="text-red-500 text-xs font-black uppercase tracking-widest text-center">
+                                            Payment time expired!
                                         </p>
                                     </div>
                                 )}
@@ -405,18 +435,19 @@ const TradeDetailPage = () => {
                         )}
 
                         {/* Actions */}
-                        <div className="bg-surface border border-white/10 rounded-2xl p-6">
-                            <h2 className="text-lg font-black text-white mb-4">Actions</h2>
-                            <div className="flex flex-wrap gap-3">
+                        <div className="bg-surface border border-white/10 rounded-[2rem] p-8 shadow-2xl relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 blur-3xl -z-10" />
+                            <h2 className="text-lg font-black text-white mb-6 uppercase italic tracking-tight">Controls</h2>
+                            <div className="flex flex-wrap gap-4">
                                 {canMarkAsPaid() && (
                                     <button
                                         onClick={handleMarkAsPaid}
-                                        disabled={isActionLoading === "mark_paid"}
-                                        className="px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors text-sm font-black uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                        disabled={isActionLoading === "pay"}
+                                        className="h-12 px-8 bg-primary text-white rounded-2xl hover:bg-primary/90 transition-all active:scale-95 text-xs font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 shadow-xl shadow-primary/20 border-b-4 border-primary-dark"
                                     >
-                                        {isActionLoading === "mark_paid" ? (
+                                        {isActionLoading === "pay" ? (
                                             <Loader2 className="w-4 h-4 animate-spin" />
-                                        ) : null}
+                                        ) : <DollarSign className="w-4 h-4" />}
                                         Mark as Paid
                                     </button>
                                 )}
@@ -424,11 +455,11 @@ const TradeDetailPage = () => {
                                     <button
                                         onClick={handleReleaseEscrow}
                                         disabled={isActionLoading === "release"}
-                                        className="px-4 py-2 bg-accent text-white rounded-xl hover:bg-accent/90 transition-colors text-sm font-black uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                        className="h-12 px-8 bg-accent text-white rounded-2xl hover:bg-accent/90 transition-all active:scale-95 text-xs font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 shadow-xl shadow-accent/20 border-b-4 border-accent-dark"
                                     >
                                         {isActionLoading === "release" ? (
                                             <Loader2 className="w-4 h-4 animate-spin" />
-                                        ) : null}
+                                        ) : <CheckCircle2 className="w-4 h-4" />}
                                         Release Escrow
                                     </button>
                                 )}
@@ -436,11 +467,11 @@ const TradeDetailPage = () => {
                                     <button
                                         onClick={handleCancelTrade}
                                         disabled={isActionLoading === "cancel"}
-                                        className="px-4 py-2 bg-orange-500 text-white rounded-xl hover:bg-orange-500/90 transition-colors text-sm font-black uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                        className="h-12 px-6 bg-white/5 text-white border border-white/10 rounded-2xl hover:bg-white/10 transition-all active:scale-95 text-xs font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3"
                                     >
                                         {isActionLoading === "cancel" ? (
                                             <Loader2 className="w-4 h-4 animate-spin" />
-                                        ) : null}
+                                        ) : <XCircle className="w-4 h-4" />}
                                         Cancel Trade
                                     </button>
                                 )}
@@ -448,30 +479,38 @@ const TradeDetailPage = () => {
                                     <button
                                         onClick={handleDisputeTrade}
                                         disabled={isActionLoading === "dispute"}
-                                        className="px-4 py-2 bg-red-500 text-white rounded-xl hover:bg-red-500/90 transition-colors text-sm font-black uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                        className="h-12 px-6 bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl hover:bg-red-500/20 transition-all active:scale-95 text-xs font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3"
                                     >
                                         {isActionLoading === "dispute" ? (
                                             <Loader2 className="w-4 h-4 animate-spin" />
-                                        ) : null}
+                                        ) : <AlertTriangle className="w-4 h-4" />}
                                         Open Dispute
                                     </button>
                                 )}
-                                <button className="px-4 py-2 bg-white/10 text-white rounded-xl hover:bg-white/20 transition-colors text-sm font-black uppercase tracking-wider">
-                                    <Download className="w-4 h-4 inline mr-2" />
-                                    Download Receipt
+                                <button className="h-12 px-6 bg-white/5 text-text-dim border border-white/10 rounded-2xl hover:bg-white/10 hover:text-white transition-all active:scale-95 text-xs font-black uppercase tracking-widest flex items-center gap-3">
+                                    <Download className="w-4 h-4" />
+                                    Receipt
                                 </button>
                             </div>
                         </div>
                     </div>
 
                     {/* Chat */}
-                    <div className="lg:col-span-1">
-                        <div className="h-[600px]">
-                            <TradeChat
-                                tradeId={trade.trade_id}
-                                currentUserId={currentUser?.user_id || ""}
-                                counterpartUsername={getCounterpartUsername()}
-                            />
+                    <div className="lg:col-span-1 h-full">
+                        <div className="bg-surface border border-white/10 rounded-[2rem] overflow-hidden shadow-2xl h-[700px] flex flex-col sticky top-6">
+                            <div className="p-6 border-b border-white/5 bg-white/5">
+                                <h3 className="text-sm font-black text-white italic uppercase tracking-widest flex items-center gap-2">
+                                    <Shield className="w-4 h-4 text-primary" />
+                                    Secure Trade Chat
+                                </h3>
+                            </div>
+                            <div className="flex-1 overflow-hidden relative">
+                                <TradeChat
+                                    tradeId={trade.trade_id}
+                                    currentUserId={currentUser?.id || ""}
+                                    counterpartUsername={getCounterpartUsername()}
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>

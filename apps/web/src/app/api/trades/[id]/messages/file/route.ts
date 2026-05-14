@@ -4,12 +4,13 @@ const API_BASE_URL = process.env.API_GATEWAY_URL || "http://localhost:8080";
 
 export async function POST(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
+        const params = await context.params;
         const formData = await request.formData();
         const file = formData.get('file') as File;
-        
+
         if (!file) {
             return NextResponse.json(
                 { error: "No file provided" },

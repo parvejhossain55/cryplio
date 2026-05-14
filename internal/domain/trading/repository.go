@@ -40,7 +40,7 @@ type AdFilter struct {
 	CryptoID       *int
 	FiatID         *int
 	FiatCode       *string
-	PaymentMethods []int
+	PaymentMethods []int64
 	MinAmount      *float64
 	UserID         *uuid.UUID
 	Status         *TradeAdStatus

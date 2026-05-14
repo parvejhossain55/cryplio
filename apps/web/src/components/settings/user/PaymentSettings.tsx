@@ -245,7 +245,7 @@ const PaymentSettings = () => {
     const fetchMethods = async () => {
         setIsLoading(true);
         try {
-            const data = await authService.getPaymentMethods();
+            const data = await authService.getMyPaymentMethods();
             setMethods(data);
         } catch (err: any) {
             toast.error(err.message || "Failed to load payment methods");

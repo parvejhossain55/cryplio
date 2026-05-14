@@ -13,7 +13,7 @@ export const fetchWithRefresh = async (url: string, options: RequestInit = {}): 
 
         // Import authService dynamically to avoid circular dependency
         const { authService } = await import("./authService");
-        
+
         try {
             await authService.refreshToken();
             // Retry original request

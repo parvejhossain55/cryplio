@@ -19,7 +19,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import { authService } from "@/services/authService";
+import { MarketplaceService } from "@/services/marketplaceService";
 
 const CreateAdPage = () => {
     const router = useRouter();
@@ -95,12 +95,12 @@ const CreateAdPage = () => {
                 price: parseFloat(price),
                 min_amount: parseFloat(minAmount),
                 max_amount: parseFloat(maxAmount),
-                payment_methods: selectedMethods,
+                payment_method_ids: selectedMethods,
                 trade_terms: tradeTerms,
                 payment_window_minutes: paymentWindow,
             };
 
-            await authService.createAd(adData);
+            await MarketplaceService.createAd(adData);
             setSuccess(true);
             setTimeout(() => router.push("/marketplace"), 2000);
         } catch (err: any) {

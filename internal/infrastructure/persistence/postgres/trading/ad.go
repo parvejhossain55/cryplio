@@ -18,35 +18,37 @@ func (r *tradeRepository) CreateAd(ctx context.Context, ad *trading.TradeAd) err
 	query := `
 		INSERT INTO trade_ads (
 			ad_id, user_id, type, crypto_id, fiat_id, price_type, price,
-			min_amount, max_amount, payment_method_code,
-			payment_window_minutes, terms, instructions, status,
-			created_at, updated_at
+			min_amount, max_amount, payment_methods,
+			payment_window_minutes, trade_terms, status,
+			is_public, is_paused, published_at, created_at, updated_at
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW()
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW(), NOW()
 		) RETURNING created_at, updated_at
 	`
 	return r.db.QueryRowContext(ctx, query,
 		ad.AdID, ad.UserID, ad.Type, ad.CryptoID, ad.FiatID, ad.PriceType,
-		ad.Price, ad.MinAmount, ad.MaxAmount, ad.PaymentMethodCode,
-		ad.PaymentWindowMinutes, ad.Terms, ad.Instructions, ad.Status,
+		ad.Price, ad.MinAmount, ad.MaxAmount, ad.PaymentMethods,
+		ad.PaymentWindowMinutes, ad.TradeTerms, ad.Status,
+		ad.IsPublic, ad.IsPaused,
 	).Scan(&ad.CreatedAt, &ad.UpdatedAt)
 }
 
 func (r *tradeRepository) GetAdByID(ctx context.Context, id uuid.UUID) (*trading.TradeAd, error) {
 	query := `
 		SELECT ad_id, user_id, type, crypto_id, fiat_id, price_type, price,
-		       min_amount, max_amount, payment_method_code,
-		       payment_window_minutes, terms, instructions, status,
+		       min_amount, max_amount, payment_methods,
+		       payment_window_minutes, trade_terms, status, is_public, is_paused,
 		       created_at, updated_at
 		FROM trade_ads
-		WHERE ad_id = $1
+		WHERE ad_id = $1 AND deleted_at IS NULL
 	`
 	var ad trading.TradeAd
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&ad.AdID, &ad.UserID, &ad.Type, &ad.CryptoID, &ad.FiatID, &ad.PriceType,
-		&ad.Price, &ad.MinAmount, &ad.MaxAmount, &ad.PaymentMethodCode,
-		&ad.PaymentWindowMinutes, &ad.Terms, &ad.Instructions,
-		&ad.Status, &ad.CreatedAt, &ad.UpdatedAt,
+		&ad.Price, &ad.MinAmount, &ad.MaxAmount, &ad.PaymentMethods,
+		&ad.PaymentWindowMinutes, &ad.TradeTerms,
+		&ad.Status, &ad.IsPublic, &ad.IsPaused,
+		&ad.CreatedAt, &ad.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -68,6 +70,10 @@ func (r *tradeRepository) ListAds(ctx context.Context, filter trading.AdFilter) 
 		args = append(args, val)
 		ph++
 	}
+
+	// Base: only show non-deleted, public ads
+	conds = append(conds, "a.deleted_at IS NULL")
+	conds = append(conds, "a.is_public = true")
 
 	if filter.Type != nil {
 		addArg("a.type = $%d", *filter.Type)
@@ -97,6 +103,7 @@ func (r *tradeRepository) ListAds(ctx context.Context, filter trading.AdFilter) 
 		addArg("a.status = $%d", *filter.Status)
 	} else {
 		conds = append(conds, "a.status = 'active'")
+		conds = append(conds, "a.is_paused = false")
 	}
 
 	where := ""
@@ -132,8 +139,9 @@ func (r *tradeRepository) ListAds(ctx context.Context, filter trading.AdFilter) 
 	dataArgs := append(args, limit, filter.Offset)
 	dataQuery := `
 		SELECT a.ad_id, a.user_id, a.type, a.crypto_id, a.fiat_id, a.price_type, a.price,
-		       a.min_amount, a.max_amount, a.payment_method_code,
-		       a.payment_window_minutes, a.terms, a.instructions, a.status,
+		       a.min_amount, a.max_amount, a.payment_methods,
+		       (SELECT array_agg(name) FROM payment_methods WHERE id = ANY(a.payment_methods)) as payment_method_names,
+		       a.payment_window_minutes, a.trade_terms, a.status, a.is_public, a.is_paused,
 		       a.created_at, a.updated_at,
 		       u.username, u.avatar_url, u.last_seen_at,
 		       COALESCE(us.total_trades, 0), COALESCE(us.avg_rating, 0),
@@ -156,9 +164,11 @@ func (r *tradeRepository) ListAds(ctx context.Context, filter trading.AdFilter) 
 
 		if err := rows.Scan(
 			&ad.AdID, &ad.UserID, &ad.Type, &ad.CryptoID, &ad.FiatID, &ad.PriceType,
-			&ad.Price, &ad.MinAmount, &ad.MaxAmount, &ad.PaymentMethodCode,
-			&ad.PaymentWindowMinutes, &ad.Terms, &ad.Instructions,
-			&ad.Status, &ad.CreatedAt, &ad.UpdatedAt,
+			&ad.Price, &ad.MinAmount, &ad.MaxAmount, &ad.PaymentMethods,
+			&ad.PaymentMethodNames,
+			&ad.PaymentWindowMinutes, &ad.TradeTerms,
+			&ad.Status, &ad.IsPublic, &ad.IsPaused,
+			&ad.CreatedAt, &ad.UpdatedAt,
 			&username, &avatarURL, &lastSeen, &totalTrades, &avgRating,
 			&cryptoSymbol, &fiatSymbol,
 		); err != nil {
@@ -195,12 +205,12 @@ func (r *tradeRepository) UpdateAd(ctx context.Context, ad *trading.TradeAd) err
 		UPDATE trade_ads
 		SET type = $1, crypto_id = $2, fiat_id = $3, price_type = $4,
 		    price = $5, min_amount = $6, max_amount = $7,
-		    payment_method_code = $8, terms = $9, instructions = $10,
-		    status = $11, updated_at = NOW()
-		WHERE ad_id = $12`,
+		    payment_methods = $8, trade_terms = $9,
+		    is_paused = $10, status = $11, updated_at = NOW()
+		WHERE ad_id = $12 AND deleted_at IS NULL`,
 		ad.Type, ad.CryptoID, ad.FiatID, ad.PriceType, ad.Price,
-		ad.MinAmount, ad.MaxAmount, ad.PaymentMethodCode,
-		ad.Terms, ad.Instructions, ad.Status, ad.AdID,
+		ad.MinAmount, ad.MaxAmount, ad.PaymentMethods,
+		ad.TradeTerms, ad.IsPaused, ad.Status, ad.AdID,
 	)
 	if err != nil {
 		return fmt.Errorf("update ad: %w", err)
@@ -209,7 +219,8 @@ func (r *tradeRepository) UpdateAd(ctx context.Context, ad *trading.TradeAd) err
 }
 
 func (r *tradeRepository) DeleteAd(ctx context.Context, id uuid.UUID) error {
+	// Soft delete
 	_, err := r.db.ExecContext(ctx,
-		`DELETE FROM trade_ads WHERE ad_id = $1`, id)
+		`UPDATE trade_ads SET deleted_at = NOW(), updated_at = NOW() WHERE ad_id = $1 AND deleted_at IS NULL`, id)
 	return err
 }

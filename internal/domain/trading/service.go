@@ -37,7 +37,7 @@ type AdService interface {
 }
 
 type ExecutionService interface {
-	InitiateTrade(ctx context.Context, adID, buyerID uuid.UUID, amount float64) (*Trade, error)
+	InitiateTrade(ctx context.Context, adID, buyerID uuid.UUID, amount float64, paymentMethodID int) (*Trade, error)
 	ListTrades(ctx context.Context, userID uuid.UUID, role string) ([]Trade, error)
 	ListAllTrades(ctx context.Context, status string) ([]Trade, error)
 	CountTrades(ctx context.Context, status string) (int, error)

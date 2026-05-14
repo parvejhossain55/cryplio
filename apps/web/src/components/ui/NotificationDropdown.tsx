@@ -2,29 +2,38 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-    Bell, 
-    BellRing, 
-    Check, 
-    CheckCheck, 
-    X, 
+import {
+    Bell,
+    BellRing,
+    Check,
+    CheckCheck,
+    X,
     ExternalLink,
     Wifi,
     WifiOff
 } from 'lucide-react';
 import { useNotifications } from '@/context/NotificationContext';
-import { formatRelativeTime } from '@/lib/utils';
+
+const formatRelativeTime = (dateString: string) => {
+    const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+    const diff = (new Date(dateString).getTime() - new Date().getTime()) / 1000;
+
+    if (Math.abs(diff) < 60) return rtf.format(Math.round(diff), 'second');
+    if (Math.abs(diff) < 3600) return rtf.format(Math.round(diff / 60), 'minute');
+    if (Math.abs(diff) < 86400) return rtf.format(Math.round(diff / 3600), 'hour');
+    return rtf.format(Math.round(diff / 86400), 'day');
+};
 
 export const NotificationDropdown: React.FC = () => {
-    const { 
-        notifications, 
-        unreadCount, 
-        markAsRead, 
-        markAllAsRead, 
+    const {
+        notifications,
+        unreadCount,
+        markAsRead,
+        markAllAsRead,
         clearNotifications,
-        isConnected 
+        isConnected
     } = useNotifications();
-    
+
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -42,9 +51,9 @@ export const NotificationDropdown: React.FC = () => {
     const handleNotificationClick = (notification: any) => {
         markAsRead(notification.id);
         setIsOpen(false);
-        
-        if (notification.actionUrl) {
-            window.location.href = notification.actionUrl;
+
+        if (notification.data?.actionUrl) {
+            window.location.href = notification.data.actionUrl;
         }
     };
 
@@ -78,11 +87,11 @@ export const NotificationDropdown: React.FC = () => {
                 ) : (
                     <WifiOff className="w-5 h-5 text-red-400" />
                 )}
-                
+
                 {unreadCount > 0 && (
                     <span className="absolute top-1 right-1 h-2 w-2 bg-danger-500 rounded-full animate-pulse" />
                 )}
-                
+
                 {unreadCount > 0 && (
                     <span className="absolute -top-1 -right-1 h-5 w-5 bg-danger-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
                         {unreadCount > 9 ? '9+' : unreadCount}
@@ -120,7 +129,7 @@ export const NotificationDropdown: React.FC = () => {
                                     </button>
                                 </div>
                             </div>
-                            
+
                             <div className="flex items-center space-x-2 mt-2">
                                 <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'}`} />
                                 <span className="text-xs text-text-dim">
@@ -145,16 +154,15 @@ export const NotificationDropdown: React.FC = () => {
                                                 key={notification.id}
                                                 initial={{ opacity: 0, x: -20 }}
                                                 animate={{ opacity: 1, x: 0 }}
-                                                className={`p-4 hover:bg-white/5 cursor-pointer transition-colors ${
-                                                    !notification.read ? 'bg-white/5' : ''
-                                                }`}
+                                                className={`p-4 hover:bg-white/5 cursor-pointer transition-colors ${!notification.is_read ? 'bg-white/5' : ''
+                                                    }`}
                                                 onClick={() => handleNotificationClick(notification)}
                                             >
                                                 <div className="flex items-start space-x-3">
                                                     <div className={`p-2 rounded-lg ${getNotificationColor(notification.type)}`}>
                                                         <Icon className="w-4 h-4" />
                                                     </div>
-                                                    
+
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-start justify-between">
                                                             <div className="flex-1">
@@ -165,16 +173,16 @@ export const NotificationDropdown: React.FC = () => {
                                                                     {notification.message}
                                                                 </p>
                                                                 <p className="text-xs text-text-dim mt-2">
-                                                                    {formatRelativeTime(notification.timestamp)}
+                                                                    {formatRelativeTime(notification.created_at)}
                                                                 </p>
                                                             </div>
-                                                            
-                                                            {!notification.read && (
+
+                                                            {!notification.is_read && (
                                                                 <div className="w-2 h-2 bg-primary-500 rounded-full mt-1" />
                                                             )}
                                                         </div>
-                                                        
-                                                        {notification.actionUrl && (
+
+                                                        {notification.data?.actionUrl && (
                                                             <div className="flex items-center space-x-1 mt-2 text-primary-400">
                                                                 <ExternalLink className="w-3 h-3" />
                                                                 <span className="text-xs">View</span>

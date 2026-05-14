@@ -17,11 +17,12 @@ import {
     X,
     FileText,
     ExternalLink,
-    Star
+    Star,
+    DollarSign
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
-import { authService } from "@/services/authService";
+import { TradeService } from "@/services/tradeService";
 import Navbar from "@/components/layout/Navbar";
 import { useAuth } from "@/context/AuthContext";
 import DisputeModal from "@/components/trade/DisputeModal";
@@ -55,8 +56,8 @@ const TradeDetailPage = () => {
     const fetchTradeDetails = async () => {
         try {
             const [tradeData, msgData] = await Promise.all([
-                authService.getTradeDetails(id as string),
-                authService.getTradeMessages(id as string)
+                TradeService.getTradeDetails(id as string),
+                TradeService.getTradeMessages(id as string)
             ]);
             setTrade(tradeData);
             setMessages(msgData || []);
@@ -72,7 +73,7 @@ const TradeDetailPage = () => {
         if (!newMessage.trim()) return;
 
         try {
-            const msg = await authService.sendTradeMessage(id as string, newMessage);
+            const msg = await TradeService.sendTradeMessage(id as string, newMessage);
             setMessages([...messages, msg]);
             setNewMessage("");
         } catch (err: any) {
@@ -82,7 +83,7 @@ const TradeDetailPage = () => {
 
     const handleRaiseDispute = async (reasonCode: string, reasonText: string) => {
         try {
-            await authService.disputeTrade(id as string, reasonCode, reasonText);
+            await TradeService.disputeTrade(id as string, reasonCode, reasonText);
             fetchTradeDetails();
         } catch (err: any) {
             throw err;
@@ -91,7 +92,7 @@ const TradeDetailPage = () => {
 
     const handleLeaveFeedback = async (rating: string, comment: string) => {
         try {
-            await authService.leaveFeedback(id as string, rating, comment);
+            await TradeService.leaveFeedback(id as string, rating, comment);
             fetchTradeDetails();
         } catch (err: any) {
             throw err;
@@ -101,7 +102,7 @@ const TradeDetailPage = () => {
     const handleAction = async (action: string) => {
         setIsUpdating(true);
         try {
-            await authService.updateTradeStatus(id as string, action);
+            await TradeService.updateTradeStatus(id as string, action);
             toast.success(`Trade ${action === 'pay' ? 'marked as paid' : action === 'release' ? 'assets released' : 'cancelled'}`);
             fetchTradeDetails();
         } catch (err: any) {
@@ -159,22 +160,22 @@ const TradeDetailPage = () => {
                                 <div className="flex justify-between items-end">
                                     <div className="space-y-1">
                                         <p className="text-[10px] font-black text-text-dim uppercase tracking-widest">Receiving Asset</p>
-                                        <h2 className="text-3xl font-black italic">{trade.crypto_amount.toFixed(2)} USDT</h2>
+                                        <h2 className="text-3xl font-black italic">{trade.crypto_amount.toFixed(2)} {trade.crypto_symbol || 'USDT'}</h2>
                                     </div>
                                     <div className="text-right space-y-1">
                                         <p className="text-[10px] font-black text-text-dim uppercase tracking-widest">Total Price</p>
-                                        <h2 className="text-2xl font-black italic text-accent">{trade.fiat_amount.toLocaleString()} USD</h2>
+                                        <h2 className="text-2xl font-black italic text-accent">{trade.fiat_amount.toLocaleString()} {trade.fiat_symbol || 'USD'}</h2>
                                     </div>
                                 </div>
 
                                 <div className="p-4 bg-white/5 rounded-2xl border border-white/5 space-y-3">
                                     <div className="flex justify-between text-xs">
                                         <span className="text-text-dim uppercase tracking-widest font-black text-[10px]">Exchange Rate</span>
-                                        <span className="font-bold">1 USDT = {trade.exchange_rate} USD</span>
+                                        <span className="font-bold">1 {trade.crypto_symbol || 'USDT'} = {trade.exchange_rate} {trade.fiat_symbol || 'USD'}</span>
                                     </div>
                                     <div className="flex justify-between text-xs">
                                         <span className="text-text-dim uppercase tracking-widest font-black text-[10px]">Payment Method</span>
-                                        <span className="font-bold">Bank Transfer</span>
+                                        <span className="font-bold capitalize">{trade.payment_method_name || 'Bank Transfer'}</span>
                                     </div>
                                     <div className="flex justify-between text-xs">
                                         <span className="text-text-dim uppercase tracking-widest font-black text-[10px]">Trade Window</span>
@@ -185,6 +186,58 @@ const TradeDetailPage = () => {
                                 </div>
                             </div>
                         </section>
+
+                        {/* Payment Information */}
+                        {(trade.payment_method_name || trade.payment_method) && (
+                            <section className="glass rounded-[2.5rem] border-white/5 p-8 relative overflow-hidden">
+                                <div className="absolute -bottom-4 -left-4 w-24 h-24 bg-accent/5 blur-2xl -z-10" />
+                                <h2 className="text-lg font-black text-white mb-6 uppercase italic tracking-tight">Payment Information</h2>
+
+                                <div className="space-y-6">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">
+                                            <DollarSign className="w-6 h-6 text-primary" />
+                                        </div>
+                                        <div>
+                                            <p className="text-text-dim text-[10px] uppercase font-black tracking-widest mb-1">Payment Method</p>
+                                            <p className="text-xl font-bold text-white capitalize">{trade.payment_method_name || "Bank Transfer"}</p>
+                                        </div>
+                                    </div>
+
+                                    {trade.payment_details ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                            {trade.payment_details.bank_name && (
+                                                <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
+                                                    <p className="text-text-dim text-[8px] uppercase font-black tracking-widest mb-1">Bank Name</p>
+                                                    <p className="text-white font-bold">{trade.payment_details.bank_name}</p>
+                                                </div>
+                                            )}
+                                            {trade.payment_details.account_number && (
+                                                <div className="p-4 rounded-2xl bg-white/5 border border-white/5 group/copy relative">
+                                                    <p className="text-text-dim text-[8px] uppercase font-black tracking-widest mb-1">Account Number</p>
+                                                    <p className="text-white font-bold font-mono tracking-wider">{trade.payment_details.account_number}</p>
+                                                </div>
+                                            )}
+                                            {trade.payment_details.account_name && (
+                                                <div className="p-4 rounded-2xl bg-white/5 border border-white/5 col-span-1 md:col-span-2">
+                                                    <p className="text-text-dim text-[8px] uppercase font-black tracking-widest mb-1">Account Name</p>
+                                                    <p className="text-white font-bold">{trade.payment_details.account_name}</p>
+                                                </div>
+                                            )}
+                                            {trade.payment_details.message && (
+                                                <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 col-span-1 md:col-span-2">
+                                                    <p className="text-primary text-[10px] font-bold">{trade.payment_details.message}</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="p-4 rounded-2xl bg-white/5 border border-white/5 text-center">
+                                            <p className="text-text-dim text-[10px] font-bold uppercase tracking-widest italic opacity-50">Fetching payment details...</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </section>
+                        )}
 
                         <section className="glass rounded-[2.5rem] border-white/5 p-8 space-y-6 sticky top-24">
                             <div className="flex items-center gap-3">

@@ -16,17 +16,15 @@ func (r *tradeRepository) CreateTrade(ctx context.Context, t *trading.Trade) err
 	return r.db.QueryRowContext(ctx, `
 		INSERT INTO trades (
 			trade_id, ad_id, buyer_id, seller_id, crypto_id, fiat_id,
-			crypto_amount, fiat_amount, rate, status, payment_method_code,
-			escrow_wallet_id, tx_hash, payment_window_minutes,
-			expires_at, paid_at, released_at, completed_at, cancelled_at,
-			disputed_at, created_at, updated_at
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20, NOW(), NOW())
+			crypto_amount, fiat_amount, exchange_rate, agreed_price,
+			price_type, status, payment_method, payment_details,
+			payment_window_minutes, started_at, created_at, updated_at
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16, NOW(), NOW())
 		RETURNING created_at, updated_at`,
 		t.TradeID, t.AdID, t.BuyerID, t.SellerID,
 		t.CryptoID, t.FiatID, t.CryptoAmount, t.FiatAmount,
-		t.Rate, t.Status, t.PaymentMethodCode, t.EscrowWalletID,
-		t.TxHash, t.PaymentWindowMinutes, t.ExpiresAt, t.PaidAt,
-		t.ReleasedAt, t.CompletedAt, t.CancelledAt, t.DisputedAt,
+		t.ExchangeRate, t.AgreedPrice, t.PriceType, t.Status,
+		t.PaymentMethod, t.PaymentDetails, t.PaymentWindowMinutes, t.StartedAt,
 	).Scan(&t.CreatedAt, &t.UpdatedAt)
 }
 
@@ -57,7 +55,7 @@ func (r *tradeRepository) ListTrades(ctx context.Context, userID uuid.UUID, role
 		where = "(buyer_id = $1 OR seller_id = $1)"
 	}
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT `+tradeColumns+` FROM trades WHERE `+where+` ORDER BY created_at DESC`,
+		`SELECT `+tradeColumns+` FROM trades WHERE `+where+` AND deleted_at IS NULL ORDER BY created_at DESC`,
 		userID)
 	if err != nil {
 		return nil, fmt.Errorf("list trades: %w", err)
@@ -70,10 +68,10 @@ func (r *tradeRepository) ListAllTrades(ctx context.Context, status string) ([]t
 	var query string
 	var args []interface{}
 	if status != "" && status != "all" {
-		query = `SELECT ` + tradeColumns + ` FROM trades WHERE status = $1 ORDER BY created_at DESC`
+		query = `SELECT ` + tradeColumns + ` FROM trades WHERE status = $1 AND deleted_at IS NULL ORDER BY created_at DESC`
 		args = append(args, status)
 	} else {
-		query = `SELECT ` + tradeColumns + ` FROM trades ORDER BY created_at DESC`
+		query = `SELECT ` + tradeColumns + ` FROM trades WHERE deleted_at IS NULL ORDER BY created_at DESC`
 	}
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -88,10 +86,10 @@ func (r *tradeRepository) CountTrades(ctx context.Context, status string) (int, 
 	var err error
 	if status != "" && status != "all" {
 		err = r.db.QueryRowContext(ctx,
-			`SELECT COUNT(*) FROM trades WHERE status = $1`, status).Scan(&count)
+			`SELECT COUNT(*) FROM trades WHERE status = $1 AND deleted_at IS NULL`, status).Scan(&count)
 	} else {
 		err = r.db.QueryRowContext(ctx,
-			`SELECT COUNT(*) FROM trades`).Scan(&count)
+			`SELECT COUNT(*) FROM trades WHERE deleted_at IS NULL`).Scan(&count)
 	}
 	if err != nil {
 		return 0, fmt.Errorf("count trades: %w", err)
@@ -104,8 +102,9 @@ func (r *tradeRepository) ListExpiredPendingTrades(ctx context.Context, now time
 		SELECT `+tradeColumns+`
 		FROM trades
 		WHERE status IN ('pending', 'active')
-		  AND paid_at IS NULL
-		  AND (created_at + make_interval(mins => payment_window_minutes)) <= $1`, now)
+		  AND payment_marked_at IS NULL
+		  AND deleted_at IS NULL
+		  AND (started_at + make_interval(mins => payment_window_minutes)) <= $1`, now)
 	if err != nil {
 		return nil, fmt.Errorf("list expired pending trades: %w", err)
 	}
@@ -116,12 +115,12 @@ func (r *tradeRepository) ListExpiredPendingTrades(ctx context.Context, now time
 func (r *tradeRepository) UpdateTrade(ctx context.Context, t *trading.Trade) error {
 	_, err := r.db.ExecContext(ctx, `
 		UPDATE trades
-		SET status = $1, paid_at = $2, released_at = $3,
-		    cancelled_at = $4, completed_at = $5, expires_at = $6,
-		    disputed_at = $7, updated_at = NOW()
-		WHERE trade_id = $8`,
-		t.Status, t.PaidAt, t.ReleasedAt, t.CancelledAt,
-		t.CompletedAt, t.ExpiresAt, t.DisputedAt, t.TradeID,
+		SET status = $1, payment_marked_at = $2, released_at = $3,
+		    cancelled_at = $4, completed_at = $5, expired_at = $6,
+		    cancel_reason = $7, updated_at = NOW()
+		WHERE trade_id = $8 AND deleted_at IS NULL`,
+		t.Status, t.PaymentMarkedAt, t.ReleasedAt, t.CancelledAt,
+		t.CompletedAt, t.ExpiredAt, t.CancelReason, t.TradeID,
 	)
 	if err != nil {
 		return fmt.Errorf("update trade: %w", err)
